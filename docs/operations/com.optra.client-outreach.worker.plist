@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS launchd schedule for the daily outreach worker.
+
+  Install:
+    1. Confirm WorkingDirectory path below matches this machine.
+    2. cp docs/operations/com.optra.client-outreach.worker.plist ~/Library/LaunchAgents/
+    3. launchctl load ~/Library/LaunchAgents/com.optra.client-outreach.worker.plist
+
+  Runs weekdays at 07:30 local time.
+-->
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.optra.client-outreach.worker</string>
+    <key>WorkingDirectory</key>
+    <string>/Users/milosdostanic/Documents/💼 Work/Optra/client-outreach</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/usr/bin/env</string>
+      <string>npm</string>
+      <string>run</string>
+      <string>worker</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <array>
+      <dict>
+        <key>Weekday</key><integer>1</integer>
+        <key>Hour</key><integer>7</integer>
+        <key>Minute</key><integer>30</integer>
+      </dict>
+      <dict>
+        <key>Weekday</key><integer>2</integer>
+        <key>Hour</key><integer>7</integer>
+        <key>Minute</key><integer>30</integer>
+      </dict>
+      <dict>
+        <key>Weekday</key><integer>3</integer>
+        <key>Hour</key><integer>7</integer>
+        <key>Minute</key><integer>30</integer>
+      </dict>
+      <dict>
+        <key>Weekday</key><integer>4</integer>
+        <key>Hour</key><integer>7</integer>
+        <key>Minute</key><integer>30</integer>
+      </dict>
+      <dict>
+        <key>Weekday</key><integer>5</integer>
+        <key>Hour</key><integer>7</integer>
+        <key>Minute</key><integer>30</integer>
+      </dict>
+    </array>
+    <key>StandardOutPath</key>
+    <string>/Users/milosdostanic/Documents/💼 Work/Optra/client-outreach/data/worker.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/milosdostanic/Documents/💼 Work/Optra/client-outreach/data/worker.err.log</string>
+  </dict>
+</plist>

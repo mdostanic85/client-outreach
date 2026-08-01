@@ -1,0 +1,167 @@
+import { createHash } from "node:crypto";
+import { Readability } from "@mozilla/readability";
+import * as cheerio from "cheerio";
+import { JSDOM } from "jsdom";
+import { isBlockedUrl } from "@/lib/security/ssrf";
+import { logger } from "@/lib/logging/logger";
+
+const MAX_BYTES = 1_500_000;
+const TIMEOUT_MS = 15_000;
+
+export type RetrievedPage = {
+  url: string;
+  finalUrl: string;
+  title: string | null;
+  retrievedAt: string;
+  contentHash: string | null;
+  extractionMethod: string | null;
+  extractedText: string | null;
+  textLength: number;
+  httpStatus: number | null;
+  status: "ok" | "failed";
+  error: string | null;
+};
+
+export async function retrievePage(url: string): Promise<RetrievedPage> {
+  const retrievedAt = new Date().toISOString();
+
+  const blocked = await isBlockedUrl(url);
+  if (blocked) {
+    return {
+      url,
+      finalUrl: url,
+      title: null,
+      retrievedAt,
+      contentHash: null,
+      extractionMethod: null,
+      extractedText: null,
+      textLength: 0,
+      httpStatus: null,
+      status: "failed",
+      error: blocked,
+    };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      redirect: "follow",
+      headers: {
+        "User-Agent": "ClientOutreachBot/0.1 (+local; research)",
+        Accept: "text/html,application/xhtml+xml",
+      },
+    });
+
+    const contentType = res.headers.get("content-type") ?? "";
+    if (!contentType.includes("text/html") && !contentType.includes("application/xhtml")) {
+      return {
+        url,
+        finalUrl: res.url,
+        title: null,
+        retrievedAt,
+        contentHash: null,
+        extractionMethod: null,
+        extractedText: null,
+        textLength: 0,
+        httpStatus: res.status,
+        status: "failed",
+        error: `Unsupported content-type: ${contentType}`,
+      };
+    }
+
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.byteLength > MAX_BYTES) {
+      return {
+        url,
+        finalUrl: res.url,
+        title: null,
+        retrievedAt,
+        contentHash: null,
+        extractionMethod: null,
+        extractedText: null,
+        textLength: 0,
+        httpStatus: res.status,
+        status: "failed",
+        error: `Response too large: ${buf.byteLength} bytes`,
+      };
+    }
+
+    if (!res.ok) {
+      return {
+        url,
+        finalUrl: res.url,
+        title: null,
+        retrievedAt,
+        contentHash: null,
+        extractionMethod: null,
+        extractedText: null,
+        textLength: 0,
+        httpStatus: res.status,
+        status: "failed",
+        error: `HTTP ${res.status}`,
+      };
+    }
+
+    const html = buf.toString("utf8");
+    const extracted = extractText(html, res.url);
+    const contentHash = createHash("sha256").update(extracted.text).digest("hex");
+
+    return {
+      url,
+      finalUrl: res.url,
+      title: extracted.title,
+      retrievedAt,
+      contentHash,
+      extractionMethod: extracted.method,
+      extractedText: extracted.text.slice(0, 40_000),
+      textLength: extracted.text.length,
+      httpStatus: res.status,
+      status: "ok",
+      error: null,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn({ url, err: message }, "Page retrieval failed");
+    return {
+      url,
+      finalUrl: url,
+      title: null,
+      retrievedAt,
+      contentHash: null,
+      extractionMethod: null,
+      extractedText: null,
+      textLength: 0,
+      httpStatus: null,
+      status: "failed",
+      error: message,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function extractText(html: string, url: string): { title: string | null; text: string; method: string } {
+  try {
+    const dom = new JSDOM(html, { url });
+    const reader = new Readability(dom.window.document);
+    const article = reader.parse();
+    if (article?.textContent && article.textContent.trim().length > 200) {
+      return {
+        title: article.title ?? null,
+        text: article.textContent.replace(/\s+/g, " ").trim(),
+        method: "readability",
+      };
+    }
+  } catch {
+    // fall through to cheerio
+  }
+
+  const $ = cheerio.load(html);
+  $("script, style, noscript, nav, footer, iframe").remove();
+  const title = $("title").first().text().trim() || null;
+  const text = $("body").text().replace(/\s+/g, " ").trim();
+  return { title, text, method: "cheerio" };
+}

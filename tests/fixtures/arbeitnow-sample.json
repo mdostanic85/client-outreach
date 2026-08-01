@@ -1,0 +1,16 @@
+{
+  "data": [
+    {
+      "slug": "senior-product-designer-berlin-xyz",
+      "company_name": "Nordic Product GmbH",
+      "title": "Head of Design",
+      "description": "<p>Berlin office. Apply via <a href=\"https://nordicproduct.example/careers\">careers</a></p>",
+      "remote": true,
+      "url": "https://www.arbeitnow.com/jobs/senior-product-designer-berlin-xyz",
+      "tags": ["design"],
+      "job_types": ["full-time"],
+      "location": "Berlin, Germany",
+      "created_at": 1721600000
+    }
+  ]
+}

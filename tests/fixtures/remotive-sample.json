@@ -1,0 +1,28 @@
+{
+  "job-count": 2,
+  "jobs": [
+    {
+      "id": 1001,
+      "url": "https://remotive.com/remote-jobs/design/1001",
+      "title": "Senior Product Designer",
+      "company_name": "Acme Design Systems Inc",
+      "category": "design",
+      "job_type": "full_time",
+      "publication_date": "2026-07-20T10:00:00",
+      "candidate_required_location": "Europe",
+      "description": "<p>Join us. Website <a href=\"https://www.acmedesign.example\">acmedesign.example</a></p>",
+      "tags": ["design", "figma"]
+    },
+    {
+      "id": 1002,
+      "url": "https://remotive.com/remote-jobs/design/1002",
+      "title": "UX Designer",
+      "company_name": "Acme Design Systems Inc",
+      "category": "design",
+      "publication_date": "2026-07-21T10:00:00",
+      "candidate_required_location": "Worldwide",
+      "description": "<p>Same company duplicate posting.</p>",
+      "tags": ["ux"]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+{
+  "generic": ["hello@acmedesign.example", "jobs@acmedesign.example", "info@acmedesign.example"],
+  "personal": ["jane.doe@acmedesign.example", "sam.lee@acmedesign.example"]
+}
