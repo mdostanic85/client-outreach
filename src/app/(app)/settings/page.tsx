@@ -1,5 +1,5 @@
 import { SettingsForm } from "@/components/settings-form";
-import { PageHeader, PageShell } from "@/components/page-shell";
+import { PageShell, SectionTitle } from "@/components/page-shell";
 import { getSettingsRow } from "@/modules/leads/queries";
 
 export const dynamic = "force-dynamic";
@@ -8,15 +8,15 @@ export default function SettingsPage() {
   const row = getSettingsRow();
   if (!row) {
     return (
-      <PageShell width="form">
+      <PageShell width="form" className="gap-6 lg:gap-8">
         <p className="text-muted-foreground text-sm">Settings not initialized.</p>
       </PageShell>
     );
   }
 
   return (
-    <PageShell width="form">
-      <PageHeader
+    <PageShell width="form" className="gap-6 lg:gap-8">
+      <SectionTitle
         title="Outreach voice"
         description="Tone and proof points for cold emails. Keep notes short and specific."
       />

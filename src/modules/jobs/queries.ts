@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { companies, jobMatches, jobs, settings } from "@/db/schema";
 import { nowIso } from "@/lib/ids";
+import { recordJobOutcomeEvent } from "@/modules/learning/job-outcomes";
 
 export type JobTriageState =
   | "discovered"
@@ -39,7 +40,6 @@ export function listDailyJobs(limit?: number): DailyJobRow[] {
     .filter((j) => j.triageState !== "rejected" && j.triageState !== "applied")
     .slice(0, cap);
 
-  // Prefer jobs that are published today-ish; also include saved
   const rows: DailyJobRow[] = [];
   for (const job of published) {
     const company = job.companyId
@@ -110,11 +110,13 @@ export function setJobTriageState(
   const db = getDb();
   const row = db.select().from(jobs).where(eq(jobs.id, jobId)).get();
   if (!row) throw new Error("Job not found");
+  const now = nowIso();
   db.update(jobs)
     .set({
       triageState: state,
       rejectReason: state === "rejected" ? rejectReason?.trim() || null : null,
-      updatedAt: nowIso(),
+      updatedAt: now,
+      ...(state === "applied" ? { appliedAt: row.appliedAt ?? now } : {}),
     })
     .where(eq(jobs.id, jobId))
     .run();
@@ -122,19 +124,23 @@ export function setJobTriageState(
 
 export function interestedJob(jobId: string) {
   setJobTriageState(jobId, "interested");
+  recordJobOutcomeEvent(jobId, "interested");
 }
 
 export function rejectJob(jobId: string, reason: string) {
   if (!reason.trim()) throw new Error("Reject reason required");
   setJobTriageState(jobId, "rejected", reason);
+  recordJobOutcomeEvent(jobId, "rejected", { reason: reason.trim() });
 }
 
 export function saveJobForLater(jobId: string) {
   setJobTriageState(jobId, "saved");
+  recordJobOutcomeEvent(jobId, "saved");
 }
 
 export function markJobApplied(jobId: string) {
   setJobTriageState(jobId, "applied");
+  recordJobOutcomeEvent(jobId, "applied");
 }
 
 export function setTodayMode(mode: "jobs" | "clients") {
@@ -150,4 +156,22 @@ export function setTodayMode(mode: "jobs" | "clients") {
 export function getTodayMode(): "jobs" | "clients" {
   const row = getDb().select().from(settings).all()[0];
   return row?.todayMode === "clients" ? "clients" : "jobs";
+}
+
+export function getAdaptiveJobRanking(): boolean {
+  const row = getDb().select().from(settings).all()[0];
+  return row?.adaptiveJobRanking !== 0;
+}
+
+export function setAdaptiveJobRanking(enabled: boolean) {
+  const db = getDb();
+  const row = db.select().from(settings).all()[0];
+  if (!row) throw new Error("Settings missing");
+  db.update(settings)
+    .set({
+      adaptiveJobRanking: enabled ? 1 : 0,
+      updatedAt: nowIso(),
+    })
+    .where(eq(settings.id, row.id))
+    .run();
 }

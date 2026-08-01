@@ -15,6 +15,7 @@ import { newId, nowIso } from "@/lib/ids";
 import { logger } from "@/lib/logging/logger";
 import { assertGatesOrPreview } from "./gates";
 import { buildSourcePerformance } from "./reports";
+import { approveSearchProfile } from "@/modules/search-profile/approve";
 
 function parseJsonLoose(text: string): unknown {
   const trimmed = text.trim();
@@ -305,6 +306,14 @@ export function applyProposal(proposalId: string) {
         })
         .run();
     }
+  } else if (proposal.kind === "search_strategy") {
+    const payload = JSON.parse(proposal.proposalJson) as {
+      draftSearchProfileId?: string;
+    };
+    if (!payload.draftSearchProfileId) {
+      throw new Error("search_strategy proposal missing draftSearchProfileId");
+    }
+    approveSearchProfile(payload.draftSearchProfileId);
   } else {
     throw new Error(`Unknown proposal kind: ${proposal.kind}`);
   }

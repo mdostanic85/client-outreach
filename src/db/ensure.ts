@@ -63,6 +63,7 @@ export function ensureDb() {
         }),
         mailboxHealthJson: "{}",
         opsChecklistJson: "{}",
+        adaptiveJobRanking: 1,
         createdAt: now,
         updatedAt: now,
       })

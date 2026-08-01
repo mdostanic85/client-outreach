@@ -148,6 +148,8 @@ export type GenerationTrigger =
   | "profile_changed"
   | "feedback_batch"
   | "irrelevant_streak"
+  | "weekly_insight"
+  | "strategy_cycle"
   | "manual";
 
 /**

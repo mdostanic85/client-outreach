@@ -565,6 +565,8 @@ export async function applyLearningProposalAction(
     applyProposal(proposalId);
     revalidatePath("/learning");
     revalidatePath("/settings");
+    revalidatePath("/search-criteria");
+    revalidatePath("/");
     return { ok: true, data: undefined };
   } catch (err) {
     return fail(err);
@@ -886,7 +888,25 @@ export async function saveProfileDraftAction(
     const { saveDraftProfileEdits } = await import("@/modules/profile/extract");
     saveDraftProfileEdits(profileId, profile);
     revalidatePath("/profile");
+    revalidatePath("/onboarding");
     return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function createProfileDraftFromApprovedAction(): Promise<
+  ActionResult<{ profileId: string; version: number }>
+> {
+  try {
+    ensureDb();
+    const { createDraftFromApprovedProfile } = await import(
+      "@/modules/profile/extract"
+    );
+    const result = createDraftFromApprovedProfile();
+    revalidatePath("/profile");
+    revalidatePath("/onboarding");
+    return { ok: true, data: result };
   } catch (err) {
     return fail(err);
   }
@@ -1071,3 +1091,107 @@ export async function setTodayModeAction(
     return fail(err);
   }
 }
+
+export async function setJobOutcomeAction(
+  jobId: string,
+  outcome:
+    | "no_response"
+    | "recruiter_response"
+    | "interview"
+    | "rejected"
+    | "offer"
+    | "accepted",
+  note?: string,
+): Promise<ActionResult> {
+  try {
+    ensureDb();
+    const { setJobOutcome } = await import("@/modules/learning/job-outcomes");
+    setJobOutcome(jobId, outcome, note);
+    revalidatePath("/learning");
+    revalidatePath("/");
+    revalidatePath(`/jobs/${jobId}`);
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function generateWeeklyJobInsightsAction(
+  force = false,
+): Promise<ActionResult<{ reportId: string }>> {
+  try {
+    ensureDb();
+    const { generateWeeklyJobInsights } = await import(
+      "@/modules/learning/job-insights"
+    );
+    const result = generateWeeklyJobInsights(force);
+    revalidatePath("/learning");
+    return { ok: true, data: { reportId: result.reportId } };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function proposeSearchStrategyAction(
+  force = false,
+): Promise<ActionResult<{ proposalId: string; version: number }>> {
+  try {
+    ensureDb();
+    const { proposeSearchStrategyUpdate } = await import(
+      "@/modules/learning/job-insights"
+    );
+    const result = await proposeSearchStrategyUpdate(force);
+    revalidatePath("/learning");
+    revalidatePath("/search-criteria");
+    return {
+      ok: true,
+      data: { proposalId: result.proposalId, version: result.version },
+    };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function setAdaptiveJobRankingAction(
+  enabled: boolean,
+): Promise<ActionResult> {
+  try {
+    ensureDb();
+    const { setAdaptiveJobRanking } = await import("@/modules/jobs/queries");
+    setAdaptiveJobRanking(enabled);
+    revalidatePath("/learning");
+    revalidatePath("/");
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function reactivateSearchStrategyAction(
+  version: number,
+): Promise<ActionResult<{ version: number }>> {
+  try {
+    ensureDb();
+    const { getDb } = await import("@/db/client");
+    const { jobSearchProfiles } = await import("@/db/schema");
+    const { eq, desc } = await import("drizzle-orm");
+    const { reactivateSearchProfile } = await import(
+      "@/modules/search-profile/approve"
+    );
+    const row = getDb()
+      .select()
+      .from(jobSearchProfiles)
+      .where(eq(jobSearchProfiles.version, version))
+      .orderBy(desc(jobSearchProfiles.createdAt))
+      .all()[0];
+    if (!row) throw new Error(`No search profile for version ${version}`);
+    const result = reactivateSearchProfile(row.id);
+    revalidatePath("/learning");
+    revalidatePath("/search-criteria");
+    revalidatePath("/");
+    return { ok: true, data: result };
+  } catch (err) {
+    return fail(err);
+  }
+}
+

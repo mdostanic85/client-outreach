@@ -1,36 +1,72 @@
-import { Button } from "@/components/ui/button";
+import type { ReactNode } from "react";
+import Link from "next/link";
+import { Search } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function EmptyState({
   title,
   description,
   actionLabel,
   onAction,
+  actionHref,
   pending,
+  actionId,
+  icon,
+  className,
 }: {
   title: string;
   description: string;
   actionLabel?: string;
   onAction?: () => void;
+  actionHref?: string;
   pending?: boolean;
+  actionId?: string;
+  icon?: ReactNode;
+  className?: string;
 }) {
+  const showAction = Boolean(actionLabel && (onAction || actionHref));
+
   return (
-    <div className="flex flex-col items-center justify-center gap-5 px-8 py-20 text-center">
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center gap-5 px-6 py-14 text-center sm:px-8 sm:py-16",
+        className,
+      )}
+    >
       <div
         aria-hidden
-        className="border-border from-accent-wash/80 to-white/5 h-20 w-full max-w-sm rounded-2xl border border-dashed bg-linear-to-br"
-      />
-      <div className="space-y-3">
-        <p className="font-display text-[20px] font-semibold text-[var(--card-foreground)]">
+        className="border-border bg-muted/40 text-muted-foreground grid size-14 place-items-center rounded-2xl border"
+      >
+        {icon ?? <Search className="size-6 opacity-70" strokeWidth={1.5} />}
+      </div>
+      <div className="space-y-2">
+        <p className="font-display text-[18px] font-semibold text-[var(--card-foreground)] sm:text-[20px]">
           {title}
         </p>
-        <p className="text-muted-foreground max-w-md text-[15px] leading-relaxed">
+        <p className="text-muted-foreground mx-auto max-w-sm text-[14px] leading-relaxed sm:text-[15px]">
           {description}
         </p>
       </div>
-      {actionLabel && onAction ? (
-        <Button size="lg" disabled={pending} onClick={onAction}>
-          {actionLabel}
-        </Button>
+      {showAction ? (
+        actionHref ? (
+          <Link
+            id={actionId}
+            href={actionHref}
+            className={buttonVariants({ size: "lg" })}
+          >
+            {actionLabel}
+          </Link>
+        ) : (
+          <Button
+            id={actionId}
+            size="lg"
+            disabled={pending}
+            onClick={onAction}
+          >
+            {actionLabel}
+          </Button>
+        )
       ) : null}
     </div>
   );

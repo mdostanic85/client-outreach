@@ -5,15 +5,16 @@ import { useState } from "react";
 import { QueueControls } from "@/components/queue-controls";
 import { EmptyState } from "@/components/empty-state";
 import {
-  PageHeader,
   PageShell,
   PanelHeader,
+  SectionTitle,
   Surface,
 } from "@/components/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { listOutboundBoard } from "@/modules/mail/queries";
+import { Inbox, Mail, Send, TriangleAlert } from "lucide-react";
 
 type Board = ReturnType<typeof listOutboundBoard>;
 type Tab = "pending" | "scheduled" | "sent" | "failed";
@@ -54,21 +55,21 @@ export function QueueBoard({
   const paused = Boolean(status.health.pausedAt);
 
   return (
-    <PageShell>
-      <PageHeader
+    <PageShell className="gap-6 lg:gap-8">
+      <SectionTitle
         title="Queue"
-        description={`Max ${status.policy.maxNewPerDay}/day · ${status.sentToday} sent · ${status.remainingToday} remaining${status.policy.weekdaysOnly ? " · weekdays only" : ""}`}
+        description={`Max ${status.policy.maxNewPerDay}/day · ${status.sentToday} sent · ${status.remainingToday} left${status.policy.weekdaysOnly ? " · weekdays" : ""}`}
         actions={<QueueControls paused={paused} />}
       />
 
-      <div className="bg-card border-border flex flex-wrap items-center gap-4 rounded-[18px] border px-8 py-6 text-[15px] shadow-[var(--shadow-card)]">
+      <div className="bg-card border-border flex flex-wrap items-center gap-3 rounded-2xl border px-5 py-3.5 text-[14px] shadow-[var(--shadow-card)]">
         <span
           className={cn(
-            "size-2.5 rounded-full",
+            "size-2 rounded-full",
             paused
               ? "bg-destructive"
               : status.credentialsConfigured
-                ? "bg-primary shadow-[0_0_12px_rgba(57,161,133,0.5)]"
+                ? "bg-primary"
                 : "bg-warn",
           )}
         />
@@ -80,35 +81,46 @@ export function QueueBoard({
               : "Mailbox credentials missing"}
         </span>
         <span className="text-muted-foreground text-[13px]">
-          Credentials stay in macOS Keychain
+          Keychain credentials
         </span>
       </div>
 
       <Surface>
-        <PanelHeader>
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[13px] transition-colors",
-                tab === t.id
-                  ? "bg-primary text-primary-foreground font-medium"
-                  : "text-muted-foreground hover:bg-white/5 hover:text-[var(--card-foreground)]",
-              )}
-            >
-              {t.label}
-              <span className="tabular opacity-80">{t.count}</span>
-            </button>
-          ))}
+        <PanelHeader className="gap-2">
+          <div
+            role="tablist"
+            aria-label="Queue status"
+            className="bg-muted/50 border-border inline-flex flex-wrap gap-1 rounded-xl border p-1"
+          >
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.id}
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors",
+                  tab === t.id
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {t.label}
+                <span className="tabular opacity-80">{t.count}</span>
+              </button>
+            ))}
+          </div>
         </PanelHeader>
 
         {tab === "pending" ? (
           board.pending.length === 0 ? (
             <EmptyState
-              title="No drafts waiting for approval"
-              description="Generate and edit outreach on a lead, then approve it into the scheduled queue."
+              title="No drafts waiting"
+              description="Write outreach on a company from Today, then approve it into the send queue."
+              actionLabel="Go to Today"
+              actionHref="/"
+              icon={<Inbox className="size-6 opacity-70" strokeWidth={1.5} />}
             />
           ) : (
             <ul className="divide-border divide-y">
@@ -131,8 +143,11 @@ export function QueueBoard({
         {tab === "scheduled" ? (
           board.scheduled.length === 0 ? (
             <EmptyState
-              title="Queue is empty"
-              description="Approved drafts appear here until the send worker processes them."
+              title="Nothing scheduled"
+              description="Approved drafts wait here until the send worker processes them."
+              actionLabel="Review pending"
+              onAction={() => setTab("pending")}
+              icon={<Mail className="size-6 opacity-70" strokeWidth={1.5} />}
             />
           ) : (
             <ul className="divide-border divide-y">
@@ -156,7 +171,10 @@ export function QueueBoard({
           board.sent.length === 0 ? (
             <EmptyState
               title="Nothing sent yet"
-              description="Processed queue items show up here after a successful send."
+              description="Successful sends show up here after the worker processes the queue."
+              actionLabel="View scheduled"
+              onAction={() => setTab("scheduled")}
+              icon={<Send className="size-6 opacity-70" strokeWidth={1.5} />}
             />
           ) : (
             <ul className="divide-border divide-y">
@@ -179,7 +197,10 @@ export function QueueBoard({
           board.failed.length === 0 ? (
             <EmptyState
               title="No delivery failures"
-              description="Hard/soft bounces and send failures will list here."
+              description="Bounces and send failures will list here if something goes wrong."
+              icon={
+                <TriangleAlert className="size-6 opacity-70" strokeWidth={1.5} />
+              }
             />
           ) : (
             <ul className="divide-border divide-y">

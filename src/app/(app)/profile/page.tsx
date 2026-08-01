@@ -1,5 +1,6 @@
 import { ProfileWorkspace } from "@/components/profile-workspace";
-import { PageHeader, PageShell } from "@/components/page-shell";
+import { PageShell, SectionTitle } from "@/components/page-shell";
+import { Badge } from "@/components/ui/badge";
 import { ensureDb } from "@/db/ensure";
 import {
   getApprovedProfile,
@@ -23,14 +24,21 @@ export default function ProfilePage() {
   const approved = getApprovedProfile();
 
   return (
-    <PageShell width="lead">
-      <PageHeader
+    <PageShell width="lead" className="gap-6 lg:gap-8">
+      <SectionTitle
         title="Profile"
-        description="Add your CV, LinkedIn, portfolio, or notes. Review the draft, then approve it for matching."
+        description="Sources → draft → approve. Matching uses the approved version."
         meta={
-          approved
-            ? `Matching uses approved version ${approved.version}`
-            : "No approved profile yet"
+          <div className="flex flex-wrap gap-2 pt-1">
+            {approved ? (
+              <Badge>Approved v{approved.version}</Badge>
+            ) : (
+              <Badge variant="outline">Not approved yet</Badge>
+            )}
+            {draft ? (
+              <Badge variant="secondary">Draft v{draft.version}</Badge>
+            ) : null}
+          </div>
         }
       />
       <ProfileWorkspace

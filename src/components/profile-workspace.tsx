@@ -5,6 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import { Check, ChevronDown, FileText, FolderGit2, Link2, X } from "lucide-react";
 import {
   approveProfileAction,
+  createProfileDraftFromApprovedAction,
   deleteProfileSourceAction,
   extractProfileAction,
   ingestCvAction,
@@ -21,19 +22,13 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { FileDropzone } from "@/components/file-dropzone";
-import {
-  PanelBody,
-  PanelHeader,
-  SectionTitle,
-  Surface,
-} from "@/components/page-shell";
+import { PanelBody, Surface } from "@/components/page-shell";
 import type { StructuredProfile } from "@/modules/profile/schemas";
 import {
   COMPENSATION_CURRENCIES,
   EMPTY_STRUCTURED_PROFILE,
   formatCompensation,
   resolveCompensation,
-  type CompensationCurrency,
   type CompensationExpectation,
 } from "@/modules/profile/schemas";
 import { cn } from "@/lib/utils";
@@ -73,7 +68,7 @@ type ReviewTab = "essentials" | "skills" | "preferences" | "advanced";
 const REVIEW_TABS: Array<{ id: ReviewTab; label: string }> = [
   { id: "essentials", label: "Essentials" },
   { id: "skills", label: "Skills" },
-  { id: "preferences", label: "Prefs" },
+  { id: "preferences", label: "Job prefs" },
   { id: "advanced", label: "More" },
 ];
 
@@ -187,27 +182,36 @@ function CompensationField({
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="space-y-1.5 sm:w-[7.5rem]">
+          <div className="space-y-1.5 sm:min-w-[12rem]">
             <span className="text-muted-foreground text-[12px] font-medium">
               Currency
             </span>
-            <select
-              value={value.currency}
-              disabled={disabled}
-              onChange={(e) =>
-                onChange({
-                  ...value,
-                  currency: e.target.value as CompensationCurrency,
-                })
-              }
-              className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 h-11 w-full rounded-xl border px-3 text-[15px] outline-none focus-visible:ring-3"
+            <div
+              className="bg-muted/50 flex flex-wrap gap-1 rounded-xl p-1"
+              role="group"
+              aria-label="Currency"
             >
-              {COMPENSATION_CURRENCIES.map((code) => (
-                <option key={code} value={code}>
-                  {code}
-                </option>
-              ))}
-            </select>
+              {COMPENSATION_CURRENCIES.map((code) => {
+                const active = value.currency === code;
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    disabled={disabled}
+                    aria-pressed={active}
+                    onClick={() => onChange({ ...value, currency: code })}
+                    className={cn(
+                      "h-9 min-w-[2.75rem] rounded-lg px-2.5 text-[13px] font-semibold tabular-nums transition-colors",
+                      active
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {code}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="grid flex-1 grid-cols-[1fr_auto_1fr] items-end gap-2 sm:gap-3">
@@ -466,6 +470,7 @@ export function ProfileWorkspace({
     null,
   );
   const [reviewTab, setReviewTab] = useState<ReviewTab>("essentials");
+  const [sourcesOpen, setSourcesOpen] = useState(false);
 
   const active = draft ?? approved;
   const canEdit = Boolean(draft) && !pending;
@@ -1268,6 +1273,20 @@ export function ProfileWorkspace({
                     Approve
                   </Button>
                 </div>
+              ) : approved ? (
+                <Button
+                  type="button"
+                  size="lg"
+                  className="h-10 px-4 text-[14px]"
+                  disabled={pending}
+                  onClick={() =>
+                    run("Ready to edit", () =>
+                      createProfileDraftFromApprovedAction(),
+                    )
+                  }
+                >
+                  Edit profile
+                </Button>
               ) : (
                 <p className="text-muted-foreground text-[14px]">
                   Extract again to edit.
@@ -1275,6 +1294,18 @@ export function ProfileWorkspace({
               )}
             </div>
             <PanelBody className="space-y-5 px-5 py-6 sm:px-6 sm:py-7">
+              {!draft && approved ? (
+                <div className="border-border bg-muted/30 rounded-xl border px-4 py-3 text-[14px]">
+                  <p className="text-foreground font-medium">
+                    This version is approved and locked.
+                  </p>
+                  <p className="text-muted-foreground mt-1 leading-relaxed">
+                    Tap <span className="text-foreground">Edit profile</span> to
+                    change job prefs, pay range, or anything else — then approve
+                    again.
+                  </p>
+                </div>
+              ) : null}
               {renderReviewFields()}
               {draft && reviewTab !== "essentials" ? null : draft ? (
                 <p className="text-muted-foreground text-[14px] leading-relaxed">
@@ -1289,9 +1320,11 @@ export function ProfileWorkspace({
     );
   }
 
-  // Full page layout
+  // Full page — same tabbed review as onboarding, sources collapsed when draft exists
+  const pageSourcesOpen = sourcesOpen || !active;
+
   return (
-    <div className="space-y-10">
+    <div className="space-y-5">
       {error ? (
         <p className="text-destructive text-[14px]">{error}</p>
       ) : null}
@@ -1299,14 +1332,33 @@ export function ProfileWorkspace({
         <p className="text-muted-foreground text-[14px]">{message}</p>
       ) : null}
 
-      <section className="space-y-4">
-        <SectionTitle
-          title="Sources"
-          description="Your CV, LinkedIn, portfolio site, and a short note about you."
-        />
-
-        <Surface>
-          <PanelBody className="space-y-6">
+      <Surface>
+        <button
+          type="button"
+          className="border-border flex w-full items-center justify-between gap-3 border-b px-5 py-3.5 text-left sm:px-6"
+          onClick={() => setSourcesOpen((v) => !v)}
+          aria-expanded={pageSourcesOpen}
+        >
+          <div>
+            <p className="text-[14px] font-semibold text-[var(--card-foreground)]">
+              Sources
+            </p>
+            <p className="text-muted-foreground text-[13px]">
+              {sources.length > 0
+                ? `${sources.length} added · CV, LinkedIn, portfolio, notes`
+                : "Add a CV or LinkedIn to draft your profile"}
+            </p>
+          </div>
+          <ChevronDown
+            className={cn(
+              "text-muted-foreground size-4 shrink-0 transition-transform",
+              pageSourcesOpen && "rotate-180",
+            )}
+            aria-hidden
+          />
+        </button>
+        {pageSourcesOpen ? (
+          <PanelBody className="space-y-6 px-5 py-5 sm:px-6">
             {moreSourcesPanel}
             {sourceList ? (
               <>
@@ -1317,12 +1369,14 @@ export function ProfileWorkspace({
             <div className="flex flex-wrap items-center gap-3 pt-1">
               <Button
                 type="button"
+                size="lg"
+                className="h-10 px-4 text-[14px]"
                 disabled={pending || sources.length === 0}
                 onClick={() =>
                   run("Profile drafted", () => extractProfileAction())
                 }
               >
-                Draft profile from sources
+                {active ? "Re-draft from sources" : "Draft profile from sources"}
               </Button>
               {sources.length === 0 ? (
                 <p className="text-muted-foreground text-[13px]">
@@ -1331,75 +1385,120 @@ export function ProfileWorkspace({
               ) : null}
             </div>
           </PanelBody>
-        </Surface>
-      </section>
+        ) : null}
+      </Surface>
 
-      <section className="space-y-4">
-        <SectionTitle
-          title="Profile"
-          description="Review the draft, then approve it for job matching."
-          meta={
-            <div className="flex flex-wrap gap-2">
-              {approved ? (
-                <Badge>Approved v{approved.version}</Badge>
-              ) : (
-                <Badge variant="outline">Not approved</Badge>
-              )}
-              {draft ? (
-                <Badge variant="secondary">Draft v{draft.version}</Badge>
-              ) : null}
+      {!active ? (
+        <Surface>
+          <div className="flex flex-col items-center justify-center gap-5 px-6 py-14 text-center sm:px-8 sm:py-16">
+            <div
+              aria-hidden
+              className="border-border bg-muted/40 text-muted-foreground grid size-14 place-items-center rounded-2xl border"
+            >
+              <FileText className="size-6 opacity-70" strokeWidth={1.5} />
             </div>
-          }
-        />
-
-        {!active ? (
-          <Surface>
-            <PanelBody>
-              <p className="text-muted-foreground text-[14px]">
-                Extract a profile from your sources to edit it here.
+            <div className="space-y-2">
+              <p className="font-display text-[18px] font-semibold sm:text-[20px]">
+                No profile draft yet
               </p>
-            </PanelBody>
-          </Surface>
-        ) : (
-          <Surface>
-            <PanelHeader>
-              <div className="flex w-full flex-wrap items-center justify-between gap-3">
-                <span className="text-[15px] font-medium">
-                  {draft
-                    ? `Draft v${draft.version}`
-                    : `Approved v${approved!.version}`}
-                </span>
-                {draft ? (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={pending}
-                      onClick={saveDraft}
-                    >
-                      Save
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={pending}
-                      onClick={approveDraft}
-                    >
-                      Approve
-                    </Button>
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-[13px]">
-                    Extract again to edit without changing this version.
-                  </p>
-                )}
+              <p className="text-muted-foreground mx-auto max-w-sm text-[14px] leading-relaxed sm:text-[15px]">
+                Add a source above, then draft a profile to review essentials,
+                skills, and job prefs.
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="lg"
+              disabled={pending || sources.length === 0}
+              onClick={() => {
+                if (sources.length === 0) {
+                  setSourcesOpen(true);
+                  return;
+                }
+                run("Profile drafted", () => extractProfileAction());
+              }}
+            >
+              {sources.length === 0 ? "Add a source" : "Draft profile"}
+            </Button>
+          </div>
+        </Surface>
+      ) : (
+        <Surface>
+          <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4 sm:px-6">
+            <nav
+              aria-label="Profile sections"
+              className="bg-muted/50 flex flex-wrap gap-1 rounded-xl p-1"
+            >
+              {REVIEW_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setReviewTab(tab.id)}
+                  className={cn(
+                    "rounded-lg px-3.5 py-2 text-[13px] font-medium transition-colors sm:text-[14px]",
+                    reviewTab === tab.id
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+            {draft ? (
+              <div className="flex flex-wrap gap-2.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="h-10 px-4 text-[14px]"
+                  disabled={pending}
+                  onClick={saveDraft}
+                >
+                  Save
+                </Button>
+                <Button
+                  type="button"
+                  size="lg"
+                  className="h-10 px-4 text-[14px]"
+                  disabled={pending}
+                  onClick={approveDraft}
+                >
+                  Approve
+                </Button>
               </div>
-            </PanelHeader>
-            <PanelBody className="space-y-5">{renderReviewFields()}</PanelBody>
-          </Surface>
-        )}
-      </section>
+            ) : approved ? (
+              <Button
+                type="button"
+                size="lg"
+                className="h-10 px-4 text-[14px]"
+                disabled={pending}
+                onClick={() =>
+                  run("Ready to edit", () =>
+                    createProfileDraftFromApprovedAction(),
+                  )
+                }
+              >
+                Edit profile
+              </Button>
+            ) : null}
+          </div>
+          <PanelBody className="space-y-5 px-5 py-6 sm:px-6 sm:py-7">
+            {!draft && approved ? (
+              <div className="border-border bg-muted/30 rounded-xl border px-4 py-3 text-[14px]">
+                <p className="text-foreground font-medium">
+                  Approved and locked
+                </p>
+                <p className="text-muted-foreground mt-1 leading-relaxed">
+                  Tap <span className="text-foreground">Edit profile</span> to
+                  change prefs or pay range, then approve again.
+                </p>
+              </div>
+            ) : null}
+            {renderReviewFields()}
+          </PanelBody>
+        </Surface>
+      )}
     </div>
   );
 }
