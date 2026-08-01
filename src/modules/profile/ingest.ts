@@ -166,6 +166,24 @@ export async function ingestPortfolioUrl(
   };
 }
 
+/** Ingest a public GitHub profile + repos as a profile source. */
+export async function ingestGithubProfile(
+  usernameOrUrl: string,
+): Promise<{ id: string; reused: boolean; textLength: number }> {
+  const { fetchGithubProfileCorpus } = await import("./github");
+  const corpus = await fetchGithubProfileCorpus(usernameOrUrl);
+  const result = await ingestTextSource({
+    type: "github",
+    text: corpus.text,
+    label: `GitHub @${corpus.username}`,
+    sourceUrl: corpus.sourceUrl,
+  });
+  return {
+    ...result,
+    textLength: corpus.text.length,
+  };
+}
+
 export function deleteProfileSource(id: string): void {
   const db = getDb();
   const row = db

@@ -64,20 +64,22 @@ export function FileDropzone({
           takeFile(e.dataTransfer.files?.[0]);
         }}
         className={cn(
-          "border-border bg-muted/20 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[14px] border border-dashed px-6 py-8 text-center transition-colors",
+          "border-border bg-muted/20 flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed px-6 py-8 text-center transition-colors",
           "hover:border-primary/50 hover:bg-muted/35",
           "focus-within:border-ring focus-within:ring-ring/40 focus-within:ring-3",
           dragging && "border-primary bg-accent/40",
           disabled && "pointer-events-none opacity-50",
         )}
       >
-        <span className="bg-secondary text-accent-foreground flex size-10 items-center justify-center rounded-xl">
-          <Upload className="size-4" aria-hidden />
+        <span className="bg-secondary text-accent-foreground flex size-12 items-center justify-center rounded-xl">
+          <Upload className="size-5" aria-hidden />
         </span>
-        <span className="text-card-foreground text-[14px] font-medium">
+        <span className="text-card-foreground text-[15px] font-medium sm:text-[16px]">
           {label}
         </span>
-        <span className="text-muted-foreground text-[12px]">{hint}</span>
+        <span className="text-muted-foreground text-[13px] sm:text-[14px]">
+          {hint}
+        </span>
       </label>
     </div>
   );

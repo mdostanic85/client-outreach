@@ -30,7 +30,7 @@ export function AuthShell({
         <div className="flex flex-1 flex-col justify-center py-10">{children}</div>
         <p className="text-muted-foreground text-[12px]">
           {noWidow(
-            "Finds jobs that fit you · explains why · you decide what happens next",
+            "Explained matches · private shortlist · you approve every move",
           )}
         </p>
       </div>

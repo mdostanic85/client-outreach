@@ -10,7 +10,7 @@ export default function LoginPage() {
         <ProductPanel
           eyebrow="Welcome back"
           headline={noWidow(
-            "Continue where you left off. Today's job list is ready.",
+            "Pick up today's shortlist. The reasoning is already there.",
           )}
         />
       }
@@ -20,9 +20,7 @@ export default function LoginPage() {
           Log in
         </h1>
         <p className="text-muted-foreground mt-2 mb-8 text-[14px]">
-          {noWidow(
-            "Sign in to see today's jobs and follow up when you're ready.",
-          )}
+          {noWidow("Sign in to review today's roles and continue outreach.")}
         </p>
         <SignInForm />
       </div>

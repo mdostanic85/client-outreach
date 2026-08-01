@@ -808,6 +808,21 @@ export async function ingestPortfolioUrlAction(
   }
 }
 
+export async function ingestGithubAction(
+  usernameOrUrl: string,
+): Promise<ActionResult<{ id: string; reused: boolean; textLength: number }>> {
+  try {
+    ensureDb();
+    const { ingestGithubProfile } = await import("@/modules/profile/ingest");
+    const result = await ingestGithubProfile(usernameOrUrl);
+    revalidatePath("/profile");
+    revalidatePath("/onboarding");
+    return { ok: true, data: result };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
 export async function ingestManualNotesAction(
   text: string,
 ): Promise<ActionResult<{ id: string; reused: boolean }>> {

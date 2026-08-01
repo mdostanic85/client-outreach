@@ -17,8 +17,8 @@ export default function SettingsPage() {
   return (
     <PageShell width="form">
       <PageHeader
-        title="Outreach style"
-        description="How Optra writes cold emails. Short tone notes work better than long rules."
+        title="Outreach voice"
+        description="Tone and proof points for cold emails. Keep notes short and specific."
       />
       <SettingsForm
         initial={{

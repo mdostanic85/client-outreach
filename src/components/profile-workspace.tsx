@@ -2,12 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { Check, ChevronDown, FileText, Link2, X } from "lucide-react";
+import { Check, ChevronDown, FileText, FolderGit2, Link2, X } from "lucide-react";
 import {
   approveProfileAction,
   deleteProfileSourceAction,
   extractProfileAction,
   ingestCvAction,
+  ingestGithubAction,
   ingestManualNotesAction,
   ingestPortfolioUrlAction,
   ingestTextSourceAction,
@@ -27,7 +28,14 @@ import {
   Surface,
 } from "@/components/page-shell";
 import type { StructuredProfile } from "@/modules/profile/schemas";
-import { EMPTY_STRUCTURED_PROFILE } from "@/modules/profile/schemas";
+import {
+  COMPENSATION_CURRENCIES,
+  EMPTY_STRUCTURED_PROFILE,
+  formatCompensation,
+  resolveCompensation,
+  type CompensationCurrency,
+  type CompensationExpectation,
+} from "@/modules/profile/schemas";
 import { cn } from "@/lib/utils";
 
 type SourceView = {
@@ -57,6 +65,7 @@ const SOURCE_LABELS: Record<string, string> = {
   portfolio_url: "Portfolio",
   manual: "About you",
   document: "Document",
+  github: "GitHub",
 };
 
 type ReviewTab = "essentials" | "skills" | "preferences" | "advanced";
@@ -81,18 +90,239 @@ function listToLines(value: string[] | undefined): string {
 
 function Field({
   label,
+  hint,
   children,
+  className,
 }: {
   label: string;
+  hint?: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="space-y-1.5">
-      <Label className="text-muted-foreground text-[13px] font-medium">
-        {label}
-      </Label>
+    <div className={cn("space-y-2", className)}>
+      <div className="space-y-1">
+        <Label className="text-muted-foreground text-[13px] font-medium sm:text-[14px]">
+          {label}
+        </Label>
+        {hint ? (
+          <p className="text-muted-foreground/80 text-[12px] leading-snug sm:text-[13px]">
+            {hint}
+          </p>
+        ) : null}
+      </div>
       {children}
     </div>
+  );
+}
+
+function CompensationField({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: CompensationExpectation;
+  onChange: (next: CompensationExpectation) => void;
+  disabled?: boolean;
+}) {
+  const period = value.mode === "hourly" ? "/ hour" : "/ year";
+  const summary = formatCompensation(value);
+
+  function setAmount(
+    key: "min" | "max",
+    raw: string,
+  ) {
+    const trimmed = raw.trim().replace(/,/g, "");
+    if (!trimmed) {
+      onChange({ ...value, [key]: null });
+      return;
+    }
+    const n = Number(trimmed);
+    if (Number.isNaN(n) || n < 0) return;
+    onChange({ ...value, [key]: n });
+  }
+
+  return (
+    <Field
+      label="Rate / salary"
+      hint="Set a range, then choose fixed salary or hourly — and the currency."
+      className="sm:col-span-2"
+    >
+      <div
+        className={cn(
+          "border-border bg-background space-y-4 rounded-2xl border p-4 sm:p-5",
+          disabled && "pointer-events-none opacity-50",
+        )}
+      >
+        <div
+          className="bg-muted/50 grid grid-cols-2 gap-1 rounded-xl p-1"
+          role="group"
+          aria-label="Pay type"
+        >
+          {(
+            [
+              { id: "salary", label: "Fixed salary" },
+              { id: "hourly", label: "Hourly rate" },
+            ] as const
+          ).map((opt) => {
+            const active = value.mode === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                disabled={disabled}
+                aria-pressed={active}
+                onClick={() => onChange({ ...value, mode: opt.id })}
+                className={cn(
+                  "rounded-lg px-3 py-2.5 text-[14px] font-medium transition-colors",
+                  active
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="space-y-1.5 sm:w-[7.5rem]">
+            <span className="text-muted-foreground text-[12px] font-medium">
+              Currency
+            </span>
+            <select
+              value={value.currency}
+              disabled={disabled}
+              onChange={(e) =>
+                onChange({
+                  ...value,
+                  currency: e.target.value as CompensationCurrency,
+                })
+              }
+              className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 h-11 w-full rounded-xl border px-3 text-[15px] outline-none focus-visible:ring-3"
+            >
+              {COMPENSATION_CURRENCIES.map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid flex-1 grid-cols-[1fr_auto_1fr] items-end gap-2 sm:gap-3">
+            <div className="space-y-1.5">
+              <span className="text-muted-foreground text-[12px] font-medium">
+                From
+              </span>
+              <Input
+                inputMode="numeric"
+                disabled={disabled}
+                value={value.min ?? ""}
+                onChange={(e) => setAmount("min", e.target.value)}
+                placeholder={value.mode === "hourly" ? "80" : "90000"}
+              />
+            </div>
+            <span
+              className="text-muted-foreground pb-3 text-[15px] font-medium"
+              aria-hidden
+            >
+              –
+            </span>
+            <div className="space-y-1.5">
+              <span className="text-muted-foreground text-[12px] font-medium">
+                To
+              </span>
+              <Input
+                inputMode="numeric"
+                disabled={disabled}
+                value={value.max ?? ""}
+                onChange={(e) => setAmount("max", e.target.value)}
+                placeholder={value.mode === "hourly" ? "100" : "110000"}
+              />
+            </div>
+          </div>
+
+          <span className="text-muted-foreground pb-3 text-[13px] font-medium sm:min-w-[4.5rem]">
+            {period}
+          </span>
+        </div>
+
+        {summary ? (
+          <p className="text-muted-foreground text-[13px]">
+            Saved as{" "}
+            <span className="text-foreground font-medium">{summary}</span>
+          </p>
+        ) : (
+          <p className="text-muted-foreground text-[13px]">
+            Optional — leave blank if you prefer not to set a range yet.
+          </p>
+        )}
+      </div>
+    </Field>
+  );
+}
+
+const EMPLOYMENT_TYPE_OPTIONS = [
+  "Full-time",
+  "Contract",
+  "Freelance",
+  "Part-time",
+] as const;
+
+function EmploymentTypeField({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const selected = linesToList(value);
+
+  function toggle(option: string) {
+    const exists = selected.some(
+      (item) => item.toLowerCase() === option.toLowerCase(),
+    );
+    const next = exists
+      ? selected.filter((item) => item.toLowerCase() !== option.toLowerCase())
+      : [...selected, option];
+    onChange(next.join("\n"));
+  }
+
+  return (
+    <Field
+      label="Employment type"
+      hint="Select all that fit."
+      className="sm:col-span-2"
+    >
+      <div className="flex flex-wrap gap-2">
+        {EMPLOYMENT_TYPE_OPTIONS.map((option) => {
+          const active = selected.some(
+            (item) => item.toLowerCase() === option.toLowerCase(),
+          );
+          return (
+            <button
+              key={option}
+              type="button"
+              disabled={disabled}
+              aria-pressed={active}
+              onClick={() => toggle(option)}
+              className={cn(
+                "rounded-xl border px-4 py-2.5 text-[14px] font-medium transition-colors",
+                active
+                  ? "border-primary bg-primary/15 text-foreground"
+                  : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                disabled && "pointer-events-none opacity-50",
+              )}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+    </Field>
   );
 }
 
@@ -217,7 +447,7 @@ export function ProfileWorkspace({
   sources: SourceView[];
   draft: ProfileView | null;
   approved: ProfileView | null;
-  /** Compact phased UX for onboarding (Mobbin: Remote/Wellfound → Aboard tabs). */
+  /** Phased UX for onboarding wizard. */
   variant?: "page" | "onboarding";
 }) {
   const router = useRouter();
@@ -227,6 +457,7 @@ export function ProfileWorkspace({
 
   const [fileKind, setFileKind] = useState<"cv" | "linkedin_text">("cv");
   const [portfolioUrl, setPortfolioUrl] = useState("");
+  const [githubInput, setGithubInput] = useState("");
   const [aboutYou, setAboutYou] = useState("");
   const [linkedinPaste, setLinkedinPaste] = useState("");
   const [showLinkedinPaste, setShowLinkedinPaste] = useState(false);
@@ -275,8 +506,8 @@ export function ProfileWorkspace({
     listToLines(editable.preferredLocations),
   );
   const [timeZones, setTimeZones] = useState(listToLines(editable.timeZones));
-  const [salaryOrRateExpectations, setSalaryOrRateExpectations] = useState(
-    editable.salaryOrRateExpectations ?? "",
+  const [compensation, setCompensation] = useState<CompensationExpectation>(
+    () => resolveCompensation(editable),
   );
   const [availability, setAvailability] = useState(editable.availability ?? "");
   const [strengthsAndDifferentiators, setStrengthsAndDifferentiators] =
@@ -315,7 +546,7 @@ export function ProfileWorkspace({
     setPreferredEmploymentTypes(listToLines(p.preferredEmploymentTypes));
     setPreferredLocations(listToLines(p.preferredLocations));
     setTimeZones(listToLines(p.timeZones));
-    setSalaryOrRateExpectations(p.salaryOrRateExpectations ?? "");
+    setCompensation(resolveCompensation(p));
     setAvailability(p.availability ?? "");
     setStrengthsAndDifferentiators(listToLines(p.strengthsAndDifferentiators));
     setTargetRoles(listToLines(p.targetRoles));
@@ -371,7 +602,11 @@ export function ProfileWorkspace({
       preferredEmploymentTypes: linesToList(preferredEmploymentTypes),
       preferredLocations: linesToList(preferredLocations),
       timeZones: linesToList(timeZones),
-      salaryOrRateExpectations: salaryOrRateExpectations.trim() || undefined,
+      compensation:
+        compensation.min != null || compensation.max != null
+          ? compensation
+          : undefined,
+      salaryOrRateExpectations: formatCompensation(compensation),
       availability: availability.trim() || undefined,
       strengthsAndDifferentiators: linesToList(strengthsAndDifferentiators),
       targetRoles: linesToList(targetRoles),
@@ -507,7 +742,7 @@ export function ProfileWorkspace({
   );
 
   const skillsFields = (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
       {tags("Strongest skills", strongestSkills, setStrongestSkills)}
       {tags(
         "Strengths",
@@ -518,30 +753,35 @@ export function ProfileWorkspace({
       {tags("Product types", productTypes, setProductTypes)}
       {tags("Design tools", designTools, setDesignTools)}
       {tags("Technical tools", technicalTools, setTechnicalTools)}
+      <Field
+        label="Leadership"
+        hint="Optional. Team size, management, or mentoring — in your words."
+        className="sm:col-span-2"
+      >
+        <Textarea
+          value={leadershipExperience}
+          onChange={(e) => setLeadershipExperience(e.target.value)}
+          disabled={!canEdit}
+          rows={3}
+          placeholder="e.g. Led a team of 4 product designers across 2 product lines"
+          className="min-h-[5.5rem] text-[14px]"
+        />
+      </Field>
     </div>
   );
 
   const preferencesFields = (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <Field label="Rate / salary">
-        <Input
-          value={salaryOrRateExpectations}
-          onChange={(e) => setSalaryOrRateExpectations(e.target.value)}
-          disabled={!canEdit}
-        />
-      </Field>
-      <Field label="Leadership">
-        <Input
-          value={leadershipExperience}
-          onChange={(e) => setLeadershipExperience(e.target.value)}
-          disabled={!canEdit}
-        />
-      </Field>
-      {tags(
-        "Employment types",
-        preferredEmploymentTypes,
-        setPreferredEmploymentTypes,
-      )}
+    <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
+      <CompensationField
+        value={compensation}
+        onChange={setCompensation}
+        disabled={!canEdit}
+      />
+      <EmploymentTypeField
+        value={preferredEmploymentTypes}
+        onChange={setPreferredEmploymentTypes}
+        disabled={!canEdit}
+      />
       {tags("Time zones", timeZones, setTimeZones)}
       {tags("Languages", languages, setLanguages)}
       {tags("Roles that are too junior", rolesBelowLevel, setRolesBelowLevel)}
@@ -742,6 +982,49 @@ export function ProfileWorkspace({
       </div>
 
       <div className="space-y-2">
+        <Label htmlFor="github-profile" className="text-[13px]">
+          GitHub
+        </Label>
+        <p className="text-muted-foreground text-[12px] leading-snug">
+          We pull public repos, descriptions, and README excerpts — then draft
+          projects for your profile.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Input
+            id="github-profile"
+            value={githubInput}
+            onChange={(e) => setGithubInput(e.target.value)}
+            placeholder="username or https://github.com/you"
+            className="min-w-[180px] flex-1"
+            disabled={pending}
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+          <Button
+            type="button"
+            disabled={pending || !githubInput.trim()}
+            onClick={() =>
+              run("GitHub added", async () => {
+                const result = await ingestGithubAction(githubInput.trim());
+                if (!result.ok) return result;
+                setGithubInput("");
+                if (isOnboarding) {
+                  const extracted = await extractProfileAction();
+                  if (!extracted.ok) return extracted;
+                  setPhaseOverride(null);
+                  setReviewTab("essentials");
+                }
+                return { ok: true as const };
+              })
+            }
+          >
+            Import
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
         <Label htmlFor="about-you" className="text-[13px]">
           About you
         </Label>
@@ -773,22 +1056,22 @@ export function ProfileWorkspace({
 
   if (isOnboarding && phase === "sources") {
     return (
-      <div className="space-y-4">
-        {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
+      <div className="space-y-5">
+        {error ? <p className="text-destructive text-[14px]">{error}</p> : null}
         {message ? (
-          <p className="text-muted-foreground text-[13px]">{message}</p>
+          <p className="text-muted-foreground text-[14px]">{message}</p>
         ) : null}
 
         <Surface>
-          <PanelBody className="space-y-4 px-5 py-5 sm:px-6 sm:py-6">
-            <div className="space-y-1">
-              <p className="font-display text-[17px] font-semibold tracking-tight">
+          <PanelBody className="space-y-6 px-6 py-7 sm:px-8 sm:py-8">
+            <div className="space-y-2">
+              <p className="font-display text-[20px] font-semibold tracking-tight sm:text-[22px]">
                 Start with a recent CV
               </p>
-              <p className="text-muted-foreground text-[13px] leading-snug">
-                You can also add LinkedIn, a portfolio site, or notes. We draft
-                a profile in a few seconds — you review and approve. Nothing is
-                made up.
+              <p className="text-muted-foreground max-w-2xl text-[15px] leading-relaxed">
+                You can also add LinkedIn, GitHub, a portfolio site, or notes. We
+                draft a profile in seconds. You review and approve. Claims stay
+                tied to your sources.
               </p>
             </div>
 
@@ -797,31 +1080,39 @@ export function ProfileWorkspace({
               label="Drop your CV here, or click to browse"
               hint="PDF, TXT, or MD · stays on your machine"
               onFile={(file) => ingestFile(file, "cv")}
-              className="[&_label]:py-10"
+              className="[&_label]:py-14 sm:[&_label]:py-16"
             />
 
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px]">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[14px]">
               <button
                 type="button"
-                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 underline-offset-2 hover:underline"
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 underline-offset-2 hover:underline"
                 onClick={() => {
                   setFileKind("linkedin_text");
                   setShowMoreSources(true);
                 }}
               >
-                <FileText className="size-3.5" aria-hidden />
+                <FileText className="size-4" aria-hidden />
                 LinkedIn PDF instead
               </button>
               <button
                 type="button"
-                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 underline-offset-2 hover:underline"
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 underline-offset-2 hover:underline"
+                onClick={() => setShowMoreSources(true)}
+              >
+                <FolderGit2 className="size-4" aria-hidden />
+                Add GitHub
+              </button>
+              <button
+                type="button"
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 underline-offset-2 hover:underline"
                 onClick={() => setShowMoreSources((v) => !v)}
               >
-                <Link2 className="size-3.5" aria-hidden />
+                <Link2 className="size-4" aria-hidden />
                 Website or notes
                 <ChevronDown
                   className={cn(
-                    "size-3.5 transition-transform",
+                    "size-4 transition-transform",
                     showMoreSources && "rotate-180",
                   )}
                   aria-hidden
@@ -830,14 +1121,14 @@ export function ProfileWorkspace({
             </div>
 
             {showMoreSources ? (
-              <div className="border-border space-y-4 border-t pt-4">
+              <div className="border-border space-y-4 border-t pt-5">
                 {moreSourcesPanel}
               </div>
             ) : null}
 
             {sourceList ? (
-              <div className="border-border space-y-2 border-t pt-3">
-                <p className="text-muted-foreground text-[12px] font-medium tracking-wide uppercase">
+              <div className="border-border space-y-3 border-t pt-5">
+                <p className="text-muted-foreground text-[13px] font-medium tracking-wide uppercase">
                   Sources · {sources.length}
                 </p>
                 {sourceList}
@@ -845,9 +1136,11 @@ export function ProfileWorkspace({
             ) : null}
 
             {sources.length > 0 && !pending ? (
-              <div className="flex flex-wrap items-center gap-2 pt-1">
+              <div className="flex flex-wrap items-center gap-3 pt-1">
                 <Button
                   type="button"
+                  size="lg"
+                  className="h-11 px-5 text-[15px]"
                   disabled={pending}
                   onClick={() =>
                     run("Profile drafted", async () => {
@@ -862,14 +1155,14 @@ export function ProfileWorkspace({
                 >
                   Draft profile from sources
                 </Button>
-                <p className="text-muted-foreground text-[12px]">
+                <p className="text-muted-foreground text-[14px]">
                   Or drop another file — CV upload extracts automatically.
                 </p>
               </div>
             ) : null}
 
             {pending ? (
-              <p className="text-muted-foreground text-[13px]">
+              <p className="text-muted-foreground text-[14px]">
                 Working… extracting stays grounded in your sources.
               </p>
             ) : null}
@@ -881,33 +1174,33 @@ export function ProfileWorkspace({
 
   if (isOnboarding && phase === "review") {
     return (
-      <div className="space-y-3">
-        {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
+      <div className="space-y-5">
+        {error ? <p className="text-destructive text-[14px]">{error}</p> : null}
         {message ? (
-          <p className="text-muted-foreground text-[13px]">{message}</p>
+          <p className="text-muted-foreground text-[14px]">{message}</p>
         ) : null}
 
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             {approved ? (
-              <Badge className="h-6">
-                <Check className="size-3" aria-hidden />
+              <Badge className="h-7 px-2.5 text-[13px]">
+                <Check className="size-3.5" aria-hidden />
                 Approved v{approved.version}
               </Badge>
             ) : (
-              <Badge variant="outline" className="h-6">
+              <Badge variant="outline" className="h-7 px-2.5 text-[13px]">
                 Review draft
               </Badge>
             )}
             {draft ? (
-              <Badge variant="secondary" className="h-6">
+              <Badge variant="secondary" className="h-7 px-2.5 text-[13px]">
                 Draft v{draft.version}
               </Badge>
             ) : null}
           </div>
           <button
             type="button"
-            className="text-muted-foreground hover:text-foreground text-[12px] underline-offset-2 hover:underline"
+            className="text-muted-foreground hover:text-foreground text-[14px] underline-offset-2 hover:underline"
             onClick={() => setPhaseOverride("sources")}
           >
             Sources ({sources.length})
@@ -916,14 +1209,14 @@ export function ProfileWorkspace({
 
         {!active ? (
           <Surface>
-            <PanelBody className="px-5 py-5">
-              <p className="text-muted-foreground text-[13px]">
+            <PanelBody className="px-6 py-7 sm:px-8">
+              <p className="text-muted-foreground text-[15px]">
                 Extract a profile from your sources to edit it here.
               </p>
               <Button
-                className="mt-3"
+                className="mt-4 h-11 px-5 text-[15px]"
                 type="button"
-                size="sm"
+                size="lg"
                 onClick={() => setPhaseOverride("sources")}
               >
                 Add sources
@@ -932,10 +1225,10 @@ export function ProfileWorkspace({
           </Surface>
         ) : (
           <Surface>
-            <div className="border-border flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 sm:px-5">
+            <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4 sm:px-6">
               <nav
                 aria-label="Profile sections"
-                className="bg-muted/50 flex flex-wrap gap-0.5 rounded-lg p-0.5"
+                className="bg-muted/50 flex flex-wrap gap-1 rounded-xl p-1"
               >
                 {REVIEW_TABS.map((tab) => (
                   <button
@@ -943,7 +1236,7 @@ export function ProfileWorkspace({
                     type="button"
                     onClick={() => setReviewTab(tab.id)}
                     className={cn(
-                      "rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors",
+                      "rounded-lg px-3.5 py-2 text-[13px] font-medium transition-colors sm:text-[14px]",
                       reviewTab === tab.id
                         ? "bg-background text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground",
@@ -954,11 +1247,12 @@ export function ProfileWorkspace({
                 ))}
               </nav>
               {draft ? (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2.5">
                   <Button
                     type="button"
                     variant="outline"
-                    size="sm"
+                    size="lg"
+                    className="h-10 px-4 text-[14px]"
                     disabled={pending}
                     onClick={saveDraft}
                   >
@@ -966,7 +1260,8 @@ export function ProfileWorkspace({
                   </Button>
                   <Button
                     type="button"
-                    size="sm"
+                    size="lg"
+                    className="h-10 px-4 text-[14px]"
                     disabled={pending}
                     onClick={approveDraft}
                   >
@@ -974,15 +1269,15 @@ export function ProfileWorkspace({
                   </Button>
                 </div>
               ) : (
-                <p className="text-muted-foreground text-[12px]">
+                <p className="text-muted-foreground text-[14px]">
                   Extract again to edit.
                 </p>
               )}
             </div>
-            <PanelBody className="space-y-3 px-4 py-4 sm:px-5 sm:py-5">
+            <PanelBody className="space-y-5 px-5 py-6 sm:px-6 sm:py-7">
               {renderReviewFields()}
               {draft && reviewTab !== "essentials" ? null : draft ? (
-                <p className="text-muted-foreground text-[12px] leading-snug">
+                <p className="text-muted-foreground text-[14px] leading-relaxed">
                   Essentials are enough to continue. Other tabs are optional
                   polish.
                 </p>

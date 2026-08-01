@@ -70,7 +70,7 @@ export function JobsInbox({
     <PageShell>
       <PageHeader
         title="Today · Jobs"
-        description="Up to 20 strong matches a day. Weak fits stay out."
+        description="Up to 20 strong matches each day. Weak fits stay off the list."
         actions={
           <Button
             variant="outline"
@@ -94,17 +94,17 @@ export function JobsInbox({
             <Link href="/search-criteria" className="underline">
               search criteria
             </Link>{" "}
-            before we look for jobs.
+            before finding jobs.
           </p>
         </Surface>
       ) : null}
 
       {visible.length === 0 ? (
         <EmptyState
-          title="No job matches yet"
+          title="No matches yet"
           description={
             hasSearchProfile
-              ? "Tap Find jobs, or wait for the next daily run."
+              ? "Select Find jobs, or wait for the next daily run."
               : "Generate and approve search criteria first."
           }
         />

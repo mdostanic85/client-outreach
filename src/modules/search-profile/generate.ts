@@ -14,6 +14,7 @@ import {
   getApprovedProfile,
   getMatchingProfile,
 } from "@/modules/profile/queries";
+import { formatCompensation } from "@/modules/profile/schemas";
 import {
   EMPTY_SEARCH_PARAMS,
   JobSearchParamsSchema,
@@ -85,9 +86,9 @@ export function deriveSearchParamsFromProfile(): {
     seniority: p?.seniority ? [p.seniority.toLowerCase()] : ["senior", "lead"],
     priorityIndustries: (p?.industries ?? []).slice(0, 5),
     salary: {
-      min: null,
-      currency: "EUR",
-      notes: p?.salaryOrRateExpectations ?? "",
+      min: p?.compensation?.min ?? null,
+      currency: p?.compensation?.currency ?? "EUR",
+      notes: formatCompensation(p?.compensation) ?? p?.salaryOrRateExpectations ?? "",
     },
     sourcesEnabled: locations.some((l) => /serbia|belgrade|balkan/i.test(l))
       ? [

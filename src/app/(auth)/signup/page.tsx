@@ -12,7 +12,7 @@ export default function SignUpPage() {
         </h1>
         <p className="text-muted-foreground mt-2 mb-8 text-[14px]">
           {noWidow(
-            "One private workspace. Next we'll learn about your work so job matches make sense.",
+            "Private workspace. Next, we'll build your profile so matches stay accurate.",
           )}
         </p>
         <SignUpForm />

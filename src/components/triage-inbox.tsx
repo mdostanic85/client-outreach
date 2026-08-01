@@ -114,7 +114,7 @@ export function TriageInbox({ rows }: { rows: TriageRow[] }) {
     <PageShell>
       <PageHeader
         title="Today · Clients"
-        description="Companies worth reaching out to. Accept, save, or skip — then open one to write."
+        description="Companies ranked for outreach. Accept, save, or skip, then open one to write."
         meta={
           rows.length > 0 ? (
             <span className="tabular">{counts.new} to review</span>
@@ -146,7 +146,7 @@ export function TriageInbox({ rows }: { rows: TriageRow[] }) {
         <Surface>
           <EmptyState
             title="No companies yet"
-            description="Run a daily find to pull ranked companies here, or add a company URL."
+            description="Run Find companies to fill this inbox, or add a company URL."
             actionLabel={pending ? "Finding…" : "Find companies"}
             pending={pending}
             onAction={() =>

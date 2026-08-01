@@ -21,7 +21,7 @@ const jetbrains = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "Optra",
-  description: "A short daily list of jobs that fit, with reasons you can trust",
+  description: "A private daily shortlist of roles that fit, with reasons you can trust",
 };
 
 export const dynamic = "force-dynamic";

@@ -16,7 +16,7 @@ export default async function ResetPasswordPage({
         <ProductPanel
           eyebrow="Almost there"
           headline={noWidow(
-            "Set a new password, then go back to today's job list.",
+            "Set a new password, then return to today's shortlist.",
           )}
         />
       }
@@ -27,7 +27,7 @@ export default async function ResetPasswordPage({
         </h1>
         <p className="text-muted-foreground mt-2 mb-8 text-[14px]">
           {noWidow(
-            "Choose something you'll remember. Existing sessions will be signed out.",
+            "Choose a password you'll remember. Other sessions will be signed out.",
           )}
         </p>
         <ResetPasswordForm token={token} />

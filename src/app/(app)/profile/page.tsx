@@ -26,10 +26,10 @@ export default function ProfilePage() {
     <PageShell width="lead">
       <PageHeader
         title="Profile"
-        description="Add your CV, LinkedIn, portfolio, or notes. Review the draft, then approve for job matching."
+        description="Add your CV, LinkedIn, portfolio, or notes. Review the draft, then approve it for matching."
         meta={
           approved
-            ? `Job matching uses approved version ${approved.version}`
+            ? `Matching uses approved version ${approved.version}`
             : "No approved profile yet"
         }
       />

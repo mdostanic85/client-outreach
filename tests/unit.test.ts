@@ -26,6 +26,7 @@ import {
   StructuredProfileSchema,
   derivePositioningSummary,
 } from "../src/modules/profile/schemas";
+import { parseGithubUsername } from "../src/modules/profile/github";
 
 function testNormalizeCompany() {
   assert.equal(normalizeCompanyName("Acme Inc."), "acme");
@@ -163,6 +164,21 @@ function testStructuredProfileSchema() {
   assert.match(summary, /Product Designer/);
 }
 
+function testParseGithubUsername() {
+  assert.equal(parseGithubUsername("octocat"), "octocat");
+  assert.equal(parseGithubUsername("@octocat"), "octocat");
+  assert.equal(
+    parseGithubUsername("https://github.com/octocat"),
+    "octocat",
+  );
+  assert.equal(
+    parseGithubUsername("https://github.com/octocat/"),
+    "octocat",
+  );
+  assert.throws(() => parseGithubUsername("https://gitlab.com/x"), /github/i);
+  assert.throws(() => parseGithubUsername(""), /Enter/);
+}
+
 const tests = [
   testNormalizeCompany,
   testExtractDomain,
@@ -177,6 +193,7 @@ const tests = [
   testPublishedEmailFixture,
   testProfileRedact,
   testStructuredProfileSchema,
+  testParseGithubUsername,
 ];
 
 async function main() {

@@ -39,15 +39,15 @@ export default function WelcomePage() {
 
       <main className="relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center px-6 pb-20 text-center">
         <p className="text-primary mb-5 text-[13px] font-medium tracking-[0.14em] uppercase">
-          Your AI job helper
+          Private job shortlist
         </p>
         <h1 className="font-display text-[clamp(2.1rem,5vw,3.25rem)] leading-[1.08] font-semibold tracking-tight text-[var(--card-foreground)]">
-          {noWidow("Stop searching.")} Start reviewing jobs&nbsp;that{" "}
-          <span className="text-primary">actually&nbsp;fit</span>.
+          Fewer listings.{" "}
+          <span className="text-primary">Clearer reasons</span> to apply.
         </h1>
         <p className="text-muted-foreground mt-5 max-w-xl text-[16px] leading-relaxed sm:text-[17px]">
           {noWidow(
-            "Optra learns from your CV, LinkedIn, portfolio, and notes. It finds open jobs and shows a short list each day. Every job comes with why it fits and what to watch for. You decide. Nothing applies for you.",
+            "Optra builds a grounded view of your work from your CV, LinkedIn, portfolio, and notes. Each day you get a short list of openings, with why they fit and what to check before you apply. You approve every move.",
           )}
         </p>
 
@@ -69,21 +69,21 @@ export default function WelcomePage() {
         <div className="border-border bg-card/60 mt-14 grid w-full max-w-2xl gap-px overflow-hidden rounded-2xl border text-left sm:grid-cols-3">
           {[
             {
-              title: noWidow("Knows who you are"),
+              title: noWidow("Grounded in your work"),
               body: noWidow(
-                "Built from your CV, LinkedIn, portfolio, and notes — not a vague bio.",
+                "From your CV, LinkedIn, portfolio, and notes. Not a generic bio.",
               ),
             },
             {
-              title: noWidow("Shows the why"),
+              title: noWidow("Explained matches"),
               body: noWidow(
-                "A score, plus clear reasons and things to watch.",
+                "Every role includes a score, clear reasons, and caveats.",
               ),
             },
             {
-              title: noWidow("You stay in charge"),
+              title: noWidow("You stay in control"),
               body: noWidow(
-                "Review jobs and reach out when you choose. Nothing sends itself.",
+                "Review and decide on your terms. Nothing applies or sends itself.",
               ),
             },
           ].map((item) => (

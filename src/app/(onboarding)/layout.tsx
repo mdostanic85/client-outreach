@@ -34,10 +34,10 @@ export default async function OnboardingLayout({
             "radial-gradient(ellipse 80% 45% at 50% -5%, color-mix(in oklch, var(--primary) 14%, transparent), transparent), linear-gradient(180deg, color-mix(in oklch, var(--background) 92%, #0c1218) 0%, var(--background) 40%)",
         }}
       />
-      <header className="relative z-10 flex items-center justify-between px-6 py-5 sm:px-10">
+      <header className="relative z-10 flex items-center justify-between px-6 py-6 sm:px-10 sm:py-7 lg:px-12">
         <AuthBrand />
         <form action={signOutAction}>
-          <Button type="submit" variant="ghost" size="sm">
+          <Button type="submit" variant="ghost" size="default">
             Sign out
           </Button>
         </form>

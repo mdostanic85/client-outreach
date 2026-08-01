@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Search, UserRound, Sparkles } from "lucide-react";
 import { completeOnboardingAction } from "@/modules/onboarding/actions";
 import type { OnboardingStepId } from "@/modules/onboarding/state";
 import { ProfileWorkspace } from "@/components/profile-workspace";
@@ -84,14 +84,16 @@ export function OnboardingWizard({
   }, [initialStep, step]);
 
   const stepIndex = STEPS.findIndex((s) => s.id === step);
+  const isCentered = step === "welcome" || step === "done";
 
   const canContinue = useMemo(() => {
     if (step === "welcome") return true;
     if (step === "profile") return hasApprovedProfile;
-    if (step === "search") return hasApprovedSearch;
+    // Don't offer Continue while an editable draft still needs approve.
+    if (step === "search") return hasApprovedSearch && !draftSearch;
     if (step === "done") return hasApprovedProfile && hasApprovedSearch;
     return false;
-  }, [step, hasApprovedProfile, hasApprovedSearch]);
+  }, [step, hasApprovedProfile, hasApprovedSearch, draftSearch]);
 
   function goNext() {
     setError(null);
@@ -132,41 +134,13 @@ export function OnboardingWizard({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-5 py-5 sm:px-8 sm:py-7 lg:max-w-4xl">
-      <nav
-        aria-label="Setup progress"
-        className="mb-6 flex items-center justify-center gap-1.5 sm:mb-8"
-      >
-        {STEPS.map((s, i) => {
-          const done = i < stepIndex || (s.id === "done" && step === "done");
-          const active = s.id === step;
-          return (
-            <div key={s.id} className="flex items-center gap-1.5">
-              {i > 0 ? (
-                <span
-                  aria-hidden
-                  className="bg-border hidden h-px w-4 sm:block"
-                />
-              ) : null}
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-medium transition-colors",
-                  active && "bg-primary text-primary-foreground",
-                  done && !active && "bg-muted text-foreground",
-                  !done && !active && "text-muted-foreground bg-transparent",
-                )}
-              >
-                {done && !active ? (
-                  <Check className="size-3" aria-hidden />
-                ) : (
-                  <span className="tabular-nums opacity-70">{i + 1}</span>
-                )}
-                <span className="hidden sm:inline">{s.label}</span>
-              </span>
-            </div>
-          );
-        })}
-      </nav>
+    <div
+      className={cn(
+        "mx-auto flex w-full flex-1 flex-col px-6 pb-10 sm:px-10 lg:px-12",
+        isCentered ? "max-w-5xl pt-4 sm:pt-8" : "max-w-6xl pt-2 sm:pt-4",
+      )}
+    >
+      <ProgressStepper stepIndex={stepIndex} />
 
       {step === "welcome" ? (
         <WelcomeStep name={userName} onContinue={goNext} />
@@ -175,7 +149,7 @@ export function OnboardingWizard({
       {step === "profile" ? (
         <StepFrame
           title="Build your profile"
-          description="Add a CV, LinkedIn, portfolio, or notes. Review the draft, then approve what matching can use."
+          description="Add your CV, LinkedIn, portfolio, or notes. Review the draft, then approve it for matching."
           error={error}
           onBack={goBack}
           onContinue={goNext}
@@ -185,7 +159,6 @@ export function OnboardingWizard({
               ? "Continue to search"
               : "Approve profile to continue"
           }
-          compact
           hideContinueUntilReady={!hasApprovedProfile}
         >
           <ProfileWorkspace
@@ -205,11 +178,8 @@ export function OnboardingWizard({
           onBack={goBack}
           onContinue={goNext}
           continueDisabled={!canContinue}
-          continueLabel={
-            hasApprovedSearch
-              ? "Continue"
-              : "Approve search criteria to continue"
-          }
+          continueLabel="Continue"
+          hideContinueUntilReady={!hasApprovedSearch || Boolean(draftSearch)}
         >
           <SearchCriteriaWorkspace
             embedded
@@ -238,31 +208,111 @@ export function OnboardingWizard({
       ) : null}
 
       {step === "done" ? (
-        <div className="mx-auto flex max-w-lg flex-1 flex-col items-center justify-center text-center">
-          <p className="text-primary mb-3 text-[13px] font-medium tracking-[0.12em] uppercase">
+        <div className="mx-auto flex max-w-2xl flex-1 flex-col items-center justify-center py-10 text-center sm:py-16">
+          <div className="bg-primary/12 text-primary mb-8 grid size-16 place-items-center rounded-2xl sm:size-20">
+            <Sparkles className="size-7 sm:size-8" aria-hidden />
+          </div>
+          <p className="text-primary mb-3 text-[13px] font-medium tracking-[0.14em] uppercase">
             Ready
           </p>
-          <h1 className="font-display text-[clamp(1.75rem,4vw,2.5rem)] font-semibold tracking-tight text-[var(--card-foreground)]">
-            You&apos;re set up
+          <h1 className="font-display text-[clamp(2.25rem,5vw,3.25rem)] leading-[1.05] font-semibold tracking-tight text-[var(--card-foreground)]">
+            You&apos;re ready
           </h1>
-          <p className="text-muted-foreground mt-4 text-[16px] leading-relaxed">
-            Your profile and search criteria are approved. Open Today to find
-            jobs — each one comes with why it fits.
+          <p className="text-muted-foreground mt-5 max-w-lg text-[17px] leading-relaxed sm:text-[18px]">
+            Your profile and search criteria are approved. Open Today to review
+            roles, each with why it fits.
           </p>
           {error ? (
-            <p className="text-destructive mt-4 text-sm">{error}</p>
+            <p className="text-destructive mt-5 text-[15px]">{error}</p>
           ) : null}
-          <div className="mt-10 flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
-            <Button size="lg" disabled={pending} onClick={finish}>
+          <div className="mt-12 flex w-full flex-col items-center gap-4">
+            <Button
+              size="lg"
+              className="h-12 min-w-[12rem] px-6 text-[15px]"
+              disabled={pending}
+              onClick={finish}
+            >
               {pending ? "Opening Today…" : "Go to Today"}
+              {!pending ? (
+                <ArrowRight className="size-4" aria-hidden />
+              ) : null}
             </Button>
-            <Button size="lg" variant="outline" onClick={goBack}>
-              Back
-            </Button>
+            <button
+              type="button"
+              onClick={goBack}
+              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-[14px] font-medium"
+            >
+              <ArrowLeft className="size-4" aria-hidden />
+              Back to search
+            </button>
           </div>
         </div>
       ) : null}
     </div>
+  );
+}
+
+function ProgressStepper({ stepIndex }: { stepIndex: number }) {
+  return (
+    <nav
+      aria-label="Setup progress"
+      className="mb-10 flex w-full items-start justify-center sm:mb-14"
+    >
+      <ol className="flex w-full max-w-2xl items-start">
+        {STEPS.map((s, i) => {
+          const done = i < stepIndex || (s.id === "done" && stepIndex === 3);
+          const active = i === stepIndex;
+          return (
+            <li
+              key={s.id}
+              className={cn(
+                "flex flex-1 flex-col items-center",
+                i < STEPS.length - 1 && "relative",
+              )}
+            >
+              {i < STEPS.length - 1 ? (
+                <span
+                  aria-hidden
+                  className={cn(
+                    "absolute top-4 left-[calc(50%+1.1rem)] h-0.5 w-[calc(100%-2.2rem)] sm:top-5",
+                    i < stepIndex ? "bg-primary" : "bg-border",
+                  )}
+                />
+              ) : null}
+              <span
+                className={cn(
+                  "relative z-10 grid size-8 place-items-center rounded-full text-[13px] font-semibold transition-colors sm:size-10 sm:text-[15px]",
+                  active &&
+                    "bg-primary text-primary-foreground ring-primary/25 ring-4",
+                  done && !active && "bg-primary text-primary-foreground",
+                  !done &&
+                    !active &&
+                    "border-border bg-background text-muted-foreground border-2",
+                )}
+              >
+                {done && !active ? (
+                  <Check className="size-3.5 sm:size-4" aria-hidden />
+                ) : (
+                  <span className="tabular-nums">{i + 1}</span>
+                )}
+              </span>
+              <span
+                className={cn(
+                  "mt-2.5 text-center text-[12px] font-medium sm:mt-3 sm:text-[14px]",
+                  active
+                    ? "text-foreground"
+                    : done
+                      ? "text-foreground/80"
+                      : "text-muted-foreground",
+                )}
+              >
+                {s.label}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }
 
@@ -276,55 +326,72 @@ function WelcomeStep({
   const greeting = name?.trim()
     ? `Hi, ${name.trim().split(" ")[0]}`
     : "Welcome";
+
+  const roadmap = [
+    {
+      n: "01",
+      icon: UserRound,
+      title: "Profile",
+      body: "Add your CV, LinkedIn, site, or notes. Review the draft and approve it.",
+    },
+    {
+      n: "02",
+      icon: Search,
+      title: "Search",
+      body: "Confirm titles, locations, and boards before we look for roles.",
+    },
+    {
+      n: "03",
+      icon: Sparkles,
+      title: "Today",
+      body: "Review a short list of roles, each with why it fits.",
+    },
+  ] as const;
+
   return (
-    <div className="mx-auto flex max-w-md flex-1 flex-col items-center justify-center text-center">
-      <p className="text-primary mb-2 text-[12px] font-medium tracking-[0.12em] uppercase">
-        First setup · ~5 min
+    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center py-4 text-center sm:py-8">
+      <p className="text-primary mb-4 text-[13px] font-medium tracking-[0.14em] uppercase">
+        Setup · about 5 minutes
       </p>
-      <h1 className="font-display text-[clamp(1.7rem,4vw,2.4rem)] leading-[1.1] font-semibold tracking-tight text-[var(--card-foreground)]">
-        {greeting}. Tell Optra about your work.
+      <h1 className="font-display max-w-3xl text-[clamp(2.1rem,5.5vw,3.4rem)] leading-[1.08] font-semibold tracking-tight text-[var(--card-foreground)]">
+        {greeting}. Build a profile Optra can trust.
       </h1>
-      <p className="text-muted-foreground mt-3 text-[14px] leading-relaxed">
-        Approve a profile, then what to search for. Nothing applies for you.
+      <p className="text-muted-foreground mt-5 max-w-xl text-[16px] leading-relaxed sm:text-[18px]">
+        Approve who you are, then what to search for. Nothing applies without
+        you.
       </p>
-      <ol className="border-border bg-card/40 mt-7 w-full space-y-0 overflow-hidden rounded-2xl border text-left">
-        {[
-          {
-            n: "1",
-            title: "Profile",
-            body: "CV, LinkedIn, site, or notes → review → approve",
-          },
-          {
-            n: "2",
-            title: "Search",
-            body: "Titles and places → approve",
-          },
-          {
-            n: "3",
-            title: "Today",
-            body: "A short list with why each job fits",
-          },
-        ].map((item) => (
+
+      <ul className="mt-12 grid w-full gap-4 text-left sm:mt-14 sm:grid-cols-3 sm:gap-5">
+        {roadmap.map((item) => (
           <li
             key={item.n}
-            className="border-border flex gap-3 border-b px-4 py-3 last:border-b-0"
+            className="border-border bg-card/50 flex flex-col rounded-2xl border px-5 py-6 sm:min-h-[11.5rem] sm:px-6 sm:py-7"
           >
-            <span className="text-primary mt-0.5 text-[12px] font-semibold">
-              {item.n}
-            </span>
-            <div>
-              <p className="font-display text-[14px] font-semibold text-[var(--card-foreground)]">
-                {item.title}
-              </p>
-              <p className="text-muted-foreground mt-0.5 text-[12px] leading-snug">
-                {item.body}
-              </p>
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <span className="bg-primary/12 text-primary grid size-11 place-items-center rounded-xl">
+                <item.icon className="size-5" aria-hidden />
+              </span>
+              <span className="text-muted-foreground font-display text-[13px] font-semibold tracking-[0.08em] tabular-nums">
+                {item.n}
+              </span>
             </div>
+            <p className="font-display text-[18px] font-semibold tracking-tight text-[var(--card-foreground)] sm:text-[19px]">
+              {item.title}
+            </p>
+            <p className="text-muted-foreground mt-2 text-[14px] leading-relaxed sm:text-[15px]">
+              {item.body}
+            </p>
           </li>
         ))}
-      </ol>
-      <Button className="mt-7 w-full sm:w-auto" size="lg" onClick={onContinue}>
-        Start with profile
+      </ul>
+
+      <Button
+        className="mt-12 h-12 min-w-[14rem] px-8 text-[15px] sm:mt-14"
+        size="lg"
+        onClick={onContinue}
+      >
+        Start setup
+        <ArrowRight className="size-4" aria-hidden />
       </Button>
     </div>
   );
@@ -339,7 +406,6 @@ function StepFrame({
   onContinue,
   continueDisabled,
   continueLabel,
-  compact = false,
   hideContinueUntilReady = false,
 }: {
   title: string;
@@ -350,54 +416,61 @@ function StepFrame({
   onContinue: () => void;
   continueDisabled: boolean;
   continueLabel: string;
-  compact?: boolean;
   /** Hide primary continue until the gate is open (reduces competing CTAs). */
   hideContinueUntilReady?: boolean;
 }) {
   const showContinue = !hideContinueUntilReady || !continueDisabled;
   return (
     <div className="flex flex-1 flex-col">
-      <header className={cn("max-w-xl", compact ? "mb-4" : "mb-8")}>
-        <h1
-          className={cn(
-            "font-display leading-tight font-semibold tracking-tight text-[var(--card-foreground)]",
-            compact ? "text-[22px]" : "text-[28px]",
-          )}
+      <header className="mb-8 max-w-2xl sm:mb-10">
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-muted-foreground hover:text-foreground mb-5 inline-flex items-center gap-1.5 text-[14px] font-medium transition-colors"
         >
+          <ArrowLeft className="size-4" aria-hidden />
+          Back
+        </button>
+        <h1 className="font-display text-[clamp(1.75rem,3.5vw,2.35rem)] leading-tight font-semibold tracking-tight text-[var(--card-foreground)]">
           {title}
         </h1>
-        <p
-          className={cn(
-            "text-muted-foreground leading-relaxed",
-            compact ? "mt-1 text-[13px]" : "mt-2 text-[15px]",
-          )}
-        >
+        <p className="text-muted-foreground mt-3 text-[15px] leading-relaxed sm:text-[16px]">
           {description}
         </p>
       </header>
       <div className="flex-1">{children}</div>
       {error ? (
-        <p className="text-destructive mt-4 text-sm">{error}</p>
+        <p className="text-destructive mt-6 text-[15px]">{error}</p>
       ) : null}
       <div
         className={cn(
-          "border-border bg-background/80 sticky bottom-0 flex flex-wrap items-center gap-3 border-t backdrop-blur-sm",
-          compact ? "mt-5 py-3" : "mt-10 py-4",
+          "border-border bg-background/85 sticky bottom-0 mt-10 flex flex-wrap items-center gap-3 border-t py-5 backdrop-blur-sm",
+          showContinue ? "justify-between" : "justify-start",
         )}
       >
-        <Button variant="outline" size={compact ? "sm" : "default"} onClick={onBack}>
+        <Button
+          variant="ghost"
+          size="lg"
+          className="text-muted-foreground h-11 px-3 text-[15px]"
+          onClick={onBack}
+        >
+          <ArrowLeft className="size-4" aria-hidden />
           Back
         </Button>
         {showContinue ? (
           <Button
-            size={compact ? "sm" : "default"}
+            size="lg"
+            className="h-11 px-5 text-[15px]"
             disabled={continueDisabled}
             onClick={onContinue}
           >
             {continueLabel}
+            {!continueDisabled ? (
+              <ArrowRight className="size-4" aria-hidden />
+            ) : null}
           </Button>
         ) : (
-          <p className="text-muted-foreground text-[12px]">
+          <p className="text-muted-foreground text-[14px]">
             Approve above when the draft looks right.
           </p>
         )}

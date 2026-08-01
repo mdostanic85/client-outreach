@@ -10,7 +10,7 @@ const SAMPLE_MATCH = {
     "They posted a Head of Design role 9 days ago",
   ].map(noWidow),
   concern: noWidow(
-    "The title is for an individual contributor. Check if they mean staff or lead before you apply.",
+    "The title is for an individual contributor. Confirm staff or lead scope before you apply.",
   ),
 };
 
@@ -18,16 +18,16 @@ const SAMPLE_MATCH = {
 export function ProductPanel({
   eyebrow = "How Optra works",
   headline = noWidow(
-    "Each day you get a short list of jobs that fit, and why they fit.",
+    "A short daily list of roles that fit, with the reasoning to back them up.",
   ),
 }: {
   eyebrow?: string;
   headline?: string;
 }) {
   const steps = [
-    "Add your CV, LinkedIn, portfolio, or a short note about you.",
-    "We find open jobs and explain why each one matches you.",
-    "You get up to 20 jobs a day, with reasons and things to watch for.",
+    "Build your profile from your CV, LinkedIn, portfolio, or notes.",
+    "We find openings and score fit with clear, evidence-based reasons.",
+    "You review up to 20 roles a day: why they fit, and what to watch for.",
   ].map(noWidow);
 
   return (
@@ -58,7 +58,7 @@ export function ProductPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-muted-foreground text-[12px] font-medium tracking-wide uppercase">
-              Today&apos;s pick
+              Today&apos;s shortlist
             </p>
             <p className="font-display mt-1.5 text-[18px] font-semibold text-[var(--card-foreground)]">
               {SAMPLE_MATCH.title}
@@ -72,7 +72,7 @@ export function ProductPanel({
               {SAMPLE_MATCH.score}
             </p>
             <p className="mt-1 text-[10px] font-medium tracking-wide uppercase opacity-80">
-              match
+              fit
             </p>
           </div>
         </div>
