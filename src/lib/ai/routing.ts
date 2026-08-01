@@ -70,6 +70,13 @@ export const TASK_ROUTES = {
     modelEnv: "PUBLIC_LLM_MODEL",
     defaultModel: "gemini-3.1-flash-lite",
   },
+  /** Weekly job search insights + strategy diffs — private mid-tier. */
+  jobWeeklyInsights: {
+    dataClass: "PRIVATE" as const,
+    provider: "anthropic" as const,
+    modelEnv: "PRIVATE_WRITING_MODEL",
+    defaultModel: "claude-sonnet-4-5",
+  },
 } as const;
 
 export type TaskName = keyof typeof TASK_ROUTES;

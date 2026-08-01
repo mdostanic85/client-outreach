@@ -390,6 +390,33 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
   used_at TEXT,
   created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS job_outcome_events (
+  id TEXT PRIMARY KEY,
+  job_id TEXT NOT NULL REFERENCES jobs(id),
+  type TEXT NOT NULL,
+  strategy_version INTEGER,
+  payload_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS strategy_cohort_metrics (
+  id TEXT PRIMARY KEY,
+  strategy_version INTEGER NOT NULL,
+  applications_n INTEGER NOT NULL DEFAULT 0,
+  responses_n INTEGER NOT NULL DEFAULT 0,
+  interviews_n INTEGER NOT NULL DEFAULT 0,
+  offers_n INTEGER NOT NULL DEFAULT 0,
+  rejections_n INTEGER NOT NULL DEFAULT 0,
+  triage_liked_n INTEGER NOT NULL DEFAULT 0,
+  triage_rejected_n INTEGER NOT NULL DEFAULT 0,
+  response_rate REAL NOT NULL DEFAULT 0,
+  interview_rate REAL NOT NULL DEFAULT 0,
+  offer_rate REAL NOT NULL DEFAULT 0,
+  median_days_to_response REAL,
+  segment_json TEXT NOT NULL DEFAULT '{}',
+  computed_at TEXT NOT NULL
+);
 `;
 
 function columnExists(table: string, column: string): boolean {
@@ -449,4 +476,32 @@ export function runMigrations() {
     "setup_checklist_dismissed_at",
     "setup_checklist_dismissed_at TEXT",
   );
+  addColumnIfMissing(
+    "settings",
+    "adaptive_job_ranking",
+    "adaptive_job_ranking INTEGER NOT NULL DEFAULT 1",
+  );
+  addColumnIfMissing(
+    "job_search_profiles",
+    "parent_version",
+    "parent_version INTEGER",
+  );
+  addColumnIfMissing(
+    "job_search_profiles",
+    "hypothesis_md",
+    "hypothesis_md TEXT",
+  );
+  addColumnIfMissing(
+    "job_search_profiles",
+    "superseded_at",
+    "superseded_at TEXT",
+  );
+  addColumnIfMissing("jobs", "applied_at", "applied_at TEXT");
+  addColumnIfMissing(
+    "jobs",
+    "outcome",
+    "outcome TEXT NOT NULL DEFAULT 'none'",
+  );
+  addColumnIfMissing("jobs", "outcome_at", "outcome_at TEXT");
+  addColumnIfMissing("jobs", "outcome_note", "outcome_note TEXT");
 }

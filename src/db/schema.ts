@@ -20,6 +20,11 @@ export const settings = sqliteTable("settings", {
   opsChecklistJson: text("ops_checklist_json").notNull().default("{}"),
   /** Soft post-onboarding checklist on Today — dismissed timestamp. */
   setupChecklistDismissedAt: text("setup_checklist_dismissed_at"),
+  /**
+   * When 1, job ranking may soft-boost segments from approved strategy learning.
+   * Major title/location changes still require human-approved search profile versions.
+   */
+  adaptiveJobRanking: integer("adaptive_job_ranking").notNull().default(1),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -352,7 +357,7 @@ export const structuredProfiles = sqliteTable("structured_profiles", {
   approvedAt: text("approved_at"),
 });
 
-/** AI-generated Apify/search criteria. Collectors use approved only. */
+/** AI-generated Apify/search criteria. Collectors use approved only. Strategy versions = rows. */
 export const jobSearchProfiles = sqliteTable("job_search_profiles", {
   id: text("id").primaryKey(),
   version: integer("version").notNull(),
@@ -362,11 +367,16 @@ export const jobSearchProfiles = sqliteTable("job_search_profiles", {
   paramsJson: text("params_json").notNull(),
   rationaleJson: text("rationale_json").notNull().default("[]"),
   generationTrigger: text("generation_trigger").notNull().default("manual"),
+  /** Prior strategy version this draft/version evolved from. */
+  parentVersion: integer("parent_version"),
+  /** Why this version changed (hypothesis for cohort compare). */
+  hypothesisMd: text("hypothesis_md"),
   modelId: text("model_id"),
   promptVersion: text("prompt_version"),
   costUsd: real("cost_usd"),
   createdAt: text("created_at").notNull(),
   approvedAt: text("approved_at"),
+  supersededAt: text("superseded_at"),
 });
 
 /** First-class open roles for job-application mode. */
@@ -395,6 +405,15 @@ export const jobs = sqliteTable(
     searchProfileVersion: integer("search_profile_version"),
     fingerprint: text("fingerprint"),
     publishedAt: text("published_at"),
+    /** ISO when user marked applied — for time-to-response. */
+    appliedAt: text("applied_at"),
+    /**
+     * Post-apply outcome: none | no_response | recruiter_response | interview |
+     * rejected | offer | accepted
+     */
+    outcome: text("outcome").notNull().default("none"),
+    outcomeAt: text("outcome_at"),
+    outcomeNote: text("outcome_note"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
@@ -402,6 +421,38 @@ export const jobs = sqliteTable(
     sourceExternal: uniqueIndex("jobs_source_external").on(t.source, t.externalId),
   }),
 );
+
+/** Append-only job learning signals (triage + post-apply outcomes). */
+export const jobOutcomeEvents = sqliteTable("job_outcome_events", {
+  id: text("id").primaryKey(),
+  jobId: text("job_id")
+    .notNull()
+    .references(() => jobs.id),
+  /** Event type: viewed | saved | interested | rejected | applied | recruiter_response | interview | offer | accepted | no_response | rejected_after_apply */
+  type: text("type").notNull(),
+  strategyVersion: integer("strategy_version"),
+  payloadJson: text("payload_json").notNull().default("{}"),
+  createdAt: text("created_at").notNull(),
+});
+
+/** Snapshot of funnel KPIs per search strategy version (recomputed on demand). */
+export const strategyCohortMetrics = sqliteTable("strategy_cohort_metrics", {
+  id: text("id").primaryKey(),
+  strategyVersion: integer("strategy_version").notNull(),
+  applicationsN: integer("applications_n").notNull().default(0),
+  responsesN: integer("responses_n").notNull().default(0),
+  interviewsN: integer("interviews_n").notNull().default(0),
+  offersN: integer("offers_n").notNull().default(0),
+  rejectionsN: integer("rejections_n").notNull().default(0),
+  triageLikedN: integer("triage_liked_n").notNull().default(0),
+  triageRejectedN: integer("triage_rejected_n").notNull().default(0),
+  responseRate: real("response_rate").notNull().default(0),
+  interviewRate: real("interview_rate").notNull().default(0),
+  offerRate: real("offer_rate").notNull().default(0),
+  medianDaysToResponse: real("median_days_to_response"),
+  segmentJson: text("segment_json").notNull().default("{}"),
+  computedAt: text("computed_at").notNull(),
+});
 
 /** One collector/Apify query run. */
 export const collectorRuns = sqliteTable("collector_runs", {

@@ -248,28 +248,53 @@ export function JobsInbox({
                       </Button>
                     </div>
                     {rejectingId === row.jobId ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          placeholder="Reason (required)"
-                          value={rejectReason}
-                          onChange={(e) => setRejectReason(e.target.value)}
-                        />
-                        <Button
-                          size="sm"
-                          disabled={pending || !rejectReason.trim()}
-                          onClick={() =>
-                            run(async () => {
-                              const res = await rejectJobAction(
-                                row.jobId,
-                                rejectReason,
-                              );
-                              setRejectingId(null);
-                              return res;
-                            })
-                          }
-                        >
-                          Confirm
-                        </Button>
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            "Wrong title",
+                            "Wrong seniority",
+                            "Wrong location / remote",
+                            "Wrong industry",
+                            "Comp too low",
+                            "Company type mismatch",
+                            "Other",
+                          ].map((reason) => (
+                            <Button
+                              key={reason}
+                              size="sm"
+                              variant={
+                                rejectReason === reason ? "secondary" : "outline"
+                              }
+                              disabled={pending}
+                              onClick={() => setRejectReason(reason)}
+                            >
+                              {reason}
+                            </Button>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            placeholder="Or type a reason"
+                            value={rejectReason}
+                            onChange={(e) => setRejectReason(e.target.value)}
+                          />
+                          <Button
+                            size="sm"
+                            disabled={pending || !rejectReason.trim()}
+                            onClick={() =>
+                              run(async () => {
+                                const res = await rejectJobAction(
+                                  row.jobId,
+                                  rejectReason,
+                                );
+                                setRejectingId(null);
+                                return res;
+                              })
+                            }
+                          >
+                            Confirm
+                          </Button>
+                        </div>
                       </div>
                     ) : null}
                   </div>
