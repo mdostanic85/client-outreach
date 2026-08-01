@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import { Briefcase, Search } from "lucide-react";
 import {
   interestedJobAction,
   markJobAppliedAction,
@@ -11,11 +12,7 @@ import {
   saveJobForLaterAction,
 } from "@/app/actions";
 import { EmptyState } from "@/components/empty-state";
-import {
-  PageHeader,
-  PageShell,
-  Surface,
-} from "@/components/page-shell";
+import { SectionTitle, Surface } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -61,37 +58,45 @@ export function JobsInbox({
     });
   };
 
+  const findJobs = () => run(async () => runJobPipelineAction());
+
   const visible = useMemo(
     () => rows.filter((r) => r.triageState !== "rejected"),
     [rows],
   );
 
+  const isEmpty = visible.length === 0;
+
   return (
-    <PageShell>
-      <PageHeader
+    <div className="space-y-5">
+      <SectionTitle
         title="Today · Jobs"
         description="Up to 20 strong matches each day. Weak fits stay off the list."
         actions={
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={pending || !hasSearchProfile}
-            onClick={() => run(async () => runJobPipelineAction())}
-          >
-            Find jobs
-          </Button>
+          !isEmpty ? (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pending || !hasSearchProfile}
+              onClick={findJobs}
+            >
+              Find jobs
+            </Button>
+          ) : null
         }
       />
 
       {error ? (
-        <p className="text-sm text-destructive mb-4">{error}</p>
+        <p className="border-destructive/30 bg-destructive/10 text-destructive rounded-xl border px-4 py-3 text-[14px]">
+          {error}
+        </p>
       ) : null}
 
       {!hasSearchProfile ? (
-        <Surface className="mb-6 p-4">
-          <p className="text-sm">
+        <Surface className="px-5 py-4">
+          <p className="text-[14px] leading-relaxed">
             Approve your{" "}
-            <Link href="/search-criteria" className="underline">
+            <Link href="/search-criteria" className="text-primary underline-offset-4 hover:underline">
               search criteria
             </Link>{" "}
             before finding jobs.
@@ -99,15 +104,31 @@ export function JobsInbox({
         </Surface>
       ) : null}
 
-      {visible.length === 0 ? (
-        <EmptyState
-          title="No matches yet"
-          description={
-            hasSearchProfile
-              ? "Select Find jobs, or wait for the next daily run."
-              : "Generate and approve search criteria first."
-          }
-        />
+      {isEmpty ? (
+        <Surface>
+          {hasSearchProfile ? (
+            <EmptyState
+              title="No matches yet"
+              description="Run a search now, or wait for the next daily run. Only strong fits show up here."
+              icon={
+                <Briefcase className="size-6 opacity-70" strokeWidth={1.5} />
+              }
+              actionId="today-primary-action"
+              actionLabel={pending ? "Finding…" : "Find jobs"}
+              pending={pending}
+              onAction={findJobs}
+            />
+          ) : (
+            <EmptyState
+              title="No matches yet"
+              description="Generate and approve search criteria first, then find jobs."
+              icon={<Search className="size-6 opacity-70" strokeWidth={1.5} />}
+              actionId="today-primary-action"
+              actionLabel="Set search criteria"
+              onAction={() => router.push("/search-criteria")}
+            />
+          )}
+        </Surface>
       ) : (
         <div className="space-y-3">
           {visible.map((row) => {
@@ -116,7 +137,7 @@ export function JobsInbox({
               <Surface key={row.jobId} className="overflow-hidden">
                 <button
                   type="button"
-                  className="w-full text-left px-4 py-3 hover:bg-white/3"
+                  className="w-full px-4 py-3 text-left hover:bg-white/3"
                   onClick={() =>
                     setExpandedId(expanded ? null : row.jobId)
                   }
@@ -124,13 +145,13 @@ export function JobsInbox({
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-medium">{row.title}</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-muted-foreground text-sm">
                         {row.companyName}
                         {row.location ? ` · ${row.location}` : ""}
                         {row.remotePolicy ? ` · ${row.remotePolicy}` : ""}
                       </p>
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="shrink-0 text-right">
                       {row.matchScore != null ? (
                         <p
                           className={cn(
@@ -143,7 +164,7 @@ export function JobsInbox({
                           {row.matchScore}
                         </p>
                       ) : null}
-                      <p className="text-[11px] text-muted-foreground uppercase">
+                      <p className="text-muted-foreground text-[11px] uppercase">
                         {row.recommendation ?? row.triageState}
                       </p>
                     </div>
@@ -151,13 +172,13 @@ export function JobsInbox({
                 </button>
 
                 {expanded ? (
-                  <div className="border-t px-4 py-3 space-y-3">
+                  <div className="space-y-3 border-t px-4 py-3">
                     {row.matchingReasons.length > 0 ? (
                       <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-1">
+                        <p className="text-muted-foreground mb-1 text-xs font-medium">
                           Why it matches
                         </p>
-                        <ul className="text-sm list-disc pl-5 space-y-1">
+                        <ul className="list-disc space-y-1 pl-5 text-sm">
                           {row.matchingReasons.map((r) => (
                             <li key={r}>{r}</li>
                           ))}
@@ -166,10 +187,10 @@ export function JobsInbox({
                     ) : null}
                     {row.concerns.length > 0 ? (
                       <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-1">
+                        <p className="text-muted-foreground mb-1 text-xs font-medium">
                           Things to watch
                         </p>
-                        <ul className="text-sm list-disc pl-5 space-y-1">
+                        <ul className="list-disc space-y-1 pl-5 text-sm">
                           {row.concerns.map((c) => (
                             <li key={c}>{c}</li>
                           ))}
@@ -210,7 +231,7 @@ export function JobsInbox({
                         href={row.sourceUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex h-[34px] items-center rounded-lg px-3 text-[14px] text-muted-foreground hover:bg-muted"
+                        className="text-muted-foreground hover:bg-muted inline-flex h-[34px] items-center rounded-lg px-3 text-[14px]"
                       >
                         Open posting
                       </a>
@@ -227,7 +248,7 @@ export function JobsInbox({
                       </Button>
                     </div>
                     {rejectingId === row.jobId ? (
-                      <div className="flex gap-2 items-center">
+                      <div className="flex items-center gap-2">
                         <Input
                           placeholder="Reason (required)"
                           value={rejectReason}
@@ -258,6 +279,6 @@ export function JobsInbox({
           })}
         </div>
       )}
-    </PageShell>
+    </div>
   );
 }

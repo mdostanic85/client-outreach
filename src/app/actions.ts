@@ -886,7 +886,25 @@ export async function saveProfileDraftAction(
     const { saveDraftProfileEdits } = await import("@/modules/profile/extract");
     saveDraftProfileEdits(profileId, profile);
     revalidatePath("/profile");
+    revalidatePath("/onboarding");
     return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function createProfileDraftFromApprovedAction(): Promise<
+  ActionResult<{ profileId: string; version: number }>
+> {
+  try {
+    ensureDb();
+    const { createDraftFromApprovedProfile } = await import(
+      "@/modules/profile/extract"
+    );
+    const result = createDraftFromApprovedProfile();
+    revalidatePath("/profile");
+    revalidatePath("/onboarding");
+    return { ok: true, data: result };
   } catch (err) {
     return fail(err);
   }

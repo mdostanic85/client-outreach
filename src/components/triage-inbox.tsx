@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import { Building2, ChevronDown, ExternalLink } from "lucide-react";
 import {
   acceptLeadAction,
   rejectLeadAction,
@@ -14,10 +15,10 @@ import { EmptyState } from "@/components/empty-state";
 import {
   PageHeader,
   PageShell,
-  PanelHeader,
+  SectionTitle,
   Surface,
 } from "@/components/page-shell";
-import { PolicyPill, ScoreMark, StatePill } from "@/components/status-pill";
+import { PolicyPill, StatePill } from "@/components/status-pill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -42,7 +43,37 @@ export type TriageRow = {
 
 type Filter = "all" | "new" | "saved";
 
-export function TriageInbox({ rows }: { rows: TriageRow[] }) {
+function FitScore({ score }: { score: number | null }) {
+  if (score == null) {
+    return (
+      <span className="text-muted-foreground tabular text-[13px]">—</span>
+    );
+  }
+  const strong = score >= 70;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-semibold tabular-nums",
+        strong
+          ? "bg-primary/15 text-primary"
+          : "bg-muted text-muted-foreground",
+      )}
+      title="Fit score"
+    >
+      <span className="text-[10px] font-medium uppercase opacity-70">Fit</span>
+      {Number.isInteger(score) ? score : score.toFixed(1)}
+    </span>
+  );
+}
+
+export function TriageInbox({
+  rows,
+  embedded = false,
+}: {
+  rows: TriageRow[];
+  /** When true, skip PageShell (parent already provides layout). */
+  embedded?: boolean;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [filter, setFilter] = useState<Filter>("all");
@@ -86,58 +117,63 @@ export function TriageInbox({ rows }: { rows: TriageRow[] }) {
     });
   };
 
-  const Chip = ({
-    id,
-    label,
-    count,
-  }: {
-    id: Filter;
-    label: string;
-    count: number;
-  }) => (
-    <button
-      type="button"
-      onClick={() => setFilter(id)}
-      className={cn(
-        "inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[13px] transition-colors duration-150",
-        filter === id
-          ? "bg-primary text-primary-foreground font-medium"
-          : "text-muted-foreground hover:bg-white/5 hover:text-[var(--card-foreground)]",
-      )}
-    >
-      {label}
-      <span className="tabular opacity-80">{count}</span>
-    </button>
+  const filters: { id: Filter; label: string; count: number }[] = [
+    { id: "all", label: "All", count: counts.all },
+    { id: "new", label: "To review", count: counts.new },
+    { id: "saved", label: "Saved", count: counts.saved },
+  ];
+
+  const headerActions = (
+    <div className="flex flex-wrap items-center gap-2">
+      {rows.length > 0 ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={pending}
+          onClick={() =>
+            run(async () => {
+              const result = await runDailyPipelineAction();
+              return result;
+            })
+          }
+        >
+          Refresh
+        </Button>
+      ) : null}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setShowDiscover((v) => !v)}
+      >
+        {showDiscover ? "Hide" : "Add company"}
+      </Button>
+    </div>
   );
 
-  return (
-    <PageShell>
-      <PageHeader
-        title="Today · Clients"
-        description="Companies ranked for outreach. Accept, save, or skip, then open one to write."
-        meta={
-          rows.length > 0 ? (
-            <span className="tabular">{counts.new} to review</span>
-          ) : undefined
-        }
-        actions={
-          <Button
-            variant="outline"
-            onClick={() => setShowDiscover((v) => !v)}
-          >
-            {showDiscover ? "Hide discover" : "Add company"}
-          </Button>
-        }
-      />
+  const body = (
+    <>
+      {embedded ? (
+        <SectionTitle
+          title="Today · Clients"
+          description="Accept to write outreach, save for later, or skip."
+          actions={headerActions}
+        />
+      ) : (
+        <PageHeader
+          title="Today · Clients"
+          description="Accept to write outreach, save for later, or skip."
+          actions={headerActions}
+        />
+      )}
 
       {showDiscover ? (
-        <Surface className="p-8">
+        <Surface className="px-5 py-5 sm:px-6">
           <DiscoverControls />
         </Surface>
       ) : null}
 
       {error ? (
-        <p className="border-destructive/30 bg-destructive/10 text-destructive rounded-xl border px-4 py-3 text-[15px]">
+        <p className="border-destructive/30 bg-destructive/10 text-destructive rounded-xl border px-4 py-3 text-[14px]">
           {error}
         </p>
       ) : null}
@@ -146,9 +182,13 @@ export function TriageInbox({ rows }: { rows: TriageRow[] }) {
         <Surface>
           <EmptyState
             title="No companies yet"
-            description="Run Find companies to fill this inbox, or add a company URL."
+            description="Find companies to fill this inbox, or add a company URL."
+            actionId="today-primary-action"
             actionLabel={pending ? "Finding…" : "Find companies"}
             pending={pending}
+            icon={
+              <Building2 className="size-6 opacity-70" strokeWidth={1.5} />
+            }
             onAction={() =>
               run(async () => {
                 const result = await runDailyPipelineAction();
@@ -156,180 +196,247 @@ export function TriageInbox({ rows }: { rows: TriageRow[] }) {
               })
             }
           />
-          <div className="border-border border-t px-6 py-5">
+          <div className="border-border border-t px-5 py-4 sm:px-6">
             <DiscoverControls />
           </div>
         </Surface>
       ) : (
         <Surface>
-          <PanelHeader>
-            <Chip id="all" label="All" count={counts.all} />
-            <Chip id="new" label="To review" count={counts.new} />
-            <Chip id="saved" label="Saved" count={counts.saved} />
-          </PanelHeader>
-
-          <ul className="divide-border divide-y">
-            {filtered.map((row) => {
-              const open = expandedId === row.leadId;
-              return (
-                <li
-                  key={row.leadId}
-                  className="row-accent hover:bg-accent-wash/50 group transition-colors duration-150"
+          <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 sm:px-5">
+            <div
+              role="tablist"
+              aria-label="Client filters"
+              className="bg-muted/50 border-border inline-flex rounded-xl border p-1"
+            >
+              {filters.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === t.id}
+                  onClick={() => setFilter(t.id)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors",
+                    filter === t.id
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
                 >
-                  <div className="flex gap-5 px-8 py-7">
-                    <div className="flex w-12 shrink-0 flex-col items-end pt-1">
-                      <ScoreMark score={row.score} className="text-[20px]" />
-                    </div>
+                  {t.label}
+                  <span className="tabular opacity-80">{t.count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <Link
-                          href={`/leads/${row.leadId}`}
-                          className="text-[17px] font-semibold text-[var(--card-foreground)] transition-colors hover:text-primary"
-                        >
-                          {row.companyName}
-                        </Link>
-                        <StatePill state={row.state} />
-                        {row.policy !== "draft_allowed" ? (
-                          <PolicyPill policy={row.policy} />
-                        ) : null}
-                      </div>
+          {filtered.length === 0 ? (
+            <EmptyState
+              className="py-12"
+              title="Nothing in this filter"
+              description="Try All or To review, or save a company for later."
+              actionLabel="Show all"
+              onAction={() => setFilter("all")}
+            />
+          ) : (
+            <ul className="divide-border divide-y">
+              {filtered.map((row) => {
+                const open = expandedId === row.leadId;
+                const summary = row.topNeed ?? row.oneLiner;
+                const meta = [row.domain, row.country]
+                  .filter(Boolean)
+                  .join(" · ");
 
-                      <p className="text-muted-foreground text-[13px]">
-                        {[row.domain, row.country].filter(Boolean).join(" · ") ||
-                          "Location unknown"}
-                      </p>
-
-                      {(row.topNeed || row.oneLiner) && (
-                        <p
-                          className={cn(
-                            "text-[15px] leading-relaxed",
-                            open ? "" : "line-clamp-2",
-                          )}
-                        >
-                          {row.topNeed ?? row.oneLiner}
-                        </p>
-                      )}
-
-                      {open ? (
-                        <div className="text-muted-foreground space-y-2 pt-2 text-[13px]">
-                          {row.whyFit ? <p>Why it fits: {row.whyFit}</p> : null}
-                          {row.unknowns.length > 0 ? (
-                            <p className="text-warn">
-                              Uncertainty: {row.unknowns.join(" · ")}
-                            </p>
+                return (
+                  <li
+                    key={row.leadId}
+                    className="hover:bg-accent-wash/40 transition-colors"
+                  >
+                    <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:gap-4 sm:px-5 sm:py-4">
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            href={`/leads/${row.leadId}`}
+                            className="text-[15px] font-semibold text-[var(--card-foreground)] hover:text-primary"
+                          >
+                            {row.companyName}
+                          </Link>
+                          <FitScore score={row.score} />
+                          <StatePill
+                            state={row.state}
+                            className="px-2 py-0.5 text-[11px]"
+                          />
+                          {row.policy !== "draft_allowed" &&
+                          row.policy !== "unknown" ? (
+                            <PolicyPill
+                              policy={row.policy}
+                              className="px-2 py-0.5 text-[11px]"
+                            />
                           ) : null}
-                          {row.sourceUrl ? (
-                            <p>
+                        </div>
+
+                        {meta ? (
+                          <p className="text-muted-foreground text-[13px]">
+                            {meta}
+                          </p>
+                        ) : null}
+
+                        {summary ? (
+                          <p
+                            className={cn(
+                              "text-muted-foreground text-[14px] leading-relaxed",
+                              !open && "line-clamp-2",
+                            )}
+                          >
+                            {summary}
+                          </p>
+                        ) : null}
+
+                        {open ? (
+                          <div className="border-border/60 space-y-2 border-t pt-3 text-[13px]">
+                            {row.whyFit ? (
+                              <p>
+                                <span className="text-foreground font-medium">
+                                  Why it fits ·{" "}
+                                </span>
+                                <span className="text-muted-foreground">
+                                  {row.whyFit}
+                                </span>
+                              </p>
+                            ) : null}
+                            {row.unknowns.length > 0 ? (
+                              <p className="text-warn">
+                                Uncertainty · {row.unknowns.join(" · ")}
+                              </p>
+                            ) : null}
+                            {row.sourceUrl ? (
                               <a
-                                className="underline-offset-2 hover:underline"
+                                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 underline-offset-2 hover:underline"
                                 href={row.sourceUrl}
                                 target="_blank"
                                 rel="noreferrer"
                               >
                                 {row.sourceName}: {row.sourceTitle}
+                                <ExternalLink className="size-3" aria-hidden />
                               </a>
-                            </p>
-                          ) : null}
-                        </div>
-                      ) : null}
+                            ) : null}
+                            <Link
+                              href={`/leads/${row.leadId}`}
+                              className="text-primary inline-flex text-[13px] font-medium underline-offset-2 hover:underline"
+                            >
+                              Open company →
+                            </Link>
+                          </div>
+                        ) : null}
 
-                      {rejectingId === row.leadId ? (
-                        <div className="flex flex-wrap items-end gap-2 pt-3">
-                          <Input
-                            value={rejectReason}
-                            onChange={(e) => setRejectReason(e.target.value)}
-                            placeholder="Reject reason (required)"
-                            className="max-w-md"
-                            autoFocus
-                          />
+                        {rejectingId === row.leadId ? (
+                          <div className="flex flex-wrap items-center gap-2 pt-1">
+                            <Input
+                              value={rejectReason}
+                              onChange={(e) => setRejectReason(e.target.value)}
+                              placeholder="Reject reason (required)"
+                              className="max-w-sm"
+                              autoFocus
+                            />
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              disabled={pending || !rejectReason.trim()}
+                              onClick={() =>
+                                run(
+                                  () =>
+                                    rejectLeadAction(
+                                      row.leadId,
+                                      rejectReason.trim(),
+                                    ),
+                                  () => {
+                                    setRejectingId(null);
+                                    setRejectReason("");
+                                  },
+                                )
+                              }
+                            >
+                              Confirm
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setRejectingId(null);
+                                setRejectReason("");
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="flex shrink-0 flex-wrap items-center gap-2 sm:flex-col sm:items-end">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <Button
-                            variant="destructive"
-                            disabled={pending || !rejectReason.trim()}
+                            size="sm"
+                            disabled={pending || !row.hasBrief}
                             onClick={() =>
-                              run(
-                                () =>
-                                  rejectLeadAction(
-                                    row.leadId,
-                                    rejectReason.trim(),
-                                  ),
-                                () => {
-                                  setRejectingId(null);
-                                  setRejectReason("");
-                                },
+                              run(() => acceptLeadAction(row.leadId), () =>
+                                router.push(`/leads/${row.leadId}`),
                               )
                             }
                           >
-                            Confirm reject
+                            Accept
                           </Button>
                           <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled={pending || !row.hasBrief}
+                            onClick={() =>
+                              run(() => saveForLaterAction(row.leadId))
+                            }
+                          >
+                            Later
+                          </Button>
+                          <Button
+                            size="sm"
                             variant="ghost"
+                            disabled={pending}
                             onClick={() => {
-                              setRejectingId(null);
+                              setRejectingId(row.leadId);
                               setRejectReason("");
                             }}
                           >
-                            Cancel
+                            Reject
                           </Button>
                         </div>
-                      ) : null}
-                    </div>
-
-                    <div className="flex shrink-0 flex-col items-end gap-2">
-                      <div className="flex gap-2">
-                        <Button
-                          disabled={pending || !row.hasBrief}
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-[12px] font-medium"
                           onClick={() =>
-                            run(() => acceptLeadAction(row.leadId), () =>
-                              router.push(`/leads/${row.leadId}`),
-                            )
+                            setExpandedId(open ? null : row.leadId)
                           }
                         >
-                          Accept
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          disabled={pending || !row.hasBrief}
-                          onClick={() =>
-                            run(() => saveForLaterAction(row.leadId))
-                          }
-                        >
-                          Later
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          disabled={pending}
-                          onClick={() => {
-                            setRejectingId(row.leadId);
-                            setRejectReason("");
-                          }}
-                        >
-                          Reject
-                        </Button>
+                          {open ? "Less" : "Details"}
+                          <ChevronDown
+                            className={cn(
+                              "size-3.5 transition-transform",
+                              open && "rotate-180",
+                            )}
+                            aria-hidden
+                          />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className="text-muted-foreground hover:text-[var(--card-foreground)] text-[13px]"
-                        onClick={() =>
-                          setExpandedId(open ? null : row.leadId)
-                        }
-                      >
-                        {open ? "Less" : "More"}
-                      </button>
                     </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-
-          {filtered.length === 0 ? (
-            <p className="text-muted-foreground px-5 py-12 text-center text-[15px]">
-              Nothing in this filter.
-            </p>
-          ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </Surface>
       )}
-    </PageShell>
+    </>
   );
+
+  if (embedded) {
+    return <div className="space-y-5">{body}</div>;
+  }
+
+  return <PageShell className="gap-6 lg:gap-8">{body}</PageShell>;
 }

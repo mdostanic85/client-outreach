@@ -232,3 +232,70 @@ export function saveDraftProfileEdits(
     .where(eq(structuredProfiles.id, profileId))
     .run();
 }
+
+/**
+ * Copy the approved profile into a new draft so the user can edit
+ * (preferences, compensation, etc.) without re-extracting sources.
+ */
+export function createDraftFromApprovedProfile(): {
+  profileId: string;
+  version: number;
+} {
+  const db = getDb();
+  const existingDraft = db
+    .select()
+    .from(structuredProfiles)
+    .where(eq(structuredProfiles.status, "draft"))
+    .orderBy(desc(structuredProfiles.version))
+    .limit(1)
+    .get();
+  if (existingDraft) {
+    return { profileId: existingDraft.id, version: existingDraft.version };
+  }
+
+  const approved = db
+    .select()
+    .from(structuredProfiles)
+    .where(eq(structuredProfiles.status, "approved"))
+    .orderBy(desc(structuredProfiles.version))
+    .limit(1)
+    .get();
+  if (!approved) {
+    throw new Error("Approve a profile first, or extract a draft from sources");
+  }
+
+  const maxVersion =
+    db
+      .select()
+      .from(structuredProfiles)
+      .orderBy(desc(structuredProfiles.version))
+      .limit(1)
+      .get()?.version ?? approved.version;
+
+  const id = newId("sprof");
+  const version = maxVersion + 1;
+  const profile = StructuredProfileSchema.parse(
+    JSON.parse(approved.profileJson || "{}"),
+  );
+
+  db.insert(structuredProfiles)
+    .values({
+      id,
+      version,
+      status: "draft",
+      profileJson: JSON.stringify(profile),
+      sourceIdsJson: approved.sourceIdsJson,
+      modelId: approved.modelId,
+      promptVersion: approved.promptVersion,
+      createdAt: nowIso(),
+      approvedAt: null,
+    })
+    .run();
+
+  logger.info(
+    { profileId: id, version, from: approved.id },
+    "structured profile draft forked from approved",
+  );
+
+  return { profileId: id, version };
+}

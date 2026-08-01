@@ -9,11 +9,11 @@ import {
   runJobPipelineAction,
   saveSearchProfileDraftAction,
 } from "@/app/actions";
+import { EmptyState } from "@/components/empty-state";
 import {
-  PageHeader,
   PageShell,
   PanelBody,
-  PanelHeader,
+  SectionTitle,
   Surface,
 } from "@/components/page-shell";
 import { Badge } from "@/components/ui/badge";
@@ -57,7 +57,7 @@ export function SearchCriteriaWorkspace({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [showAdvanced, setShowAdvanced] = useState(!embedded);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const source = draft ?? approved;
   const [titles, setTitles] = useState(
@@ -426,134 +426,185 @@ export function SearchCriteriaWorkspace({
     );
   }
 
-  // Full page (non-onboarding)
-  const body = (
-    <>
-      {error ? (
-        <p className="text-destructive mb-4 text-sm">{error}</p>
-      ) : null}
-      {message ? (
-        <p className="text-muted-foreground mb-4 text-sm">{message}</p>
-      ) : null}
-
-      <div className="mb-8 flex flex-wrap gap-2.5">
-        <Button
-          variant="outline"
-          size="lg"
-          className="h-11 px-5 text-[15px]"
-          disabled={pending}
-          onClick={() =>
-            run(async () => generateSearchProfileAction(), "Draft generated")
-          }
-        >
-          {draft || approved ? "Regenerate from profile" : "Generate from profile"}
-        </Button>
-        {draft ? (
-          <>
-            <Button
-              variant="ghost"
-              size="lg"
-              className="h-11 px-4 text-[15px]"
-              disabled={pending}
-              onClick={() =>
-                run(async () => {
-                  const params = buildParams();
-                  return saveSearchProfileDraftAction(
-                    draft.id,
-                    params,
-                    draft.rationale,
-                  );
-                }, "Draft saved")
-              }
-            >
-              Save draft
-            </Button>
-            <Button
-              size="lg"
-              className="h-11 px-5 text-[15px]"
-              disabled={pending}
-              onClick={() =>
-                run(async () => {
-                  await saveSearchProfileDraftAction(draft.id, buildParams());
-                  return approveSearchProfileAction(draft.id);
-                }, "Search criteria approved")
-              }
-            >
-              Approve for finding jobs
-            </Button>
-          </>
-        ) : null}
-        {approved && !draft ? (
-          <Button
-            variant="secondary"
-            size="lg"
-            className="h-11 px-5 text-[15px]"
-            disabled={pending}
-            onClick={() =>
-              run(async () => runJobPipelineAction(), "Job search finished")
-            }
-          >
-            Find jobs now
-          </Button>
-        ) : null}
-      </div>
-
-      {approved ? (
-        <Surface className="mb-6">
-          <PanelHeader>
-            <div>
-              <p className="font-medium">Active v{approved.version}</p>
-              <p className="text-muted-foreground text-sm">
-                {approved.approvedAt
-                  ? `Approved ${new Date(approved.approvedAt).toLocaleString()}`
-                  : "Approved"}
-              </p>
-            </div>
-          </PanelHeader>
-          <p className="text-muted-foreground px-4 pb-4 text-sm">
-            Titles: {approved.params.targetTitles.join(", ")} · Locations:{" "}
-            {approved.params.locations.join(", ")}
-          </p>
-        </Surface>
-      ) : (
-        <p className="text-muted-foreground mb-6 text-sm">
-          No approved search criteria yet. Generate a draft and approve it.
-        </p>
-      )}
-
-      {draft ? (
-        <Surface>
-          <PanelHeader>
-            <div>
-              <p className="font-medium">Draft v{draft.version}</p>
-              <p className="text-muted-foreground text-sm">
-                Edit before approving
-              </p>
-            </div>
-          </PanelHeader>
-          {draft.rationale.length > 0 ? (
-            <ul className="text-muted-foreground list-disc px-4 pb-3 pl-8 text-sm">
-              {draft.rationale.map((r) => (
-                <li key={r}>{r}</li>
-              ))}
-            </ul>
-          ) : null}
-          <div className="space-y-6 p-5 md:p-6">
-            {essentialsForm}
-            {advancedForm}
-          </div>
-        </Surface>
-      ) : null}
-    </>
-  );
+  // Full page — same card + primary CTA pattern as onboarding / Today
+  const canApprove = Boolean(draft);
+  const isApprovedOnly = Boolean(approved) && !draft;
 
   return (
-    <PageShell>
-      <PageHeader
-        title="Job search criteria"
-        description="Drafted from your approved profile. Review, then approve before finding jobs."
+    <PageShell className="gap-6 lg:gap-8">
+      <SectionTitle
+        title="Search criteria"
+        description="Drafted from your profile. Approve before finding jobs."
+        actions={
+          isApprovedOnly ? (
+            <Button
+              size="sm"
+              disabled={pending}
+              onClick={() =>
+                run(async () => runJobPipelineAction(), "Job search finished")
+              }
+            >
+              Find jobs
+            </Button>
+          ) : null
+        }
       />
-      {body}
+
+      {error ? (
+        <p className="text-destructive text-[14px]">{error}</p>
+      ) : null}
+      {message ? (
+        <p className="text-muted-foreground text-[14px]">{message}</p>
+      ) : null}
+
+      {!draft && !approved ? (
+        <Surface>
+          <EmptyState
+            title="No search criteria yet"
+            description="Generate titles, locations, and boards from your approved profile. You review before anything runs."
+            actionLabel={pending ? "Generating…" : "Generate from profile"}
+            pending={pending}
+            onAction={() =>
+              run(async () => generateSearchProfileAction(), "Draft generated")
+            }
+          />
+        </Surface>
+      ) : (
+        <Surface>
+          <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4 sm:px-6">
+            <div className="flex flex-wrap items-center gap-2">
+              {approved ? (
+                <Badge className="h-7 px-2.5 text-[13px]">
+                  <Check className="size-3.5" aria-hidden />
+                  Approved
+                  {approved.version ? ` v${approved.version}` : ""}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="h-7 px-2.5 text-[13px]">
+                  Review draft
+                  {draft ? ` v${draft.version}` : ""}
+                </Badge>
+              )}
+              {draft && approved ? (
+                <Badge variant="secondary" className="h-7 px-2.5 text-[13px]">
+                  Editing new draft
+                </Badge>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              disabled={pending}
+              onClick={() =>
+                run(
+                  async () => generateSearchProfileAction(),
+                  "Draft regenerated",
+                )
+              }
+            >
+              <RefreshCw className="size-3.5" aria-hidden />
+              Regenerate
+            </Button>
+          </div>
+
+          <PanelBody className="space-y-6 px-5 py-6 sm:px-6 sm:py-7">
+            {approved && !draft ? (
+              <p className="text-muted-foreground text-[14px] leading-relaxed">
+                Titles: {approved.params.targetTitles.join(", ")} · Locations:{" "}
+                {approved.params.locations.join(", ")}
+              </p>
+            ) : null}
+
+            {draft && draft.rationale.length > 0 ? (
+              <ul className="text-muted-foreground list-disc space-y-1 pl-5 text-[14px]">
+                {draft.rationale.map((r) => (
+                  <li key={r}>{r}</li>
+                ))}
+              </ul>
+            ) : null}
+
+            {essentialsForm}
+
+            <div className="space-y-4">
+              <button
+                type="button"
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-[14px] font-medium underline-offset-2 hover:underline"
+                onClick={() => setShowAdvanced((v) => !v)}
+              >
+                {showAdvanced ? "Hide" : "Show"} boards & limits
+                <ChevronDown
+                  className={cn(
+                    "size-4 transition-transform",
+                    showAdvanced && "rotate-180",
+                  )}
+                  aria-hidden
+                />
+              </button>
+              {showAdvanced ? advancedForm : null}
+            </div>
+
+            {canApprove ? (
+              <div className="border-border flex flex-wrap items-center gap-3 border-t pt-5">
+                <Button
+                  size="lg"
+                  className="h-11 px-5 text-[15px]"
+                  disabled={pending}
+                  onClick={() =>
+                    run(async () => {
+                      await saveSearchProfileDraftAction(
+                        draft!.id,
+                        buildParams(),
+                      );
+                      return approveSearchProfileAction(draft!.id);
+                    }, "Search criteria approved")
+                  }
+                >
+                  Approve criteria
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="lg"
+                  className="h-11 px-3 text-[14px]"
+                  disabled={pending}
+                  onClick={() =>
+                    run(async () => {
+                      return saveSearchProfileDraftAction(
+                        draft!.id,
+                        buildParams(),
+                        draft!.rationale,
+                      );
+                    }, "Draft saved")
+                  }
+                >
+                  Save draft
+                </Button>
+              </div>
+            ) : isApprovedOnly ? (
+              <div className="border-border flex flex-wrap items-center gap-3 border-t pt-5">
+                <Button
+                  size="lg"
+                  className="h-11 px-5 text-[15px]"
+                  disabled={pending}
+                  onClick={() =>
+                    run(
+                      async () => runJobPipelineAction(),
+                      "Job search finished",
+                    )
+                  }
+                >
+                  Find jobs now
+                </Button>
+                <p className="text-muted-foreground text-[13px]">
+                  Or regenerate above to revise criteria.
+                </p>
+              </div>
+            ) : null}
+          </PanelBody>
+        </Surface>
+      )}
     </PageShell>
   );
 }

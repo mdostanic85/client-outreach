@@ -1,7 +1,6 @@
 import { LearningControls, ProposalActions } from "@/components/learning-controls";
 import { EmptyState } from "@/components/empty-state";
 import {
-  PageHeader,
   PageShell,
   PanelBody,
   PanelHeader,
@@ -20,18 +19,22 @@ export default function LearningPage() {
   const pending = dash.proposals.filter((p) => p.status === "pending");
 
   return (
-    <PageShell>
-      <PageHeader
+    <PageShell className="gap-6 lg:gap-8">
+      <SectionTitle
         title="Learning"
         description="Proposals need your approval. Nothing applies automatically."
       />
 
       <Surface>
         <PanelHeader className="justify-between">
-          <SectionTitle
-            title="Data gates"
-            description="Need 30 days of signals · 20 edited drafts · 50 delivered"
-          />
+          <div className="min-w-0 space-y-1">
+            <p className="font-display text-[16px] font-semibold tracking-tight">
+              Data gates
+            </p>
+            <p className="text-muted-foreground text-[13px]">
+              30 days of signals · 20 edited drafts · 50 delivered
+            </p>
+          </div>
           <Badge variant={dash.gates.ready ? "secondary" : "outline"}>
             {dash.gates.ready ? "Ready" : "Not ready"}
           </Badge>
@@ -59,15 +62,19 @@ export default function LearningPage() {
 
       <Surface>
         <PanelHeader>
-          <SectionTitle title="Source performance" />
+          <p className="font-display text-[16px] font-semibold tracking-tight">
+            Source performance
+          </p>
         </PanelHeader>
         {dash.source.rows.length === 0 ? (
           <EmptyState
             title="No sources yet"
-            description="After you accept and send leads, source rates appear here."
+            description="After you accept and send outreach, source rates appear here."
+            actionLabel="Go to Today"
+            actionHref="/"
           />
         ) : (
-          <div className="overflow-x-auto px-8 py-4">
+          <div className="overflow-x-auto px-6 py-4 sm:px-8">
             <table className="w-full text-left text-[15px]">
               <thead>
                 <tr className="text-muted-foreground border-b text-[13px]">
@@ -103,23 +110,27 @@ export default function LearningPage() {
 
       <Surface>
         <PanelHeader className="justify-between">
-          <SectionTitle title="Pending proposals" />
-          <span className="tabular text-muted-foreground text-[13px]">
+          <p className="font-display text-[16px] font-semibold tracking-tight">
+            Pending proposals
+          </p>
+          <span className="text-muted-foreground tabular text-[13px]">
             {pending.length}
           </span>
         </PanelHeader>
         {pending.length === 0 ? (
           <EmptyState
             title="None pending"
-            description="When gates are met, learning proposals will wait here for approval."
+            description="When gates are met, learning proposals wait here for approval."
+            actionLabel="Open Queue"
+            actionHref="/queue"
           />
         ) : (
           <div className="divide-border divide-y">
             {pending.map((p) => (
-              <div key={p.id} className="space-y-4 px-8 py-8">
+              <div key={p.id} className="space-y-4 px-6 py-6 sm:px-8 sm:py-7">
                 <div className="flex flex-wrap items-center gap-3">
                   <Badge variant="outline">{p.kind}</Badge>
-                  <span className="font-display text-[17px] font-semibold">
+                  <span className="font-display text-[16px] font-semibold">
                     {p.title}
                   </span>
                 </div>
@@ -136,7 +147,9 @@ export default function LearningPage() {
 
       <Surface>
         <PanelHeader>
-          <SectionTitle title="Reports" />
+          <p className="font-display text-[16px] font-semibold tracking-tight">
+            Reports
+          </p>
         </PanelHeader>
         {dash.reports.length === 0 ? (
           <EmptyState
@@ -146,10 +159,10 @@ export default function LearningPage() {
         ) : (
           <div className="divide-border divide-y">
             {dash.reports.map((r) => (
-              <div key={r.id} className="space-y-3 px-8 py-8">
+              <div key={r.id} className="space-y-3 px-6 py-6 sm:px-8 sm:py-7">
                 <div className="flex flex-wrap items-center gap-3">
                   <Badge variant="secondary">{r.kind}</Badge>
-                  <span className="font-display text-[17px] font-semibold">
+                  <span className="font-display text-[16px] font-semibold">
                     {r.title}
                   </span>
                 </div>

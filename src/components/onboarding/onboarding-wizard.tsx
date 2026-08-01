@@ -76,12 +76,16 @@ export function OnboardingWizard({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  // Advance when server gates unlock after extract/approve + refresh.
+  // Advance only when server progress unlocks a later step (e.g. after approve + refresh).
+  // Do not depend on `step` — that would yank the user forward when they press Back.
   useEffect(() => {
-    const current = STEP_ORDER.indexOf(step);
-    const target = STEP_ORDER.indexOf(initialStep);
-    if (target > current) setStep(initialStep);
-  }, [initialStep, step]);
+    setStep((current) => {
+      const currentIdx = STEP_ORDER.indexOf(current);
+      const targetIdx = STEP_ORDER.indexOf(initialStep);
+      if (targetIdx > currentIdx) return initialStep;
+      return current;
+    });
+  }, [initialStep]);
 
   const stepIndex = STEPS.findIndex((s) => s.id === step);
   const isCentered = step === "welcome" || step === "done";
@@ -423,14 +427,6 @@ function StepFrame({
   return (
     <div className="flex flex-1 flex-col">
       <header className="mb-8 max-w-2xl sm:mb-10">
-        <button
-          type="button"
-          onClick={onBack}
-          className="text-muted-foreground hover:text-foreground mb-5 inline-flex items-center gap-1.5 text-[14px] font-medium transition-colors"
-        >
-          <ArrowLeft className="size-4" aria-hidden />
-          Back
-        </button>
         <h1 className="font-display text-[clamp(1.75rem,3.5vw,2.35rem)] leading-tight font-semibold tracking-tight text-[var(--card-foreground)]">
           {title}
         </h1>
