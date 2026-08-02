@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { isEphemeralDatabase } from "@/db/client";
 import { ensureDb } from "@/db/ensure";
 import {
   authenticateUser,
@@ -85,6 +86,12 @@ export async function signInAction(
 
     const user = authenticateUser(parsed.data.email, parsed.data.password);
     if (!user) {
+      if (isEphemeralDatabase() && countUsers() === 0) {
+        return {
+          error:
+            "Cloud demo reset after deploy — no accounts left. Create a new account on Sign up.",
+        };
+      }
       return { error: "Invalid email or password." };
     }
 
