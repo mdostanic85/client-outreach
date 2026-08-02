@@ -6,22 +6,25 @@ import { loadLocalEnv } from "@/lib/env";
 import { newId, nowIso } from "@/lib/ids";
 
 let initialized = false;
+let initPromise: Promise<ReturnType<typeof getDb>> | null = null;
 
 const DEFAULT_COUNTRY_POLICY = JSON.stringify({
   DE: "prior_interaction_required",
   AT: "prior_interaction_required",
 });
 
-export function ensureDb() {
+export async function ensureDb() {
   loadLocalEnv();
   if (initialized) return getDb();
-  runMigrations();
-  const db = getDb();
-  const existing = db.select().from(settings).all()[0];
-  if (!existing) {
-    const now = nowIso();
-    db.insert(settings)
-      .values({
+  if (initPromise) return initPromise;
+
+  initPromise = (async () => {
+    await runMigrations();
+    const db = getDb();
+    const existing = (await db.select().from(settings).limit(1))[0];
+    if (!existing) {
+      const now = nowIso();
+      await db.insert(settings).values({
         id: newId("set"),
         profileMd:
           "Miloš Dostanić — senior product designer. Fractional design leadership, design systems, and product redesign for product-led companies.",
@@ -76,20 +79,27 @@ export function ensureDb() {
         }),
         createdAt: now,
         updatedAt: now,
-      })
-      .run();
-  } else if (
-    !existing.countryPolicyJson ||
-    existing.countryPolicyJson === "{}"
-  ) {
-    db.update(settings)
-      .set({
-        countryPolicyJson: DEFAULT_COUNTRY_POLICY,
-        updatedAt: nowIso(),
-      })
-      .where(eq(settings.id, existing.id))
-      .run();
+      });
+    } else if (
+      !existing.countryPolicyJson ||
+      existing.countryPolicyJson === "{}"
+    ) {
+      await db
+        .update(settings)
+        .set({
+          countryPolicyJson: DEFAULT_COUNTRY_POLICY,
+          updatedAt: nowIso(),
+        })
+        .where(eq(settings.id, existing.id));
+    }
+    initialized = true;
+    return db;
+  })();
+
+  try {
+    return await initPromise;
+  } catch (err) {
+    initPromise = null;
+    throw err;
   }
-  initialized = true;
-  return db;
 }

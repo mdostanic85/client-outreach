@@ -58,7 +58,7 @@ export const anthropicProvider: LlmProvider = {
       inputTokens: data.usage?.input_tokens ?? 0,
       outputTokens: data.usage?.output_tokens ?? 0,
     };
-    const estimatedCost = recordUsage(usage);
+    const estimatedCost = await recordUsage(usage);
 
     return { text, usage, estimatedCost } satisfies LlmCompletion;
   },

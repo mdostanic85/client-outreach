@@ -3,13 +3,13 @@ import { getDb } from "@/db/client";
 import { companies, suppressions } from "@/db/schema";
 import { newId, nowIso } from "@/lib/ids";
 
-export function isSuppressed(email: string, domain?: string | null): boolean {
+export async function isSuppressed(email: string, domain?: string | null): Promise<boolean> {
   const normalized = email.trim().toLowerCase();
   const emailDomain = normalized.includes("@")
     ? normalized.split("@")[1]
     : domain?.toLowerCase() ?? null;
 
-  const rows = getDb().select().from(suppressions).all();
+  const rows = await getDb().select().from(suppressions);
   for (const row of rows) {
     if (row.email && row.email.trim().toLowerCase() === normalized) return true;
     if (
@@ -23,43 +23,41 @@ export function isSuppressed(email: string, domain?: string | null): boolean {
   return false;
 }
 
-export function suppressEmail(email: string, reason: string) {
+export async function suppressEmail(email: string, reason: string) {
   const db = getDb();
   const normalized = email.trim().toLowerCase();
   const domain = normalized.includes("@") ? normalized.split("@")[1] : null;
 
-  const existing = db
+  const existing = (await db
     .select()
-    .from(suppressions)
-    .all()
+    .from(suppressions))
     .find((s) => s.email?.toLowerCase() === normalized);
   if (existing) return existing.id;
 
   const id = newId("sup");
-  db.insert(suppressions)
+  await db.insert(suppressions)
     .values({
       id,
       email: normalized,
       domain,
       reason,
       createdAt: nowIso(),
-    })
-    .run();
+    });
   return id;
 }
 
-export function companyDomain(companyId: string): string | null {
+export async function companyDomain(companyId: string): Promise<string | null> {
   return (
-    getDb().select().from(companies).where(eq(companies.id, companyId)).get()
+    (await getDb().select().from(companies).where(eq(companies.id, companyId)).limit(1))[0]
       ?.domain ?? null
   );
 }
 
-export function assertNotSuppressed(
+export async function assertNotSuppressed(
   email: string,
   companyDomainValue?: string | null,
 ) {
-  if (isSuppressed(email, companyDomainValue)) {
+  if (await isSuppressed(email, companyDomainValue)) {
     throw new Error("Recipient or domain is suppressed");
   }
 }

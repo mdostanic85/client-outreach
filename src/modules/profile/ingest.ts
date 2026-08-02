@@ -27,8 +27,8 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
   return (result.text ?? "").trim();
 }
 
-function findActiveByHash(contentHash: string) {
-  return getDb()
+async function findActiveByHash(contentHash: string) {
+  return (await getDb()
     .select()
     .from(profileSources)
     .where(
@@ -36,8 +36,7 @@ function findActiveByHash(contentHash: string) {
         eq(profileSources.contentHash, contentHash),
         isNull(profileSources.deletedAt),
       ),
-    )
-    .get();
+    ).limit(1))[0];
 }
 
 export async function ingestTextSource(input: {
@@ -51,19 +50,18 @@ export async function ingestTextSource(input: {
 
   const contentHash = hashContent(`${input.type}:${rawText}`);
   const db = getDb();
-  const existing = findActiveByHash(contentHash);
+  const existing = await findActiveByHash(contentHash);
   if (existing) {
     const syncedAt = nowIso();
-    db.update(profileSources)
+    await db.update(profileSources)
       .set({ lastSyncedAt: syncedAt })
-      .where(eq(profileSources.id, existing.id))
-      .run();
+      .where(eq(profileSources.id, existing.id));
     return { id: existing.id, reused: true };
   }
 
   const id = newId("psrc");
   const syncedAt = nowIso();
-  db.insert(profileSources)
+  await db.insert(profileSources)
     .values({
       id,
       type: input.type,
@@ -76,8 +74,7 @@ export async function ingestTextSource(input: {
       lastSyncedAt: syncedAt,
       enabledForMatching: 1,
       deletedAt: null,
-    })
-    .run();
+    });
 
   logger.info({ id, type: input.type }, "profile source ingested");
   return { id, reused: false };
@@ -114,14 +111,13 @@ export async function ingestFileUpload(input: {
 
     const contentHash = hashContent(`${type}:${rawText}`);
     const db = getDb();
-    const existing = findActiveByHash(contentHash);
+    const existing = await findActiveByHash(contentHash);
     if (existing) {
       fs.unlinkSync(dest);
       const syncedAt = nowIso();
-      db.update(profileSources)
+      await db.update(profileSources)
         .set({ lastSyncedAt: syncedAt })
-        .where(eq(profileSources.id, existing.id))
-        .run();
+        .where(eq(profileSources.id, existing.id));
       return {
         id: existing.id,
         reused: true,
@@ -130,7 +126,7 @@ export async function ingestFileUpload(input: {
     }
 
     const syncedAt = nowIso();
-    db.insert(profileSources)
+    await db.insert(profileSources)
       .values({
         id,
         type,
@@ -143,8 +139,7 @@ export async function ingestFileUpload(input: {
         lastSyncedAt: syncedAt,
         enabledForMatching: 1,
         deletedAt: null,
-      })
-      .run();
+      });
 
     logger.info({ id, type, textLength: rawText.length }, "profile PDF ingested");
     return { id, reused: false, textLength: rawText.length };
@@ -165,7 +160,7 @@ export async function ingestCvUpload(input: {
   bytes: Buffer;
   label?: string;
 }): Promise<{ id: string; reused: boolean; textLength: number }> {
-  return ingestFileUpload({ ...input, type: "cv" });
+  return await ingestFileUpload({ ...input, type: "cv" });
 }
 
 export async function ingestPortfolioUrl(
@@ -192,11 +187,10 @@ export async function refreshProfileSource(
   id: string,
 ): Promise<{ id: string; textLength: number }> {
   const db = getDb();
-  const row = db
+  const row = (await db
     .select()
     .from(profileSources)
-    .where(and(eq(profileSources.id, id), isNull(profileSources.deletedAt)))
-    .get();
+    .where(and(eq(profileSources.id, id), isNull(profileSources.deletedAt))).limit(1))[0];
   if (!row) throw new Error("Source not found");
 
   if (row.type === "portfolio_url") {
@@ -206,15 +200,14 @@ export async function refreshProfileSource(
       throw new Error(page.error ?? "Failed to refresh portfolio page");
     }
     const syncedAt = nowIso();
-    db.update(profileSources)
+    await db.update(profileSources)
       .set({
         rawText: page.extractedText,
         label: page.title ?? row.label,
         contentHash: hashContent(`portfolio_url:${page.extractedText}`),
         lastSyncedAt: syncedAt,
       })
-      .where(eq(profileSources.id, id))
-      .run();
+      .where(eq(profileSources.id, id));
     return { id, textLength: page.extractedText.length };
   }
 
@@ -227,7 +220,7 @@ export async function refreshProfileSource(
     if (!handle) throw new Error("GitHub source has no username to refresh");
     const corpus = await fetchGithubProfileCorpus(handle);
     const syncedAt = nowIso();
-    db.update(profileSources)
+    await db.update(profileSources)
       .set({
         rawText: corpus.text,
         label: `GitHub @${corpus.username}`,
@@ -235,8 +228,7 @@ export async function refreshProfileSource(
         contentHash: hashContent(`github:${corpus.text}`),
         lastSyncedAt: syncedAt,
       })
-      .where(eq(profileSources.id, id))
-      .run();
+      .where(eq(profileSources.id, id));
     return { id, textLength: corpus.text.length };
   }
 
@@ -260,48 +252,44 @@ export async function ingestGithubProfile(
   };
 }
 
-export function setProfileSourceMatchingEnabled(
+export async function setProfileSourceMatchingEnabled(
   id: string,
   enabled: boolean,
-): void {
+): Promise<void> {
   const db = getDb();
-  const row = db
+  const row = (await db
     .select()
     .from(profileSources)
-    .where(and(eq(profileSources.id, id), isNull(profileSources.deletedAt)))
-    .get();
+    .where(and(eq(profileSources.id, id), isNull(profileSources.deletedAt))).limit(1))[0];
   if (!row) throw new Error("Source not found");
-  db.update(profileSources)
+  await db.update(profileSources)
     .set({ enabledForMatching: enabled ? 1 : 0 })
-    .where(eq(profileSources.id, id))
-    .run();
+    .where(eq(profileSources.id, id));
 }
 
 /**
  * Soft-delete a source. Does not mutate structured profile JSON.
  * Requires an explicit user confirmation in the UI.
  */
-export function softDeleteProfileSource(id: string): void {
+export async function softDeleteProfileSource(id: string): Promise<void> {
   const db = getDb();
-  const row = db
+  const row = (await db
     .select()
     .from(profileSources)
-    .where(and(eq(profileSources.id, id), isNull(profileSources.deletedAt)))
-    .get();
+    .where(and(eq(profileSources.id, id), isNull(profileSources.deletedAt))).limit(1))[0];
   if (!row) return;
-  db.update(profileSources)
+  await db.update(profileSources)
     .set({
       deletedAt: nowIso(),
       enabledForMatching: 0,
     })
-    .where(eq(profileSources.id, id))
-    .run();
+    .where(eq(profileSources.id, id));
   logger.info({ id, type: row.type }, "profile source soft-deleted");
 }
 
 /**
  * @deprecated Use softDeleteProfileSource. Hard-delete kept for admin/tests only.
  */
-export function deleteProfileSource(id: string): void {
-  softDeleteProfileSource(id);
+export async function deleteProfileSource(id: string): Promise<void> {
+  await softDeleteProfileSource(id);
 }

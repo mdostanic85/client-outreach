@@ -31,22 +31,23 @@ export type DailyJobRow = {
   remoteRequired: boolean;
 };
 
-function hydrateJobRows(jobList: (typeof jobs.$inferSelect)[]): DailyJobRow[] {
+async function hydrateJobRows(
+  jobList: (typeof jobs.$inferSelect)[],
+): Promise<DailyJobRow[]> {
   const db = getDb();
   const remoteRequired =
-    getApprovedSearchProfile()?.params.remoteRequired ?? true;
+    (await getApprovedSearchProfile())?.params.remoteRequired ?? true;
   const rows: DailyJobRow[] = [];
   for (const job of jobList) {
     const company = job.companyId
-      ? db.select().from(companies).where(eq(companies.id, job.companyId)).get() ??
+      ? (await db.select().from(companies).where(eq(companies.id, job.companyId)).limit(1))[0] ??
         null
       : null;
     const match =
-      db
+      (await db
         .select()
         .from(jobMatches)
-        .where(eq(jobMatches.jobId, job.id))
-        .all()
+        .where(eq(jobMatches.jobId, job.id)))
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null;
 
     let matchingReasons: string[] = [];
@@ -89,13 +90,13 @@ function hydrateJobRows(jobList: (typeof jobs.$inferSelect)[]): DailyJobRow[] {
   return rows;
 }
 
-export function listDailyJobs(limit?: number): DailyJobRow[] {
+export async function listDailyJobs(limit?: number): Promise<DailyJobRow[]> {
   const db = getDb();
-  const setting = db.select().from(settings).all()[0];
+  const setting = (await db.select().from(settings).limit(1))[0];
   // Strong cap + secondary “Worth a look” band.
   const cap = limit ?? (setting?.dailyJobCount ?? 20) + WORTH_A_LOOK_LIMIT;
 
-  const published = db
+  const published = (await db
     .select()
     .from(jobs)
     .where(
@@ -105,8 +106,7 @@ export function listDailyJobs(limit?: number): DailyJobRow[] {
         inArray(jobs.triageState, ["published", "saved", "discovered"]),
       ),
     )
-    .orderBy(desc(jobs.publishedAt))
-    .all()
+    .orderBy(desc(jobs.publishedAt)))
     .filter((j) => j.triageState !== "rejected" && j.triageState !== "applied")
     .slice(0, cap);
 
@@ -114,45 +114,42 @@ export function listDailyJobs(limit?: number): DailyJobRow[] {
 }
 
 /** Roles the user marked Interested — leaves Today until applied / rejected / moved back. */
-export function listInterestedJobs(limit = 80): DailyJobRow[] {
+export async function listInterestedJobs(limit = 80): Promise<DailyJobRow[]> {
   const db = getDb();
-  const interested = db
+  const interested = (await db
     .select()
     .from(jobs)
     .where(
       and(eq(jobs.status, "active"), eq(jobs.triageState, "interested")),
     )
-    .orderBy(desc(jobs.updatedAt))
-    .all()
+    .orderBy(desc(jobs.updatedAt)))
     .slice(0, limit);
 
   return hydrateJobRows(interested);
 }
 
-export function countInterestedJobs(): number {
-  return getDb()
+export async function countInterestedJobs(): Promise<number> {
+  return (await getDb()
     .select()
     .from(jobs)
     .where(
       and(eq(jobs.status, "active"), eq(jobs.triageState, "interested")),
-    )
-    .all().length;
+    )).length;
 }
 
-export function getJobDetail(jobId: string): DailyJobRow | null {
+export async function getJobDetail(jobId: string): Promise<DailyJobRow | null> {
   const db = getDb();
-  const job = db.select().from(jobs).where(eq(jobs.id, jobId)).get();
+  const job = (await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1))[0];
   if (!job) return null;
   const company = job.companyId
-    ? db.select().from(companies).where(eq(companies.id, job.companyId)).get() ??
+    ? (await db.select().from(companies).where(eq(companies.id, job.companyId)).limit(1))[0] ??
       null
     : null;
   const match =
-    db
+    (await db
       .select()
       .from(jobMatches)
-      .where(eq(jobMatches.jobId, jobId))
-      .all()
+      .where(eq(jobMatches.jobId, jobId)))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null;
   let matchingReasons: string[] = [];
   let concerns: string[] = [];
@@ -165,7 +162,7 @@ export function getJobDetail(jobId: string): DailyJobRow | null {
     }
   }
   const remoteRequired =
-    getApprovedSearchProfile()?.params.remoteRequired ?? true;
+    (await getApprovedSearchProfile())?.params.remoteRequired ?? true;
   const extras = parseMatchExtrasFromScoreJson(match?.scoreJson);
   const remoteFit = resolveRemoteFit({
     scoreJson: match?.scoreJson,
@@ -188,78 +185,75 @@ export function getJobDetail(jobId: string): DailyJobRow | null {
   };
 }
 
-export function setJobTriageState(
+export async function setJobTriageState(
   jobId: string,
   state: JobTriageState,
   rejectReason?: string,
 ) {
   const db = getDb();
-  const row = db.select().from(jobs).where(eq(jobs.id, jobId)).get();
+  const row = (await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1))[0];
   if (!row) throw new Error("Job not found");
   const now = nowIso();
-  db.update(jobs)
+  await db.update(jobs)
     .set({
       triageState: state,
       rejectReason: state === "rejected" ? rejectReason?.trim() || null : null,
       updatedAt: now,
       ...(state === "applied" ? { appliedAt: row.appliedAt ?? now } : {}),
     })
-    .where(eq(jobs.id, jobId))
-    .run();
+    .where(eq(jobs.id, jobId));
 }
 
-export function interestedJob(jobId: string) {
-  setJobTriageState(jobId, "interested");
-  recordJobOutcomeEvent(jobId, "interested");
+export async function interestedJob(jobId: string) {
+  await setJobTriageState(jobId, "interested");
+  await recordJobOutcomeEvent(jobId, "interested");
 }
 
-export function rejectJob(jobId: string, reason: string) {
+export async function rejectJob(jobId: string, reason: string) {
   if (!reason.trim()) throw new Error("Reject reason required");
-  setJobTriageState(jobId, "rejected", reason);
-  recordJobOutcomeEvent(jobId, "rejected", { reason: reason.trim() });
+  await setJobTriageState(jobId, "rejected", reason);
+  await recordJobOutcomeEvent(jobId, "rejected", { reason: reason.trim() });
 }
 
-export function saveJobForLater(jobId: string) {
-  setJobTriageState(jobId, "saved");
-  recordJobOutcomeEvent(jobId, "saved");
+export async function saveJobForLater(jobId: string) {
+  await setJobTriageState(jobId, "saved");
+  await recordJobOutcomeEvent(jobId, "saved");
 }
 
-export function markJobApplied(jobId: string) {
-  setJobTriageState(jobId, "applied");
-  recordJobOutcomeEvent(jobId, "applied");
+export async function markJobApplied(jobId: string) {
+  await setJobTriageState(jobId, "applied");
+  await recordJobOutcomeEvent(jobId, "applied");
 }
 
-export function setTodayMode(mode: "jobs" | "clients") {
+export async function setTodayMode(mode: "jobs" | "clients") {
   const db = getDb();
-  const row = db.select().from(settings).all()[0];
+  const row = (await db.select().from(settings).limit(1))[0];
   if (!row) throw new Error("Settings missing");
-  db.update(settings)
+  await db.update(settings)
     .set({ todayMode: mode, updatedAt: nowIso() })
-    .where(eq(settings.id, row.id))
-    .run();
+    .where(eq(settings.id, row.id));
 }
 
-export function getTodayMode(): "jobs" | "clients" {
-  const row = getDb().select().from(settings).all()[0];
+export async function getTodayMode(): Promise<"jobs" | "clients"> {
+  const row = (await getDb().select().from(settings).limit(1))[0];
   return row?.todayMode === "clients" ? "clients" : "jobs";
 }
 
-export function getAdaptiveJobRanking(): boolean {
-  const row = getDb().select().from(settings).all()[0];
+export async function getAdaptiveJobRanking(): Promise<boolean> {
+  const row = (await getDb().select().from(settings).limit(1))[0];
   return row?.adaptiveJobRanking !== 0;
 }
 
-export function setAdaptiveJobRanking(enabled: boolean) {
+export async function setAdaptiveJobRanking(enabled: boolean) {
   const db = getDb();
-  const row = db.select().from(settings).all()[0];
+  const row = (await db.select().from(settings).limit(1))[0];
   if (!row) throw new Error("Settings missing");
-  db.update(settings)
+  await db.update(settings)
     .set({
       adaptiveJobRanking: enabled ? 1 : 0,
       updatedAt: nowIso(),
     })
-    .where(eq(settings.id, row.id))
-    .run();
+    .where(eq(settings.id, row.id));
 }
 
 export {

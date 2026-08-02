@@ -28,20 +28,18 @@ function dayKey(iso: string): string {
 }
 
 /** Count trailing consecutive calendar days with a finished worker run and no error. */
-export function countConsecutiveUsableRuns(): number {
-  const runs = getDb()
+export async function countConsecutiveUsableRuns(): Promise<number> {
+  const runs = (await getDb()
     .select()
-    .from(syncRuns)
-    .all()
+    .from(syncRuns))
     .filter((r) => r.kind === "daily_pipeline" || r.kind.includes("pipeline"))
     .filter((r) => r.finishedAt && !r.error)
     .sort((a, b) => (b.finishedAt ?? "").localeCompare(a.finishedAt ?? ""));
 
   if (runs.length === 0) {
-    const any = getDb()
+    const any = (await getDb()
       .select()
-      .from(syncRuns)
-      .all()
+      .from(syncRuns))
       .filter((r) => r.finishedAt && !r.error)
       .sort((a, b) => (b.finishedAt ?? "").localeCompare(a.finishedAt ?? ""));
     return streakFromRuns(any);
@@ -96,9 +94,9 @@ export function parseOpsChecklist(json: string | null | undefined): OpsChecklist
   }
 }
 
-export function getValidationReadiness(ops: OpsChecklist): ValidationReadiness {
+export async function getValidationReadiness(ops: OpsChecklist): Promise<ValidationReadiness> {
   const db = getDb();
-  const allLeads = db.select().from(leads).all();
+  const allLeads = await db.select().from(leads);
   const suggested = allLeads.filter((l) =>
     ["suggested", "researched", "saved_for_later"].includes(l.state),
   );
@@ -122,16 +120,16 @@ export function getValidationReadiness(ops: OpsChecklist): ValidationReadiness {
       (l.state === "suggested" && l.createdAt.startsWith(today)),
   ).length;
 
-  const edits = db.select().from(draftEdits).all();
+  const edits = await db.select().from(draftEdits);
   const majorRewriteRate =
     edits.length === 0
       ? 0
       : edits.filter((e) => e.editRatio >= 0.3).length / edits.length;
 
-  const draftCount = db.select().from(drafts).all().length;
-  const budget = getBudgetStatus();
-  const consecutive = countConsecutiveUsableRuns();
-  const gates = getLearningGates();
+  const draftCount = (await db.select().from(drafts)).length;
+  const budget = await getBudgetStatus();
+  const consecutive = await countConsecutiveUsableRuns();
+  const gates = await getLearningGates();
 
   const phase1: ChecklistItem[] = [
     {

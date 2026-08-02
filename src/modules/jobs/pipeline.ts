@@ -41,7 +41,7 @@ export async function runJobDiscoveryPipeline(options?: {
 }): Promise<JobPipelineStats> {
   const report = options?.onProgress;
 
-  const active = getActiveSearchParams();
+  const active = await getActiveSearchParams();
   if (!active) {
     logger.info("No approved job search profile — skipping job pipeline");
     await report?.(
@@ -56,7 +56,7 @@ export async function runJobDiscoveryPipeline(options?: {
     usePortfolioInMatching: boolean;
   };
   try {
-    profile = requireMatchingProfileJson();
+    profile = await requireMatchingProfileJson();
   } catch {
     await report?.(
       progressFor("collect", 100, "Approve your profile first"),
@@ -64,7 +64,7 @@ export async function runJobDiscoveryPipeline(options?: {
     return { skipped: "no_structured_profile" };
   }
 
-  if (getBudgetStatus().hardStopped) {
+  if ((await getBudgetStatus()).hardStopped) {
     await report?.(
       progressFor("collect", 100, "Monthly AI budget reached"),
     );
@@ -85,7 +85,7 @@ export async function runJobDiscoveryPipeline(options?: {
     ),
   );
   const filtered = filterRawJobs(collected.raw, active.params);
-  const persisted = persistCollectedJobs(filtered.kept, active.version);
+  const persisted = await persistCollectedJobs(filtered.kept, active.version);
   await report?.(
     progressFor(
       "filter",
@@ -95,7 +95,7 @@ export async function runJobDiscoveryPipeline(options?: {
   );
 
   const db = getDb();
-  const toEvaluate = db
+  const toEvaluate = (await db
     .select()
     .from(jobs)
     .where(
@@ -103,8 +103,7 @@ export async function runJobDiscoveryPipeline(options?: {
         eq(jobs.status, "active"),
         inArray(jobs.triageState, ["discovered", "published", "saved"]),
       ),
-    )
-    .all()
+    ))
     .map((j) => j.id)
     .slice(0, 40);
 
@@ -121,9 +120,9 @@ export async function runJobDiscoveryPipeline(options?: {
   await report?.(
     progressFor("publish", 95, "Building today’s shortlist…"),
   );
-  const setting = db.select().from(settings).all()[0];
+  const setting = (await db.select().from(settings).limit(1))[0];
   const limit = setting?.dailyJobCount ?? 20;
-  const published = publishDailyJobList(limit);
+  const published = await publishDailyJobList(limit);
 
   const stats: JobPipelineStats = {
     raw: collected.raw.length,

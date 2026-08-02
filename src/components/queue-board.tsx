@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import type { listOutboundBoard } from "@/modules/mail/queries";
 import { Inbox, Mail, Send, TriangleAlert } from "lucide-react";
 
-type Board = ReturnType<typeof listOutboundBoard>;
+type Board = Awaited<ReturnType<typeof listOutboundBoard>>;
 type Tab = "pending" | "scheduled" | "sent" | "failed";
 
 export function QueueBoard({

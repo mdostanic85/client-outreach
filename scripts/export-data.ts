@@ -8,6 +8,6 @@
 import { ensureDb } from "../src/db/ensure";
 import { writePersonalDataExport } from "../src/modules/privacy/export";
 
-ensureDb();
-const result = writePersonalDataExport();
+await ensureDb();
+const result = await writePersonalDataExport();
 console.log(`Wrote ${result.bytes} bytes → ${result.path}`);

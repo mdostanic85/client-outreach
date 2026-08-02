@@ -27,16 +27,15 @@ function normalizeMessageId(id?: string | null): string | null {
 
 async function getOrCreateCursor(mailbox: string, folder: string) {
   const db = getDb();
-  const existing = db
+  const existing = (await db
     .select()
-    .from(mailSyncCursors)
-    .all()
+    .from(mailSyncCursors))
     .find((c) => c.mailbox === mailbox && c.folder === folder);
   if (existing) return existing;
 
   const id = newId("cur");
   const now = nowIso();
-  db.insert(mailSyncCursors)
+  await db.insert(mailSyncCursors)
     .values({
       id,
       mailbox,
@@ -44,12 +43,11 @@ async function getOrCreateCursor(mailbox: string, folder: string) {
       uidValidity: null,
       lastUid: 0,
       updatedAt: now,
-    })
-    .run();
-  return db.select().from(mailSyncCursors).where(eq(mailSyncCursors.id, id)).get()!;
+    });
+  return (await db.select().from(mailSyncCursors).where(eq(mailSyncCursors.id, id)).limit(1))[0]!;
 }
 
-function findThreadByHeaders(inReplyTo?: string | null, references?: string) {
+async function findThreadByHeaders(inReplyTo?: string | null, references?: string) {
   const db = getDb();
   const candidates = [
     normalizeMessageId(inReplyTo),
@@ -59,35 +57,31 @@ function findThreadByHeaders(inReplyTo?: string | null, references?: string) {
   ].filter(Boolean) as string[];
 
   for (const mid of candidates) {
-    const byThread = db
+    const byThread = (await db
       .select()
-      .from(threads)
-      .all()
+      .from(threads))
       .find((t) => t.rfcMessageId === mid);
     if (byThread) return byThread;
 
-    const byMsg = db
+    const byMsg = (await db
       .select()
-      .from(messages)
-      .all()
+      .from(messages))
       .find((m) => m.rfcMessageId === mid);
     if (byMsg) {
-      return db
+      return (await db
         .select()
         .from(threads)
-        .where(eq(threads.id, byMsg.threadId))
-        .get();
+        .where(eq(threads.id, byMsg.threadId)).limit(1))[0];
     }
   }
   return null;
 }
 
-function findThreadBySender(fromEmail: string) {
+async function findThreadBySender(fromEmail: string) {
   const db = getDb();
-  const outbound = db
+  const outbound = (await db
     .select()
-    .from(messages)
-    .all()
+    .from(messages))
     .filter(
       (m) =>
         m.direction === "outbound" &&
@@ -95,11 +89,10 @@ function findThreadBySender(fromEmail: string) {
     )
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
   if (!outbound) return null;
-  return db
+  return (await db
     .select()
     .from(threads)
-    .where(eq(threads.id, outbound.threadId))
-    .get();
+    .where(eq(threads.id, outbound.threadId)).limit(1))[0];
 }
 
 async function handleInbound(input: {
@@ -114,17 +107,16 @@ async function handleInbound(input: {
 }) {
   const db = getDb();
   const existing = input.rfcMessageId
-    ? db
+    ? (await db
         .select()
-        .from(messages)
-        .all()
+        .from(messages))
         .find((m) => m.rfcMessageId === input.rfcMessageId)
     : null;
   if (existing) return { skipped: true as const };
 
   let thread =
-    findThreadByHeaders(input.inReplyTo, input.references) ??
-    findThreadBySender(input.fromEmail);
+    (await findThreadByHeaders(input.inReplyTo, input.references)) ??
+    (await findThreadBySender(input.fromEmail));
 
   if (!thread) {
     logger.info(
@@ -142,7 +134,7 @@ async function handleInbound(input: {
   const now = nowIso();
   const messageId = newId("msg");
 
-  db.insert(messages)
+  await db.insert(messages)
     .values({
       id: messageId,
       threadId: thread.id,
@@ -158,16 +150,14 @@ async function handleInbound(input: {
       classificationSource: source,
       imapUid: input.uid,
       createdAt: now,
-    })
-    .run();
+    });
 
-  db.update(threads)
+  await db.update(threads)
     .set({ updatedAt: now })
-    .where(eq(threads.id, thread.id))
-    .run();
+    .where(eq(threads.id, thread.id));
 
   if (classification === "bounce_hard" || classification === "bounce_soft") {
-    db.insert(deliveryEvents)
+    await db.insert(deliveryEvents)
       .values({
         id: newId("dev"),
         messageId,
@@ -175,20 +165,18 @@ async function handleInbound(input: {
         eventType: classification,
         detail: input.subject.slice(0, 200),
         occurredAt: now,
-      })
-      .run();
+      });
 
     if (classification === "bounce_hard") {
-      const outbound = db
+      const outbound = (await db
         .select()
-        .from(messages)
-        .all()
+        .from(messages))
         .find(
           (m) => m.threadId === thread!.id && m.direction === "outbound",
         );
-      if (outbound) suppressEmail(outbound.toEmail, "hard_bounce");
+      if (outbound) await suppressEmail(outbound.toEmail, "hard_bounce");
 
-      const bounce = evaluateBounceHealth();
+      const bounce = await evaluateBounceHealth();
       if (bounce.shouldPause) {
         pauseMailbox(bounce.reason ?? "hard bounce threshold");
       }
@@ -196,34 +184,30 @@ async function handleInbound(input: {
   }
 
   if (classification === "unsubscribe") {
-    const outbound = db
+    const outbound = (await db
       .select()
-      .from(messages)
-      .all()
+      .from(messages))
       .find((m) => m.threadId === thread!.id && m.direction === "outbound");
-    if (outbound) suppressEmail(outbound.toEmail, "opt_out");
-    cancelFollowUps(thread.leadId, "cancelled");
-    db.update(leads)
+    if (outbound) await suppressEmail(outbound.toEmail, "opt_out");
+    await cancelFollowUps(thread.leadId, "cancelled");
+    await db.update(leads)
       .set({ state: "suppressed", updatedAt: now })
-      .where(eq(leads.id, thread.leadId))
-      .run();
+      .where(eq(leads.id, thread.leadId));
   }
 
   if (classification === "reply") {
-    db.update(leads)
+    await db.update(leads)
       .set({ state: "replied", updatedAt: now })
-      .where(eq(leads.id, thread.leadId))
-      .run();
-    cancelFollowUps(thread.leadId, "replied");
-    db.insert(activities)
+      .where(eq(leads.id, thread.leadId));
+    await cancelFollowUps(thread.leadId, "replied");
+    await db.insert(activities)
       .values({
         id: newId("act"),
         leadId: thread.leadId,
         type: "replied_synced",
         metadataJson: JSON.stringify({ messageId, classification }),
         occurredAt: now,
-      })
-      .run();
+      });
   }
 
   // Never send automatic replies
@@ -341,15 +325,14 @@ export async function syncInbox(folder = "INBOX") {
         }
       }
 
-      getDb()
+      await getDb()
         .update(mailSyncCursors)
         .set({
           uidValidity,
           lastUid: maxUid,
           updatedAt: nowIso(),
         })
-        .where(eq(mailSyncCursors.id, cursor.id))
-        .run();
+        .where(eq(mailSyncCursors.id, cursor.id));
     } finally {
       lock.release();
     }

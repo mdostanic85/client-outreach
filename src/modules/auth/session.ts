@@ -30,18 +30,17 @@ function resetExpiryIso() {
   return new Date(Date.now() + RESET_TOKEN_MINUTES * 60 * 1000).toISOString();
 }
 
-export function countUsers() {
-  return getDb().select().from(users).all().length;
+export async function countUsers() {
+  return (await getDb().select().from(users)).length;
 }
 
-export function findUserByEmail(email: string) {
+export async function findUserByEmail(email: string) {
   const normalized = email.trim().toLowerCase();
   return (
-    getDb()
+    (await getDb()
       .select()
       .from(users)
-      .where(eq(users.email, normalized))
-      .all()[0] ?? null
+      .where(eq(users.email, normalized)).limit(1))[0] ?? null
   );
 }
 
@@ -52,7 +51,7 @@ export async function getSessionUser(): Promise<AuthUser | null> {
 
   const tokenHash = hashToken(token);
   const now = nowIso();
-  const row = getDb()
+  const row = (await getDb()
     .select({
       userId: users.id,
       email: users.email,
@@ -61,8 +60,7 @@ export async function getSessionUser(): Promise<AuthUser | null> {
     })
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
-    .where(and(eq(sessions.tokenHash, tokenHash), gt(sessions.expiresAt, now)))
-    .all()[0];
+    .where(and(eq(sessions.tokenHash, tokenHash), gt(sessions.expiresAt, now))).limit(1))[0];
 
   if (!row) return null;
   return { id: row.userId, email: row.email, name: row.name };
@@ -71,7 +69,7 @@ export async function getSessionUser(): Promise<AuthUser | null> {
 export async function createSession(userId: string) {
   const token = newSessionToken();
   const now = nowIso();
-  getDb()
+  await getDb()
     .insert(sessions)
     .values({
       id: newId("ses"),
@@ -79,8 +77,7 @@ export async function createSession(userId: string) {
       tokenHash: hashToken(token),
       expiresAt: sessionExpiryIso(),
       createdAt: now,
-    })
-    .run();
+    });
 
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
@@ -98,10 +95,9 @@ export async function destroySession() {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (token) {
-    getDb()
+    await getDb()
       .delete(sessions)
-      .where(eq(sessions.tokenHash, hashToken(token)))
-      .run();
+      .where(eq(sessions.tokenHash, hashToken(token)));
   }
   jar.set(SESSION_COOKIE, "", {
     httpOnly: true,
@@ -112,7 +108,7 @@ export async function destroySession() {
   });
 }
 
-export function createUser(input: {
+export async function createUser(input: {
   email: string;
   password: string;
   name?: string;
@@ -120,7 +116,7 @@ export function createUser(input: {
   const email = input.email.trim().toLowerCase();
   const now = nowIso();
   const id = newId("usr");
-  getDb()
+  await getDb()
     .insert(users)
     .values({
       id,
@@ -129,30 +125,29 @@ export function createUser(input: {
       passwordHash: hashPassword(input.password),
       createdAt: now,
       updatedAt: now,
-    })
-    .run();
+    });
   return { id, email, name: input.name?.trim() || null };
 }
 
-export function authenticateUser(email: string, password: string) {
-  const user = findUserByEmail(email);
+export async function authenticateUser(email: string, password: string) {
+  const user = await findUserByEmail(email);
   if (!user) return null;
   if (!verifyPassword(password, user.passwordHash)) return null;
   return { id: user.id, email: user.email, name: user.name };
 }
 
 /** Local-first: returns a reset URL fragment (no email provider yet). */
-export function issuePasswordReset(email: string): {
+export async function issuePasswordReset(email: string): Promise<{
   ok: true;
   resetPath?: string;
-} | { ok: false; error: string } {
-  const user = findUserByEmail(email);
+} | { ok: false; error: string }> {
+  const user = await findUserByEmail(email);
   // Always succeed from the caller's view to avoid email enumeration.
   if (!user) return { ok: true };
 
   const token = newResetToken();
   const now = nowIso();
-  getDb()
+  await getDb()
     .insert(passwordResetTokens)
     .values({
       id: newId("prt"),
@@ -161,15 +156,14 @@ export function issuePasswordReset(email: string): {
       expiresAt: resetExpiryIso(),
       usedAt: null,
       createdAt: now,
-    })
-    .run();
+    });
 
   return { ok: true, resetPath: `/reset-password?token=${token}` };
 }
 
-export function resetPasswordWithToken(token: string, password: string) {
+export async function resetPasswordWithToken(token: string, password: string) {
   const now = nowIso();
-  const row = getDb()
+  const row = (await getDb()
     .select()
     .from(passwordResetTokens)
     .where(
@@ -178,25 +172,22 @@ export function resetPasswordWithToken(token: string, password: string) {
         gt(passwordResetTokens.expiresAt, now),
         isNull(passwordResetTokens.usedAt),
       ),
-    )
-    .all()[0];
+    ).limit(1))[0];
 
   if (!row) return { ok: false as const, error: "This reset link is invalid or expired." };
 
-  getDb()
+  await getDb()
     .update(users)
     .set({ passwordHash: hashPassword(password), updatedAt: now })
-    .where(eq(users.id, row.userId))
-    .run();
+    .where(eq(users.id, row.userId));
 
-  getDb()
+  await getDb()
     .update(passwordResetTokens)
     .set({ usedAt: now })
-    .where(eq(passwordResetTokens.id, row.id))
-    .run();
+    .where(eq(passwordResetTokens.id, row.id));
 
   // Invalidate existing sessions for that user.
-  getDb().delete(sessions).where(eq(sessions.userId, row.userId)).run();
+  await getDb().delete(sessions).where(eq(sessions.userId, row.userId));
 
   return { ok: true as const, userId: row.userId };
 }

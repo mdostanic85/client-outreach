@@ -7,10 +7,10 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default function SearchCriteriaPage() {
-  ensureDb();
-  const draft = getLatestDraftSearchProfile();
-  const approved = getApprovedSearchProfile();
+export default async function SearchCriteriaPage() {
+  await ensureDb();
+  const draft = await getLatestDraftSearchProfile();
+  const approved = await getApprovedSearchProfile();
 
   return (
     <SearchCriteriaWorkspace

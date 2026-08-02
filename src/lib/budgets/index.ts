@@ -17,22 +17,21 @@ function monthStartIso(): string {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString();
 }
 
-export function getMonthSpendUsd(): number {
+export async function getMonthSpendUsd(): Promise<number> {
   const db = getDb();
-  const row = db
+  const row = (await db
     .select({
       total: sql<number>`coalesce(sum(${apiUsage.estimatedCost}), 0)`,
     })
     .from(apiUsage)
-    .where(gte(apiUsage.occurredAt, monthStartIso()))
-    .get();
+    .where(gte(apiUsage.occurredAt, monthStartIso())).limit(1))[0];
   return Number(row?.total ?? 0);
 }
 
-export function getBudgetStatus(): BudgetStatus {
-  const setting = getDb().select().from(settings).all()[0];
+export async function getBudgetStatus(): Promise<BudgetStatus> {
+  const setting = (await getDb().select().from(settings).limit(1))[0];
   const budgetUsd = setting?.aiBudgetUsd ?? 8;
-  const spentUsd = getMonthSpendUsd();
+  const spentUsd = await getMonthSpendUsd();
   const remainingUsd = Math.max(0, budgetUsd - spentUsd);
   const ratio = budgetUsd > 0 ? spentUsd / budgetUsd : 1;
 
@@ -53,8 +52,8 @@ export function getBudgetStatus(): BudgetStatus {
 }
 
 /** Throws if public research/triage should stop due to hard budget. */
-export function assertPublicBudgetAllows(task: string) {
-  const status = getBudgetStatus();
+export async function assertPublicBudgetAllows(task: string) {
+  const status = await getBudgetStatus();
   if (status.hardStopped) {
     logger.warn({ task, ...status }, "AI budget hard stop — blocking public LLM");
     throw new Error(
@@ -69,6 +68,6 @@ export function assertPublicBudgetAllows(task: string) {
   return status;
 }
 
-export function canRunPublicLlm(): boolean {
-  return !getBudgetStatus().hardStopped;
+export async function canRunPublicLlm(): Promise<boolean> {
+  return !(await getBudgetStatus()).hardStopped;
 }

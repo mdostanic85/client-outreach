@@ -17,9 +17,9 @@ import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export default function AnalyticsPage() {
-  ensureDb();
-  const { funnel, source } = getLearningDashboard();
+export default async function AnalyticsPage() {
+  await ensureDb();
+  const { funnel, source } = await getLearningDashboard();
 
   const hasActivity = funnel.totalLeads > 0 || funnel.sent > 0;
 

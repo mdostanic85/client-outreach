@@ -63,7 +63,7 @@ export const googleProvider: LlmProvider = {
       inputTokens: data.usageMetadata?.promptTokenCount ?? 0,
       outputTokens: data.usageMetadata?.candidatesTokenCount ?? 0,
     };
-    const estimatedCost = recordUsage(usage);
+    const estimatedCost = await recordUsage(usage);
 
     return { text, usage, estimatedCost } satisfies LlmCompletion;
   },

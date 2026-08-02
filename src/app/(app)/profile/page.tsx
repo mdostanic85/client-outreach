@@ -19,10 +19,10 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default function ProfilePage() {
-  ensureDb();
-  const matchingConfig = getMatchingSourcesConfig();
-  const sources = listProfileSources().map((s) => ({
+export default async function ProfilePage() {
+  await ensureDb();
+  const matchingConfig = await getMatchingSourcesConfig();
+  const sources = (await listProfileSources()).map((s) => ({
     id: s.id,
     type: s.type,
     label: s.label,
@@ -32,8 +32,8 @@ export default function ProfilePage() {
     lastSyncedAt: s.lastSyncedAt ?? s.ingestedAt,
     enabledForMatching: s.enabledForMatching !== 0,
   }));
-  const draft = getLatestDraftProfile();
-  const approved = getApprovedProfile();
+  const draft = await getLatestDraftProfile();
+  const approved = await getApprovedProfile();
 
   const importDiff =
     draft != null

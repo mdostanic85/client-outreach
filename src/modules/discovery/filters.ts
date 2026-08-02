@@ -63,8 +63,8 @@ export function loadTargetFilters(json: string): TargetFilters {
   }
 }
 
-export function getSuppressedDomains(): Set<string> {
-  const rows = getDb().select().from(suppressions).all();
+export async function getSuppressedDomains(): Promise<Set<string>> {
+  const rows = await getDb().select().from(suppressions);
   const set = new Set<string>();
   for (const row of rows) {
     if (row.domain) set.add(row.domain.toLowerCase());
@@ -76,9 +76,9 @@ export function getSuppressedDomains(): Set<string> {
   return set;
 }
 
-export function getActiveContactedDomains(): Set<string> {
+export async function getActiveContactedDomains(): Promise<Set<string>> {
   const db = getDb();
-  const rows = db
+  const rows = await db
     .select({ domain: companies.domain })
     .from(leads)
     .innerJoin(companies, eq(leads.companyId, companies.id))
@@ -87,8 +87,7 @@ export function getActiveContactedDomains(): Set<string> {
         inArray(leads.state, ACTIVE_OUTREACH_STATES),
         isNotNull(companies.domain),
       ),
-    )
-    .all();
+    );
   return new Set(
     rows
       .map((r) => r.domain?.toLowerCase())
@@ -135,10 +134,10 @@ function matchesExcludedRegion(
  * Deterministic prefilters before any LLM call.
  * Collapses multiple postings from one company into one candidate.
  */
-export function applyDeterministicFilters(
+export async function applyDeterministicFilters(
   signals: DiscoverySignal[],
   filters: TargetFilters,
-): { candidates: FilteredCandidate[]; stats: FilterStats } {
+): Promise<{ candidates: FilteredCandidate[]; stats: FilterStats }> {
   const maxAgeDays = filters.maxAgeDays ?? DEFAULT_FILTERS.maxAgeDays;
   const titleInclude = filters.titleInclude ?? DEFAULT_FILTERS.titleInclude;
   const excludedIndustries =
@@ -146,8 +145,8 @@ export function applyDeterministicFilters(
   const excludedRegions = filters.excludedRegions ?? [];
   const countryAllow = (filters.countries ?? []).map((c) => c.toLowerCase());
 
-  const suppressed = getSuppressedDomains();
-  const contacted = getActiveContactedDomains();
+  const suppressed = await getSuppressedDomains();
+  const contacted = await getActiveContactedDomains();
 
   const stats: FilterStats = {
     raw: signals.length,

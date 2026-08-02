@@ -31,12 +31,11 @@ function parseJsonLoose(text: string): unknown {
   return JSON.parse(fenced ? fenced[1]!.trim() : trimmed);
 }
 
-function nextSearchProfileVersion(): number {
-  const latest = getDb()
+async function nextSearchProfileVersion(): Promise<number> {
+  const latest = (await getDb()
     .select({ version: jobSearchProfiles.version })
     .from(jobSearchProfiles)
-    .orderBy(desc(jobSearchProfiles.version))
-    .get();
+    .orderBy(desc(jobSearchProfiles.version)).limit(1))[0];
   return (latest?.version ?? 0) + 1;
 }
 
@@ -105,14 +104,14 @@ function applyHeuristicDiff(
   };
 }
 
-export function generateWeeklyJobInsights(force = false) {
-  assertJobGatesOrPreview(force);
-  const versions = listStrategyVersions();
-  const active = getApprovedSearchProfile();
+export async function generateWeeklyJobInsights(force = false) {
+  await assertJobGatesOrPreview(force);
+  const versions = await listStrategyVersions();
+  const active = await getApprovedSearchProfile();
   const primary =
     versions.find((v) => v.strategyVersion === active?.version) ??
     versions[0] ??
-    computeStrategyCohort(active?.version ?? 1);
+    await computeStrategyCohort(active?.version ?? 1);
 
   const insights = buildGroundedInsights(primary);
   const previous = versions.find(
@@ -149,7 +148,7 @@ export function generateWeeklyJobInsights(force = false) {
   ].join("\n");
 
   const id = newId("rep");
-  getDb()
+  await getDb()
     .insert(learningReports)
     .values({
       id,
@@ -179,8 +178,7 @@ export function generateWeeklyJobInsights(force = false) {
       }),
       model: null,
       createdAt: nowIso(),
-    })
-    .run();
+    });
 
   logger.info({ id, version: primary.strategyVersion }, "weekly job insights saved");
   return { reportId: id, insights, cohort: primary };
@@ -259,14 +257,14 @@ function mergeParamPatch(
 }
 
 export async function proposeSearchStrategyUpdate(force = false) {
-  assertJobGatesOrPreview(force);
+  await assertJobGatesOrPreview(force);
   const db = getDb();
-  const active = getApprovedSearchProfile();
+  const active = await getApprovedSearchProfile();
   if (!active) {
     throw new Error("Approve a search profile before proposing strategy updates");
   }
 
-  const cohort = computeStrategyCohort(active.version);
+  const cohort = await computeStrategyCohort(active.version);
   const baseParams = JobSearchParamsSchema.parse(active.params);
 
   let title = `Search strategy v${active.version + 1} proposal`;
@@ -331,17 +329,16 @@ export async function proposeSearchStrategyUpdate(force = false) {
     logger.warn({ err }, "LLM strategy proposal failed — using heuristic diff");
   }
 
-  const approvedStructured = db
+  const approvedStructured = (await db
     .select()
     .from(structuredProfiles)
     .where(eq(structuredProfiles.status, "approved"))
     .orderBy(desc(structuredProfiles.version))
-    .limit(1)
-    .get();
+    .limit(1))[0];
 
   const draftId = newId("jsp");
-  const version = nextSearchProfileVersion();
-  db.insert(jobSearchProfiles)
+  const version = await nextSearchProfileVersion();
+  await db.insert(jobSearchProfiles)
     .values({
       id: draftId,
       version,
@@ -362,11 +359,10 @@ export async function proposeSearchStrategyUpdate(force = false) {
       promptVersion: "job-strategy-v1",
       costUsd: null,
       createdAt: nowIso(),
-    })
-    .run();
+    });
 
   const proposalId = newId("prop");
-  db.insert(learningProposals)
+  await db.insert(learningProposals)
     .values({
       id: proposalId,
       kind: "search_strategy",
@@ -390,8 +386,7 @@ export async function proposeSearchStrategyUpdate(force = false) {
       model,
       createdAt: nowIso(),
       decidedAt: null,
-    })
-    .run();
+    });
 
   logger.info(
     { proposalId, draftId, from: active.version, to: version },

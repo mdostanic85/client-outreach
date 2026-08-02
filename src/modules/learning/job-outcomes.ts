@@ -38,16 +38,16 @@ export type JobOutcomeEventType =
   | "no_response"
   | "rejected_after_apply";
 
-export function recordJobOutcomeEvent(
+export async function recordJobOutcomeEvent(
   jobId: string,
   type: JobOutcomeEventType,
   payload: Record<string, unknown> = {},
 ) {
   const db = getDb();
-  const job = db.select().from(jobs).where(eq(jobs.id, jobId)).get();
+  const job = (await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1))[0];
   if (!job) throw new Error("Job not found");
 
-  db.insert(jobOutcomeEvents)
+  await db.insert(jobOutcomeEvents)
     .values({
       id: newId("joe"),
       jobId,
@@ -55,17 +55,16 @@ export function recordJobOutcomeEvent(
       strategyVersion: job.searchProfileVersion,
       payloadJson: JSON.stringify(payload),
       createdAt: nowIso(),
-    })
-    .run();
+    });
 }
 
-export function setJobOutcome(
+export async function setJobOutcome(
   jobId: string,
   outcome: Exclude<JobOutcome, "none">,
   note?: string,
 ) {
   const db = getDb();
-  const job = db.select().from(jobs).where(eq(jobs.id, jobId)).get();
+  const job = (await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1))[0];
   if (!job) throw new Error("Job not found");
   if (job.triageState !== "applied" && job.triageState !== "interested") {
     throw new Error("Mark the job as applied before recording an outcome");
@@ -75,7 +74,7 @@ export function setJobOutcome(
   const eventType: JobOutcomeEventType =
     outcome === "rejected" ? "rejected_after_apply" : outcome;
 
-  db.update(jobs)
+  await db.update(jobs)
     .set({
       outcome,
       outcomeAt: now,
@@ -85,18 +84,16 @@ export function setJobOutcome(
         ? { triageState: "applied", appliedAt: job.appliedAt ?? now }
         : {}),
     })
-    .where(eq(jobs.id, jobId))
-    .run();
+    .where(eq(jobs.id, jobId));
 
-  recordJobOutcomeEvent(jobId, eventType, { note: note?.trim() || null });
+  await recordJobOutcomeEvent(jobId, eventType, { note: note?.trim() || null });
 }
 
-export function listAppliedJobs(limit = 40) {
+export async function listAppliedJobs(limit = 40) {
   const db = getDb();
-  return db
+  return (await db
     .select()
-    .from(jobs)
-    .all()
+    .from(jobs))
     .filter((j) => j.triageState === "applied")
     .sort((a, b) =>
       (b.appliedAt ?? b.updatedAt).localeCompare(a.appliedAt ?? a.updatedAt),

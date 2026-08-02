@@ -10,8 +10,8 @@ import {
 export type { SendPolicy } from "./policy-defaults";
 export { DEFAULT_SEND_POLICY } from "./policy-defaults";
 
-export function getSendPolicy(): SendPolicy {
-  const row = getDb().select().from(settings).all()[0];
+export async function getSendPolicy(): Promise<SendPolicy> {
+  const row = (await getDb().select().from(settings).limit(1))[0];
   let stored: Partial<SendPolicy> = {};
   try {
     stored = JSON.parse(row?.sendPolicyJson || "{}") as Partial<SendPolicy>;
@@ -33,44 +33,51 @@ export function startOfLocalDayIso(date = new Date()): string {
   return d.toISOString();
 }
 
-export function countNewSendsToday(): number {
+export async function countNewSendsToday(): Promise<number> {
   const since = startOfLocalDayIso();
-  return getDb()
-    .select()
-    .from(deliveryEvents)
-    .where(
-      and(
-        eq(deliveryEvents.eventType, "sent"),
-        gte(deliveryEvents.occurredAt, since),
-      ),
-    )
-    .all().length;
+  return (
+    await getDb()
+      .select()
+      .from(deliveryEvents)
+      .where(
+        and(
+          eq(deliveryEvents.eventType, "sent"),
+          gte(deliveryEvents.occurredAt, since),
+        ),
+      )
+  ).length;
 }
 
 export type SendGateResult =
   | { ok: true }
   | { ok: false; reason: string };
 
-export function checkSendWindow(policy = getSendPolicy()): SendGateResult {
-  if (policy.weekdaysOnly && !isWeekday()) {
+export async function checkSendWindow(
+  policy?: SendPolicy,
+): Promise<SendGateResult> {
+  const resolved = policy ?? (await getSendPolicy());
+  if (resolved.weekdaysOnly && !isWeekday()) {
     return { ok: false, reason: "Send window: weekdays only" };
   }
   return { ok: true };
 }
 
-export function checkDailyCap(policy = getSendPolicy()): SendGateResult {
-  const sent = countNewSendsToday();
-  if (sent >= policy.maxNewPerDay) {
+export async function checkDailyCap(
+  policy?: SendPolicy,
+): Promise<SendGateResult> {
+  const resolved = policy ?? (await getSendPolicy());
+  const sent = await countNewSendsToday();
+  if (sent >= resolved.maxNewPerDay) {
     return {
       ok: false,
-      reason: `Daily cap reached (${sent}/${policy.maxNewPerDay})`,
+      reason: `Daily cap reached (${sent}/${resolved.maxNewPerDay})`,
     };
   }
   return { ok: true };
 }
 
-export function checkMailboxHealth(): SendGateResult {
-  const health = getMailboxHealth();
+export async function checkMailboxHealth(): Promise<SendGateResult> {
+  const health = await getMailboxHealth();
   if (health.pausedAt) {
     return {
       ok: false,
@@ -81,11 +88,13 @@ export function checkMailboxHealth(): SendGateResult {
 }
 
 /** After two hard bounces in latest 20 new sends → pause. */
-export function evaluateBounceHealth(): { shouldPause: boolean; reason?: string } {
-  const events = getDb()
-    .select()
-    .from(deliveryEvents)
-    .all()
+export async function evaluateBounceHealth(): Promise<{
+  shouldPause: boolean;
+  reason?: string;
+}> {
+  const events = (
+    await getDb().select().from(deliveryEvents)
+  )
     .filter((e) => e.eventType === "sent" || e.eventType === "bounce_hard")
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
 
@@ -100,16 +109,14 @@ export function evaluateBounceHealth(): { shouldPause: boolean; reason?: string 
       sendIds.has(e.messageId),
   );
 
-  // Also count hard bounces among latest 20 delivery-related events tied to sends
-  const recentHard = getDb()
-    .select()
-    .from(deliveryEvents)
-    .all()
+  const recentHard = (
+    await getDb().select().from(deliveryEvents)
+  )
     .filter((e) => e.eventType === "bounce_hard")
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
     .slice(0, 20);
 
-  const hardInWindow = Math.max(hardBounces.length, countHardInLatestSends());
+  const hardInWindow = Math.max(hardBounces.length, await countHardInLatestSends());
 
   if (hardInWindow >= 2) {
     return {
@@ -118,7 +125,6 @@ export function evaluateBounceHealth(): { shouldPause: boolean; reason?: string 
     };
   }
 
-  // Rolling rate concerning: ≥20% hard bounce with ≥10 sends
   if (recentSends.length >= 10) {
     const rate = hardInWindow / recentSends.length;
     if (rate >= 0.2) {
@@ -133,12 +139,9 @@ export function evaluateBounceHealth(): { shouldPause: boolean; reason?: string 
   return { shouldPause: false };
 }
 
-function countHardInLatestSends(): number {
+async function countHardInLatestSends(): Promise<number> {
   const db = getDb();
-  const latestSends = db
-    .select()
-    .from(deliveryEvents)
-    .all()
+  const latestSends = (await db.select().from(deliveryEvents))
     .filter((e) => e.eventType === "sent")
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
     .slice(0, 20);
@@ -148,11 +151,7 @@ function countHardInLatestSends(): number {
   const oldest = latestSends[latestSends.length - 1]?.occurredAt;
   if (!oldest) return 0;
 
-  return db
-    .select()
-    .from(deliveryEvents)
-    .all()
-    .filter(
-      (e) => e.eventType === "bounce_hard" && e.occurredAt >= oldest,
-    ).length;
+  return (await db.select().from(deliveryEvents)).filter(
+    (e) => e.eventType === "bounce_hard" && e.occurredAt >= oldest,
+  ).length;
 }

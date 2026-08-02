@@ -9,29 +9,29 @@ import { getJobLearningGates } from "./job-gates";
 import { listAppliedJobs } from "./job-outcomes";
 import { buildFunnelAnalytics, buildSourcePerformance } from "./reports";
 
-export function getLearningDashboard() {
-  ensureDb();
-  const gates = getLearningGates();
-  const source = buildSourcePerformance();
-  const funnel = buildFunnelAnalytics();
-  const proposals = ensureDb()
-    .select()
-    .from(learningProposals)
-    .orderBy(desc(learningProposals.createdAt))
-    .all()
-    .slice(0, 20);
-  const reports = ensureDb()
-    .select()
-    .from(learningReports)
-    .orderBy(desc(learningReports.createdAt))
-    .all()
-    .slice(0, 20);
+export async function getLearningDashboard() {
+  const db = await ensureDb();
+  const gates = await getLearningGates();
+  const source = await buildSourcePerformance();
+  const funnel = await buildFunnelAnalytics();
+  const proposals = (
+    await db
+      .select()
+      .from(learningProposals)
+      .orderBy(desc(learningProposals.createdAt))
+  ).slice(0, 20);
+  const reports = (
+    await db
+      .select()
+      .from(learningReports)
+      .orderBy(desc(learningReports.createdAt))
+  ).slice(0, 20);
 
   return { gates, source, funnel, proposals, reports };
 }
 
 export type JobLearningDashboard = {
-  gates: ReturnType<typeof getJobLearningGates>;
+  gates: Awaited<ReturnType<typeof getJobLearningGates>>;
   adaptiveRanking: boolean;
   activeStrategyVersion: number | null;
   strategies: StrategyCohort[];
@@ -57,11 +57,11 @@ export type JobLearningDashboard = {
   } | null;
 };
 
-export function getJobLearningDashboard(): JobLearningDashboard {
-  ensureDb();
-  const gates = getJobLearningGates();
-  const strategies = listStrategyVersions();
-  const active = getApprovedSearchProfile();
+export async function getJobLearningDashboard(): Promise<JobLearningDashboard> {
+  const db = await ensureDb();
+  const gates = await getJobLearningGates();
+  const strategies = await listStrategyVersions();
+  const active = await getApprovedSearchProfile();
   const activeVersion = active?.version ?? null;
   const primary =
     strategies.find((s) => s.strategyVersion === activeVersion) ??
@@ -71,17 +71,15 @@ export function getJobLearningDashboard(): JobLearningDashboard {
     primary &&
     strategies.find((s) => s.strategyVersion === primary.strategyVersion - 1);
 
-  const proposals = ensureDb()
+  const proposals = await db
     .select()
     .from(learningProposals)
-    .orderBy(desc(learningProposals.createdAt))
-    .all();
+    .orderBy(desc(learningProposals.createdAt));
 
-  const reports = ensureDb()
+  const reports = await db
     .select()
     .from(learningReports)
-    .orderBy(desc(learningReports.createdAt))
-    .all();
+    .orderBy(desc(learningReports.createdAt));
 
   const weeklyReports = reports.filter((r) => r.kind === "job_weekly_insights");
   const pendingStrategyProposals = proposals.filter(
@@ -101,7 +99,7 @@ export function getJobLearningDashboard(): JobLearningDashboard {
     }
   }
 
-  const appliedJobs = listAppliedJobs(30).map((j) => ({
+  const appliedJobs = (await listAppliedJobs(30)).map((j) => ({
     id: j.id,
     title: j.title,
     outcome: j.outcome,
@@ -111,11 +109,11 @@ export function getJobLearningDashboard(): JobLearningDashboard {
 
   return {
     gates,
-    adaptiveRanking: getAdaptiveJobRanking(),
+    adaptiveRanking: await getAdaptiveJobRanking(),
     activeStrategyVersion: activeVersion,
     strategies,
     pendingStrategyProposals,
-    weeklyReports: weeklyReports.slice(0, 10),
+    weeklyReports: weeklyReports.slice(0, 8),
     appliedJobs,
     latestInsights,
     kpis: primary

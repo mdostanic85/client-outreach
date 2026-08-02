@@ -2,7 +2,6 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { isEphemeralDatabase } from "@/db/client";
 import { ensureDb } from "@/db/ensure";
 import {
   authenticateUser,
@@ -30,12 +29,13 @@ const credentialsSchema = z.object({
 function dbWriteErrorMessage(err: unknown): string | null {
   const message = err instanceof Error ? err.message : String(err);
   if (
-    message.includes("SQLITE_READONLY") ||
-    message.includes("readonly database") ||
-    message.includes("EROFS") ||
-    message.includes("EACCES")
+    message.includes("DATABASE_URL") ||
+    message.includes("password authentication failed") ||
+    message.includes("ECONNREFUSED") ||
+    message.includes("ENOTFOUND") ||
+    message.includes("connection") && message.includes("failed")
   ) {
-    return "Database is not writable in this environment. Run the app locally, or set DATABASE_PATH to a writable store.";
+    return "Database is unavailable. Set DATABASE_URL to your Neon PostgreSQL connection string.";
   }
   return null;
 }
@@ -45,7 +45,7 @@ export async function signUpAction(
   formData: FormData,
 ): Promise<AuthFormState> {
   try {
-    ensureDb();
+    await ensureDb();
     const parsed = credentialsSchema.safeParse({
       email: formData.get("email"),
       password: formData.get("password"),
@@ -55,12 +55,12 @@ export async function signUpAction(
       return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
     }
 
-    if (findUserByEmail(parsed.data.email)) {
+    if (await findUserByEmail(parsed.data.email)) {
       return { error: "An account with that email already exists." };
     }
 
     // Private app: allow first account freely; later accounts still allowed for now.
-    const user = createUser(parsed.data);
+    const user = await createUser(parsed.data);
     await createSession(user.id);
   } catch (err) {
     const dbError = dbWriteErrorMessage(err);
@@ -75,7 +75,7 @@ export async function signInAction(
   formData: FormData,
 ): Promise<AuthFormState> {
   try {
-    ensureDb();
+    await ensureDb();
     const parsed = credentialsSchema.safeParse({
       email: formData.get("email"),
       password: formData.get("password"),
@@ -84,14 +84,8 @@ export async function signInAction(
       return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
     }
 
-    const user = authenticateUser(parsed.data.email, parsed.data.password);
+    const user = await authenticateUser(parsed.data.email, parsed.data.password);
     if (!user) {
-      if (isEphemeralDatabase() && countUsers() === 0) {
-        return {
-          error:
-            "Cloud demo reset after deploy — no accounts left. Create a new account on Sign up.",
-        };
-      }
       return { error: "Invalid email or password." };
     }
 
@@ -109,13 +103,13 @@ export async function forgotPasswordAction(
   formData: FormData,
 ): Promise<AuthFormState> {
   try {
-    ensureDb();
+    await ensureDb();
     const email = String(formData.get("email") ?? "").trim();
     if (!email.includes("@")) {
       return { error: "Enter a valid email." };
     }
 
-    const result = issuePasswordReset(email);
+    const result = await issuePasswordReset(email);
     if (!result.ok) return { error: result.error };
 
     return {
@@ -135,14 +129,14 @@ export async function resetPasswordAction(
   formData: FormData,
 ): Promise<AuthFormState> {
   try {
-    ensureDb();
+    await ensureDb();
     const token = String(formData.get("token") ?? "");
     const password = String(formData.get("password") ?? "");
     if (password.length < 8) {
       return { error: "Password must be at least 8 characters." };
     }
 
-    const result = resetPasswordWithToken(token, password);
+    const result = await resetPasswordWithToken(token, password);
     if (!result.ok) return { error: result.error };
 
     await createSession(result.userId);
@@ -155,12 +149,12 @@ export async function resetPasswordAction(
 }
 
 export async function signOutAction() {
-  ensureDb();
+  await ensureDb();
   await destroySession();
   redirect("/welcome");
 }
 
 export async function getAuthBootstrap() {
-  ensureDb();
-  return { hasUsers: countUsers() > 0 };
+  await ensureDb();
+  return { hasUsers: (await countUsers()) > 0 };
 }

@@ -17,28 +17,24 @@ function parseArgs() {
   return { limit: limitIdx >= 0 ? Number(process.argv[limitIdx + 1]) || 50 : 50 };
 }
 
-function main() {
+async function main() {
   const { limit } = parseArgs();
-  ensureDb();
+  await ensureDb();
   const db = getDb();
 
-  const briefs = db
-    .select()
-    .from(researchBriefs)
-    .all()
-    .slice(-limit);
+  const allBriefs = await db.select().from(researchBriefs);
+  const briefs = allBriefs.slice(-limit);
 
-  const rows = briefs.map((brief) => {
-    const company = db
+  const rows = await Promise.all(
+    briefs.map(async (brief) => {
+    const company = (await db
       .select()
       .from(companies)
-      .where(eq(companies.id, brief.companyId))
-      .get();
-    const lead = db
+      .where(eq(companies.id, brief.companyId)).limit(1))[0];
+    const lead = (await db
       .select()
       .from(leads)
-      .where(eq(leads.companyId, brief.companyId))
-      .get();
+      .where(eq(leads.companyId, brief.companyId)).limit(1))[0];
 
     let result: Record<string, unknown> = {};
     try {
@@ -70,7 +66,8 @@ function main() {
       fabricatedDetails: null as boolean | null,
       notes: "",
     };
-  });
+  }),
+  );
 
   const outDir = path.join(process.cwd(), "data", "evals");
   fs.mkdirSync(outDir, { recursive: true });

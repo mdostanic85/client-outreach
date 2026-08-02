@@ -92,13 +92,11 @@ function parseArgs() {
 
 async function main() {
   const { limit, dryRun } = parseArgs();
-  ensureDb();
+  await ensureDb();
   const db = getDb();
 
-  const accepted = db
-    .select()
-    .from(leads)
-    .all()
+  const allLeads = await db.select().from(leads);
+  const accepted = allLeads
     .filter((l) =>
       ["accepted", "draft_ready", "sent", "replied"].includes(l.state),
     )
@@ -113,36 +111,32 @@ async function main() {
   const rows: WritingEvalRow[] = [];
 
   for (const lead of accepted) {
-    const company = db
+    const company = (await db
       .select()
       .from(companies)
-      .where(eq(companies.id, lead.companyId))
-      .get();
+      .where(eq(companies.id, lead.companyId)).limit(1))[0];
     if (!company) continue;
 
-    const contact = db
+    const contact = (await db
       .select()
       .from(contacts)
-      .where(eq(contacts.companyId, company.id))
-      .all()[0];
+      .where(eq(contacts.companyId, company.id)).limit(1))[0];
     if (!contact?.email) {
       console.warn(`Skip ${lead.id}: no contact email`);
       continue;
     }
 
-    const brief = db
+    const briefs = await db
       .select()
       .from(researchBriefs)
-      .where(eq(researchBriefs.companyId, company.id))
-      .all()
-      .at(-1);
+      .where(eq(researchBriefs.companyId, company.id));
+    const brief = briefs.at(-1);
 
-    const existing = db
+    const existingDrafts = await db
       .select()
       .from(drafts)
-      .where(eq(drafts.leadId, lead.id))
-      .all()
-      .find((d) => d.kind === "initial");
+      .where(eq(drafts.leadId, lead.id));
+    const existing = existingDrafts.find((d) => d.kind === "initial");
 
     const user = [
       `Company: ${company.name}`,

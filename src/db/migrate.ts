@@ -1,19 +1,33 @@
-import { getSqlite } from "./client";
+import { getSql } from "./client";
 
-const MIGRATION_SQL = `
-CREATE TABLE IF NOT EXISTS settings (
+/**
+ * Additive PostgreSQL schema bootstrap.
+ * Safe to re-run: CREATE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS only.
+ * Never drops tables or columns.
+ */
+const MIGRATION_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS settings (
   id TEXT PRIMARY KEY,
   profile_md TEXT NOT NULL DEFAULT '',
   target_filters_json TEXT NOT NULL DEFAULT '{}',
   daily_lead_count INTEGER NOT NULL DEFAULT 10,
+  daily_job_count INTEGER NOT NULL DEFAULT 20,
+  today_mode TEXT NOT NULL DEFAULT 'jobs',
   ai_budget_usd REAL NOT NULL DEFAULT 8,
   style_profile_json TEXT NOT NULL DEFAULT '{}',
   country_policy_json TEXT NOT NULL DEFAULT '{}',
+  send_policy_json TEXT NOT NULL DEFAULT '{}',
+  mailbox_health_json TEXT NOT NULL DEFAULT '{}',
+  ops_checklist_json TEXT NOT NULL DEFAULT '{}',
+  setup_checklist_dismissed_at TEXT,
+  adaptive_job_ranking INTEGER NOT NULL DEFAULT 1,
+  use_portfolio_in_matching INTEGER NOT NULL DEFAULT 1,
+  matching_sources_json TEXT NOT NULL DEFAULT '{}',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS companies (
+  `CREATE TABLE IF NOT EXISTS companies (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   normalized_name TEXT NOT NULL,
@@ -23,10 +37,10 @@ CREATE TABLE IF NOT EXISTS companies (
   status TEXT NOT NULL DEFAULT 'new',
   first_seen_at TEXT NOT NULL,
   last_seen_at TEXT NOT NULL
-);
-CREATE UNIQUE INDEX IF NOT EXISTS companies_normalized_name_idx ON companies(normalized_name);
+)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS companies_normalized_name_idx ON companies(normalized_name)`,
 
-CREATE TABLE IF NOT EXISTS signals (
+  `CREATE TABLE IF NOT EXISTS signals (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL REFERENCES companies(id),
   source TEXT NOT NULL,
@@ -37,10 +51,10 @@ CREATE TABLE IF NOT EXISTS signals (
   raw_hash TEXT NOT NULL,
   raw_json TEXT NOT NULL,
   created_at TEXT NOT NULL
-);
-CREATE UNIQUE INDEX IF NOT EXISTS signals_source_external_id_idx ON signals(source, external_id);
+)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS signals_source_external_id_idx ON signals(source, external_id)`,
 
-CREATE TABLE IF NOT EXISTS source_pages (
+  `CREATE TABLE IF NOT EXISTS source_pages (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL REFERENCES companies(id),
   url TEXT NOT NULL,
@@ -55,9 +69,9 @@ CREATE TABLE IF NOT EXISTS source_pages (
   error TEXT,
   prompt_version TEXT,
   model_id TEXT
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS research_briefs (
+  `CREATE TABLE IF NOT EXISTS research_briefs (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL REFERENCES companies(id),
   evidence_json TEXT NOT NULL,
@@ -68,9 +82,9 @@ CREATE TABLE IF NOT EXISTS research_briefs (
   output_tokens INTEGER NOT NULL DEFAULT 0,
   cost_estimate REAL NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS leads (
+  `CREATE TABLE IF NOT EXISTS leads (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL REFERENCES companies(id),
   score REAL,
@@ -84,9 +98,9 @@ CREATE TABLE IF NOT EXISTS leads (
   published_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS contacts (
+  `CREATE TABLE IF NOT EXISTS contacts (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL REFERENCES companies(id),
   name TEXT,
@@ -94,11 +108,14 @@ CREATE TABLE IF NOT EXISTS contacts (
   email TEXT,
   confidence TEXT NOT NULL DEFAULT 'manual_confirmed',
   source_url TEXT,
-  manually_confirmed INTEGER NOT NULL DEFAULT 1,
+  business_relevance TEXT,
+  lawful_basis_note TEXT,
+  country_policy_applied TEXT,
+  manually_confirmed BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS drafts (
+  `CREATE TABLE IF NOT EXISTS drafts (
   id TEXT PRIMARY KEY,
   lead_id TEXT NOT NULL REFERENCES leads(id),
   contact_id TEXT REFERENCES contacts(id),
@@ -111,25 +128,25 @@ CREATE TABLE IF NOT EXISTS drafts (
   state TEXT NOT NULL DEFAULT 'draft',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS activities (
+  `CREATE TABLE IF NOT EXISTS activities (
   id TEXT PRIMARY KEY,
   lead_id TEXT NOT NULL REFERENCES leads(id),
   type TEXT NOT NULL,
   metadata_json TEXT NOT NULL DEFAULT '{}',
   occurred_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS suppressions (
+  `CREATE TABLE IF NOT EXISTS suppressions (
   id TEXT PRIMARY KEY,
   email TEXT,
   domain TEXT,
   reason TEXT NOT NULL,
   created_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS sync_runs (
+  `CREATE TABLE IF NOT EXISTS sync_runs (
   id TEXT PRIMARY KEY,
   kind TEXT NOT NULL,
   started_at TEXT NOT NULL,
@@ -137,9 +154,9 @@ CREATE TABLE IF NOT EXISTS sync_runs (
   checkpoint_json TEXT NOT NULL DEFAULT '{}',
   stats_json TEXT NOT NULL DEFAULT '{}',
   error TEXT
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS api_usage (
+  `CREATE TABLE IF NOT EXISTS api_usage (
   id TEXT PRIMARY KEY,
   provider TEXT NOT NULL,
   model TEXT NOT NULL,
@@ -148,9 +165,9 @@ CREATE TABLE IF NOT EXISTS api_usage (
   output_tokens INTEGER NOT NULL DEFAULT 0,
   estimated_cost REAL NOT NULL DEFAULT 0,
   occurred_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS approvals (
+  `CREATE TABLE IF NOT EXISTS approvals (
   id TEXT PRIMARY KEY,
   draft_id TEXT NOT NULL REFERENCES drafts(id),
   lead_id TEXT NOT NULL REFERENCES leads(id),
@@ -162,9 +179,9 @@ CREATE TABLE IF NOT EXISTS approvals (
   approved_at TEXT NOT NULL,
   invalidated_at TEXT,
   consumed_at TEXT
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS threads (
+  `CREATE TABLE IF NOT EXISTS threads (
   id TEXT PRIMARY KEY,
   lead_id TEXT NOT NULL REFERENCES leads(id),
   contact_id TEXT REFERENCES contacts(id),
@@ -174,9 +191,9 @@ CREATE TABLE IF NOT EXISTS threads (
   state TEXT NOT NULL DEFAULT 'open',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS messages (
+  `CREATE TABLE IF NOT EXISTS messages (
   id TEXT PRIMARY KEY,
   thread_id TEXT NOT NULL REFERENCES threads(id),
   lead_id TEXT NOT NULL REFERENCES leads(id),
@@ -191,9 +208,9 @@ CREATE TABLE IF NOT EXISTS messages (
   classification_source TEXT,
   imap_uid INTEGER,
   created_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS follow_ups (
+  `CREATE TABLE IF NOT EXISTS follow_ups (
   id TEXT PRIMARY KEY,
   lead_id TEXT NOT NULL REFERENCES leads(id),
   thread_id TEXT REFERENCES threads(id),
@@ -203,28 +220,28 @@ CREATE TABLE IF NOT EXISTS follow_ups (
   state TEXT NOT NULL DEFAULT 'pending',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS mail_sync_cursors (
+  `CREATE TABLE IF NOT EXISTS mail_sync_cursors (
   id TEXT PRIMARY KEY,
   mailbox TEXT NOT NULL,
   folder TEXT NOT NULL,
   uid_validity TEXT,
   last_uid INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL
-);
-CREATE UNIQUE INDEX IF NOT EXISTS mail_sync_mailbox_folder_idx ON mail_sync_cursors(mailbox, folder);
+)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS mail_sync_mailbox_folder_idx ON mail_sync_cursors(mailbox, folder)`,
 
-CREATE TABLE IF NOT EXISTS delivery_events (
+  `CREATE TABLE IF NOT EXISTS delivery_events (
   id TEXT PRIMARY KEY,
   message_id TEXT REFERENCES messages(id),
   lead_id TEXT REFERENCES leads(id),
   event_type TEXT NOT NULL,
   detail TEXT,
   occurred_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS draft_edits (
+  `CREATE TABLE IF NOT EXISTS draft_edits (
   id TEXT PRIMARY KEY,
   draft_id TEXT NOT NULL REFERENCES drafts(id),
   lead_id TEXT NOT NULL REFERENCES leads(id),
@@ -234,9 +251,9 @@ CREATE TABLE IF NOT EXISTS draft_edits (
   body_after TEXT NOT NULL,
   edit_ratio REAL NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS learning_proposals (
+  `CREATE TABLE IF NOT EXISTS learning_proposals (
   id TEXT PRIMARY KEY,
   kind TEXT NOT NULL,
   title TEXT NOT NULL,
@@ -246,9 +263,9 @@ CREATE TABLE IF NOT EXISTS learning_proposals (
   model TEXT,
   created_at TEXT NOT NULL,
   decided_at TEXT
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS learning_reports (
+  `CREATE TABLE IF NOT EXISTS learning_reports (
   id TEXT PRIMARY KEY,
   kind TEXT NOT NULL,
   title TEXT NOT NULL,
@@ -256,15 +273,15 @@ CREATE TABLE IF NOT EXISTS learning_reports (
   data_json TEXT NOT NULL DEFAULT '{}',
   model TEXT,
   created_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS settings_scoring (
+  `CREATE TABLE IF NOT EXISTS settings_scoring (
   id TEXT PRIMARY KEY,
   weights_json TEXT NOT NULL DEFAULT '{}',
   updated_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS profile_sources (
+  `CREATE TABLE IF NOT EXISTS profile_sources (
   id TEXT PRIMARY KEY,
   type TEXT NOT NULL,
   label TEXT,
@@ -276,9 +293,9 @@ CREATE TABLE IF NOT EXISTS profile_sources (
   last_synced_at TEXT,
   enabled_for_matching INTEGER NOT NULL DEFAULT 1,
   deleted_at TEXT
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS structured_profiles (
+  `CREATE TABLE IF NOT EXISTS structured_profiles (
   id TEXT PRIMARY KEY,
   version INTEGER NOT NULL,
   status TEXT NOT NULL DEFAULT 'draft',
@@ -288,9 +305,9 @@ CREATE TABLE IF NOT EXISTS structured_profiles (
   prompt_version TEXT,
   created_at TEXT NOT NULL,
   approved_at TEXT
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS job_search_profiles (
+  `CREATE TABLE IF NOT EXISTS job_search_profiles (
   id TEXT PRIMARY KEY,
   version INTEGER NOT NULL,
   status TEXT NOT NULL DEFAULT 'draft',
@@ -299,14 +316,17 @@ CREATE TABLE IF NOT EXISTS job_search_profiles (
   params_json TEXT NOT NULL,
   rationale_json TEXT NOT NULL DEFAULT '[]',
   generation_trigger TEXT NOT NULL DEFAULT 'manual',
+  parent_version INTEGER,
+  hypothesis_md TEXT,
   model_id TEXT,
   prompt_version TEXT,
   cost_usd REAL,
   created_at TEXT NOT NULL,
-  approved_at TEXT
-);
+  approved_at TEXT,
+  superseded_at TEXT
+)`,
 
-CREATE TABLE IF NOT EXISTS jobs (
+  `CREATE TABLE IF NOT EXISTS jobs (
   id TEXT PRIMARY KEY,
   company_id TEXT REFERENCES companies(id),
   title TEXT NOT NULL,
@@ -329,12 +349,16 @@ CREATE TABLE IF NOT EXISTS jobs (
   search_profile_version INTEGER,
   fingerprint TEXT,
   published_at TEXT,
+  applied_at TEXT,
+  outcome TEXT NOT NULL DEFAULT 'none',
+  outcome_at TEXT,
+  outcome_note TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
-);
-CREATE UNIQUE INDEX IF NOT EXISTS jobs_source_external ON jobs(source, external_id);
+)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS jobs_source_external ON jobs(source, external_id)`,
 
-CREATE TABLE IF NOT EXISTS collector_runs (
+  `CREATE TABLE IF NOT EXISTS collector_runs (
   id TEXT PRIMARY KEY,
   search_profile_version INTEGER,
   source TEXT NOT NULL,
@@ -345,9 +369,9 @@ CREATE TABLE IF NOT EXISTS collector_runs (
   cost_usd REAL,
   status TEXT NOT NULL DEFAULT 'running',
   error TEXT
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS job_matches (
+  `CREATE TABLE IF NOT EXISTS job_matches (
   id TEXT PRIMARY KEY,
   job_id TEXT NOT NULL REFERENCES jobs(id),
   profile_version INTEGER NOT NULL,
@@ -363,10 +387,10 @@ CREATE TABLE IF NOT EXISTS job_matches (
   prompt_version TEXT,
   cost_usd REAL,
   created_at TEXT NOT NULL
-);
-CREATE UNIQUE INDEX IF NOT EXISTS job_matches_job_profile ON job_matches(job_id, profile_version, prompt_version);
+)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS job_matches_job_profile ON job_matches(job_id, profile_version, prompt_version)`,
 
-CREATE TABLE IF NOT EXISTS users (
+  `CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   email TEXT NOT NULL,
   name TEXT,
@@ -374,36 +398,36 @@ CREATE TABLE IF NOT EXISTS users (
   onboarding_completed_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
-);
-CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users(email);
+)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users(email)`,
 
-CREATE TABLE IF NOT EXISTS sessions (
+  `CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id),
   token_hash TEXT NOT NULL,
   expires_at TEXT NOT NULL,
   created_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  `CREATE TABLE IF NOT EXISTS password_reset_tokens (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id),
   token_hash TEXT NOT NULL,
   expires_at TEXT NOT NULL,
   used_at TEXT,
   created_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS job_outcome_events (
+  `CREATE TABLE IF NOT EXISTS job_outcome_events (
   id TEXT PRIMARY KEY,
   job_id TEXT NOT NULL REFERENCES jobs(id),
   type TEXT NOT NULL,
   strategy_version INTEGER,
   payload_json TEXT NOT NULL DEFAULT '{}',
   created_at TEXT NOT NULL
-);
+)`,
 
-CREATE TABLE IF NOT EXISTS strategy_cohort_metrics (
+  `CREATE TABLE IF NOT EXISTS strategy_cohort_metrics (
   id TEXT PRIMARY KEY,
   strategy_version INTEGER NOT NULL,
   applications_n INTEGER NOT NULL DEFAULT 0,
@@ -419,162 +443,78 @@ CREATE TABLE IF NOT EXISTS strategy_cohort_metrics (
   median_days_to_response REAL,
   segment_json TEXT NOT NULL DEFAULT '{}',
   computed_at TEXT NOT NULL
-);
-`;
+)`,
 
-function columnExists(table: string, column: string): boolean {
-  const rows = getSqlite()
-    .prepare(`PRAGMA table_info(${table})`)
-    .all() as Array<{ name: string }>;
-  return rows.some((r) => r.name === column);
-}
+  // Additive upgrades for DBs created from older schema snapshots
+  `ALTER TABLE settings ADD COLUMN IF NOT EXISTS country_policy_json TEXT NOT NULL DEFAULT '{}'`,
+  `ALTER TABLE settings ADD COLUMN IF NOT EXISTS send_policy_json TEXT NOT NULL DEFAULT '{}'`,
+  `ALTER TABLE settings ADD COLUMN IF NOT EXISTS mailbox_health_json TEXT NOT NULL DEFAULT '{}'`,
+  `ALTER TABLE settings ADD COLUMN IF NOT EXISTS ops_checklist_json TEXT NOT NULL DEFAULT '{}'`,
+  `ALTER TABLE settings ADD COLUMN IF NOT EXISTS daily_job_count INTEGER NOT NULL DEFAULT 20`,
+  `ALTER TABLE settings ADD COLUMN IF NOT EXISTS today_mode TEXT NOT NULL DEFAULT 'jobs'`,
+  `ALTER TABLE settings ADD COLUMN IF NOT EXISTS setup_checklist_dismissed_at TEXT`,
+  `ALTER TABLE settings ADD COLUMN IF NOT EXISTS adaptive_job_ranking INTEGER NOT NULL DEFAULT 1`,
+  `ALTER TABLE settings ADD COLUMN IF NOT EXISTS use_portfolio_in_matching INTEGER NOT NULL DEFAULT 1`,
+  `ALTER TABLE settings ADD COLUMN IF NOT EXISTS matching_sources_json TEXT NOT NULL DEFAULT '{}'`,
+  `ALTER TABLE leads ADD COLUMN IF NOT EXISTS follow_up_at TEXT`,
+  `ALTER TABLE leads ADD COLUMN IF NOT EXISTS published_at TEXT`,
+  `ALTER TABLE source_pages ADD COLUMN IF NOT EXISTS prompt_version TEXT`,
+  `ALTER TABLE source_pages ADD COLUMN IF NOT EXISTS model_id TEXT`,
+  `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS business_relevance TEXT`,
+  `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lawful_basis_note TEXT`,
+  `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS country_policy_applied TEXT`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed_at TEXT`,
+  `ALTER TABLE profile_sources ADD COLUMN IF NOT EXISTS last_synced_at TEXT`,
+  `ALTER TABLE profile_sources ADD COLUMN IF NOT EXISTS enabled_for_matching INTEGER NOT NULL DEFAULT 1`,
+  `ALTER TABLE profile_sources ADD COLUMN IF NOT EXISTS deleted_at TEXT`,
+  `ALTER TABLE job_search_profiles ADD COLUMN IF NOT EXISTS parent_version INTEGER`,
+  `ALTER TABLE job_search_profiles ADD COLUMN IF NOT EXISTS hypothesis_md TEXT`,
+  `ALTER TABLE job_search_profiles ADD COLUMN IF NOT EXISTS superseded_at TEXT`,
+  `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS applied_at TEXT`,
+  `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS outcome TEXT NOT NULL DEFAULT 'none'`,
+  `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS outcome_at TEXT`,
+  `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS outcome_note TEXT`,
+];
 
-function addColumnIfMissing(table: string, column: string, ddl: string) {
-  if (!columnExists(table, column)) {
-    getSqlite().exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+export async function runMigrations() {
+  const sql = getSql();
+
+  for (const statement of MIGRATION_STATEMENTS) {
+    await sql.query(statement);
   }
-}
-
-export function runMigrations() {
-  const sqlite = getSqlite();
-  sqlite.exec(MIGRATION_SQL);
-
-  // Additive upgrades for DBs created in Phase 0 / Phase 1
-  addColumnIfMissing("settings", "country_policy_json", "country_policy_json TEXT NOT NULL DEFAULT '{}'");
-  addColumnIfMissing("settings", "send_policy_json", "send_policy_json TEXT NOT NULL DEFAULT '{}'");
-  addColumnIfMissing("settings", "mailbox_health_json", "mailbox_health_json TEXT NOT NULL DEFAULT '{}'");
-  addColumnIfMissing("leads", "follow_up_at", "follow_up_at TEXT");
-  addColumnIfMissing("leads", "published_at", "published_at TEXT");
-  addColumnIfMissing("source_pages", "prompt_version", "prompt_version TEXT");
-  addColumnIfMissing("source_pages", "model_id", "model_id TEXT");
-  addColumnIfMissing("contacts", "business_relevance", "business_relevance TEXT");
-  addColumnIfMissing("contacts", "lawful_basis_note", "lawful_basis_note TEXT");
-  addColumnIfMissing(
-    "contacts",
-    "country_policy_applied",
-    "country_policy_applied TEXT",
-  );
-  addColumnIfMissing(
-    "settings",
-    "ops_checklist_json",
-    "ops_checklist_json TEXT NOT NULL DEFAULT '{}'",
-  );
-  addColumnIfMissing(
-    "settings",
-    "daily_job_count",
-    "daily_job_count INTEGER NOT NULL DEFAULT 20",
-  );
-  addColumnIfMissing(
-    "settings",
-    "today_mode",
-    "today_mode TEXT NOT NULL DEFAULT 'jobs'",
-  );
-  addColumnIfMissing(
-    "users",
-    "onboarding_completed_at",
-    "onboarding_completed_at TEXT",
-  );
-  addColumnIfMissing(
-    "settings",
-    "setup_checklist_dismissed_at",
-    "setup_checklist_dismissed_at TEXT",
-  );
-  addColumnIfMissing(
-    "settings",
-    "adaptive_job_ranking",
-    "adaptive_job_ranking INTEGER NOT NULL DEFAULT 1",
-  );
-  addColumnIfMissing(
-    "settings",
-    "use_portfolio_in_matching",
-    "use_portfolio_in_matching INTEGER NOT NULL DEFAULT 1",
-  );
-  addColumnIfMissing(
-    "settings",
-    "matching_sources_json",
-    "matching_sources_json TEXT NOT NULL DEFAULT '{}'",
-  );
-  addColumnIfMissing(
-    "profile_sources",
-    "last_synced_at",
-    "last_synced_at TEXT",
-  );
-  addColumnIfMissing(
-    "profile_sources",
-    "enabled_for_matching",
-    "enabled_for_matching INTEGER NOT NULL DEFAULT 1",
-  );
-  addColumnIfMissing(
-    "profile_sources",
-    "deleted_at",
-    "deleted_at TEXT",
-  );
 
   // Backfill last_synced_at from ingested_at when null.
-  try {
-    sqlite.exec(
-      `UPDATE profile_sources SET last_synced_at = ingested_at WHERE last_synced_at IS NULL AND deleted_at IS NULL`,
-    );
-  } catch {
-    /* ignore */
-  }
+  await sql.query(
+    `UPDATE profile_sources SET last_synced_at = ingested_at WHERE last_synced_at IS NULL AND deleted_at IS NULL`,
+  );
 
   // Seed matching_sources_json from legacy use_portfolio_in_matching when empty.
-  try {
-    const rows = sqlite
-      .prepare(
-        `SELECT id, use_portfolio_in_matching, matching_sources_json FROM settings`,
-      )
-      .all() as Array<{
-      id: string;
-      use_portfolio_in_matching: number;
-      matching_sources_json: string;
-    }>;
-    for (const row of rows) {
-      const raw = row.matching_sources_json?.trim();
-      if (raw && raw !== "{}") continue;
-      const portfolioProjects = row.use_portfolio_in_matching !== 0;
-      sqlite
-        .prepare(
-          `UPDATE settings SET matching_sources_json = ? WHERE id = ?`,
-        )
-        .run(
-          JSON.stringify({
-            portfolioProjects,
-            linkedin: true,
-            cv: true,
-            manual: true,
-            github: true,
-            jobPreferences: true,
-            activitySignals: true,
-          }),
-          row.id,
-        );
-    }
-  } catch {
-    /* ignore */
+  const rows = (await sql.query(
+    `SELECT id, use_portfolio_in_matching, matching_sources_json FROM settings`,
+  )) as Array<{
+    id: string;
+    use_portfolio_in_matching: number;
+    matching_sources_json: string;
+  }>;
+
+  for (const row of rows) {
+    const raw = row.matching_sources_json?.trim();
+    if (raw && raw !== "{}") continue;
+    const portfolioProjects = row.use_portfolio_in_matching !== 0;
+    await sql.query(
+      `UPDATE settings SET matching_sources_json = $1 WHERE id = $2`,
+      [
+        JSON.stringify({
+          portfolioProjects,
+          linkedin: true,
+          cv: true,
+          manual: true,
+          github: true,
+          jobPreferences: true,
+          activitySignals: true,
+        }),
+        row.id,
+      ],
+    );
   }
-  addColumnIfMissing(
-    "job_search_profiles",
-    "parent_version",
-    "parent_version INTEGER",
-  );
-  addColumnIfMissing(
-    "job_search_profiles",
-    "hypothesis_md",
-    "hypothesis_md TEXT",
-  );
-  addColumnIfMissing(
-    "job_search_profiles",
-    "superseded_at",
-    "superseded_at TEXT",
-  );
-  addColumnIfMissing("jobs", "applied_at", "applied_at TEXT");
-  addColumnIfMissing(
-    "jobs",
-    "outcome",
-    "outcome TEXT NOT NULL DEFAULT 'none'",
-  );
-  addColumnIfMissing("jobs", "outcome_at", "outcome_at TEXT");
-  addColumnIfMissing("jobs", "outcome_note", "outcome_note TEXT");
 }

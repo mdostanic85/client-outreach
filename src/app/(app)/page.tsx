@@ -13,16 +13,16 @@ import { getApprovedSearchProfile } from "@/modules/search-profile/queries";
 
 export const dynamic = "force-dynamic";
 
-export default function HomePage() {
-  ensureDb();
-  const settings = getSettingsRow();
+export default async function HomePage() {
+  await ensureDb();
+  const settings = await getSettingsRow();
   const limit = settings?.dailyLeadCount ?? 12;
-  const leadRows = listDailyLeads(limit);
-  const jobRows = listDailyJobs();
-  const mode = getTodayMode();
-  const hasSearchProfile = Boolean(getApprovedSearchProfile());
-  const showChecklist = !isSetupChecklistDismissed();
-  const checklistItems = showChecklist ? getSetupChecklistItems() : [];
+  const leadRows = await listDailyLeads(limit);
+  const jobRows = await listDailyJobs();
+  const mode = await getTodayMode();
+  const hasSearchProfile = Boolean(await getApprovedSearchProfile());
+  const showChecklist = !(await isSetupChecklistDismissed());
+  const checklistItems = showChecklist ? await getSetupChecklistItems() : [];
 
   return (
     <TodayTabs

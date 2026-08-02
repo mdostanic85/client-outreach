@@ -200,7 +200,7 @@ async function fetchHtml(url: string): Promise<{
  */
 export async function harvestContactsForLead(leadId: string): Promise<HarvestResult> {
   const db = getDb();
-  const lead = db.select().from(leads).where(eq(leads.id, leadId)).get();
+  const lead = (await db.select().from(leads).where(eq(leads.id, leadId)).limit(1))[0];
   if (!lead) throw new Error("Lead not found");
   if (
     lead.state !== "accepted" &&
@@ -211,11 +211,10 @@ export async function harvestContactsForLead(leadId: string): Promise<HarvestRes
     throw new Error("Harvest only after lead acceptance");
   }
 
-  const company = db
+  const company = (await db
     .select()
     .from(companies)
-    .where(eq(companies.id, lead.companyId))
-    .get();
+    .where(eq(companies.id, lead.companyId)).limit(1))[0];
   if (!company?.domain) {
     throw new Error("Company domain required for contact harvest");
   }
@@ -254,21 +253,20 @@ export async function harvestContactsForLead(leadId: string): Promise<HarvestRes
   }
   const unique = [...byEmail.values()];
 
-  const existing = db
+  const existing = await db
     .select()
     .from(contacts)
-    .where(eq(contacts.companyId, company.id))
-    .all();
+    .where(eq(contacts.companyId, company.id));
   const existingEmails = new Set(
     existing.map((c) => c.email?.toLowerCase()).filter(Boolean),
   );
 
   let contactsCreated = 0;
   const now = nowIso();
-  const { policy } = resolveCountryPolicy(company.country);
+  const { policy } = await resolveCountryPolicy(company.country);
   for (const e of unique) {
     if (existingEmails.has(e.email)) continue;
-    db.insert(contacts)
+    await db.insert(contacts)
       .values({
         id: newId("ct"),
         companyId: company.id,
@@ -283,13 +281,12 @@ export async function harvestContactsForLead(leadId: string): Promise<HarvestRes
         countryPolicyApplied: policy,
         manuallyConfirmed: false,
         createdAt: now,
-      })
-      .run();
+      });
     contactsCreated += 1;
     existingEmails.add(e.email);
   }
 
-  db.insert(activities)
+  await db.insert(activities)
     .values({
       id: newId("act"),
       leadId,
@@ -301,8 +298,7 @@ export async function harvestContactsForLead(leadId: string): Promise<HarvestRes
         teamPageUrl,
       }),
       occurredAt: now,
-    })
-    .run();
+    });
 
   logger.info(
     { leadId, pagesFetched, contactsCreated, emails: unique.length },

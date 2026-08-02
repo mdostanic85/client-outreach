@@ -4,9 +4,9 @@ import { listInterestedJobs } from "@/modules/jobs/queries";
 
 export const dynamic = "force-dynamic";
 
-export default function InterestedPage() {
-  ensureDb();
-  const rows = listInterestedJobs();
+export default async function InterestedPage() {
+  await ensureDb();
+  const rows = await listInterestedJobs();
 
   return (
     <InterestedJobs

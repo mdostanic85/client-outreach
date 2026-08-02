@@ -8,7 +8,7 @@ import { ensureDb } from "../src/db/ensure";
 import { syncInbox } from "../src/modules/mail/sync";
 
 async function main() {
-  ensureDb();
+  await ensureDb();
   const result = await syncInbox();
   console.log(JSON.stringify(result, null, 2));
 }

@@ -29,21 +29,20 @@ function parseJsonLoose(text: string): unknown {
   return JSON.parse(fenced ? fenced[1]!.trim() : trimmed);
 }
 
-function nextVersion(): number {
-  const latest = getDb()
+async function nextVersion(): Promise<number> {
+  const latest = (await getDb()
     .select({ version: jobSearchProfiles.version })
     .from(jobSearchProfiles)
-    .orderBy(desc(jobSearchProfiles.version))
-    .get();
+    .orderBy(desc(jobSearchProfiles.version)).limit(1))[0];
   return (latest?.version ?? 0) + 1;
 }
 
 /** Deterministic fallback when LLM unavailable — still human-reviewable. */
-export function deriveSearchParamsFromProfile(): {
+export async function deriveSearchParamsFromProfile(): Promise<{
   params: JobSearchParams;
   rationale: string[];
-} {
-  const p = getMatchingProfile();
+}> {
+  const p = await getMatchingProfile();
   const titles =
     p?.targetRoles?.length ?
       p.targetRoles.slice(0, 5)
@@ -173,7 +172,7 @@ export async function generateSearchProfile(options?: {
   version: number;
   usedLlm: boolean;
 }> {
-  const approved = getApprovedProfile();
+  const approved = await getApprovedProfile();
   if (!approved) {
     throw new Error("Approve a structured profile before generating search criteria");
   }
@@ -197,20 +196,20 @@ export async function generateSearchProfile(options?: {
       usedLlm = true;
     } catch (err) {
       logger.warn({ err }, "LLM search profile failed — using deterministic derive");
-      const derived = deriveSearchParamsFromProfile();
+      const derived = await deriveSearchParamsFromProfile();
       params = derived.params;
       rationale = derived.rationale;
     }
   } else {
-    const derived = deriveSearchParamsFromProfile();
+    const derived = await deriveSearchParamsFromProfile();
     params = derived.params;
     rationale = derived.rationale;
   }
 
   const db = getDb();
-  const version = nextVersion();
+  const version = await nextVersion();
   const id = newId("jsp");
-  db.insert(jobSearchProfiles)
+  await db.insert(jobSearchProfiles)
     .values({
       id,
       version,
@@ -224,44 +223,40 @@ export async function generateSearchProfile(options?: {
       promptVersion: JOB_SEARCH_PROFILE_PROMPT_VERSION,
       costUsd,
       createdAt: nowIso(),
-    })
-    .run();
+    });
 
   logger.info({ id, version, usedLlm, trigger }, "job search profile draft created");
   return { id, version, usedLlm };
 }
 
-export function saveSearchProfileDraft(
+export async function saveSearchProfileDraft(
   id: string,
   params: JobSearchParams,
   rationale?: string[],
-): void {
+): Promise<void> {
   const db = getDb();
-  const row = db
+  const row = (await db
     .select()
     .from(jobSearchProfiles)
-    .where(eq(jobSearchProfiles.id, id))
-    .get();
+    .where(eq(jobSearchProfiles.id, id)).limit(1))[0];
   if (!row) throw new Error("Search profile not found");
   if (row.status !== "draft") {
     throw new Error("Only draft search profiles can be edited");
   }
   const parsed = JobSearchParamsSchema.parse(params);
-  db.update(jobSearchProfiles)
+  await db.update(jobSearchProfiles)
     .set({
       paramsJson: JSON.stringify(parsed),
       ...(rationale ? { rationaleJson: JSON.stringify(rationale) } : {}),
     })
-    .where(eq(jobSearchProfiles.id, id))
-    .run();
+    .where(eq(jobSearchProfiles.id, id));
 }
 
 /** Ensure a structured profile row still exists (for typing). */
-export function assertStructuredProfileExists(id: string) {
-  const row = getDb()
+export async function assertStructuredProfileExists(id: string) {
+  const row = (await getDb()
     .select()
     .from(structuredProfiles)
-    .where(eq(structuredProfiles.id, id))
-    .get();
+    .where(eq(structuredProfiles.id, id)).limit(1))[0];
   if (!row) throw new Error("Structured profile missing");
 }

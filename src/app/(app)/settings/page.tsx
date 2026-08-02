@@ -4,8 +4,8 @@ import { getSettingsRow } from "@/modules/leads/queries";
 
 export const dynamic = "force-dynamic";
 
-export default function SettingsPage() {
-  const row = getSettingsRow();
+export default async function SettingsPage() {
+  const row = await getSettingsRow();
   if (!row) {
     return (
       <PageShell width="setup">

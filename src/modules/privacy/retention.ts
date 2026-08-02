@@ -19,18 +19,16 @@ function olderThan(iso: string, days: number, asOf: Date): boolean {
   return asOf.getTime() - t >= days * DAY_MS;
 }
 
-function wasMessaged(contactId: string): boolean {
+async function wasMessaged(contactId: string): Promise<boolean> {
   const db = getDb();
-  const sent = db
+  const sent = (await db
     .select()
     .from(drafts)
-    .where(eq(drafts.contactId, contactId))
-    .all()
+    .where(eq(drafts.contactId, contactId)))
     .some((d) => d.state === "sent");
   if (sent) return true;
   return (
-    db.select().from(threads).where(eq(threads.contactId, contactId)).all()
-      .length > 0
+    (await db.select().from(threads).where(eq(threads.contactId, contactId))).length > 0
   );
 }
 
@@ -42,13 +40,13 @@ function wasMessaged(contactId: string): boolean {
  * - Suppressions → never pruned here
  * - Sent correspondence → retained
  */
-export function runRetentionPrune(options?: {
+export async function runRetentionPrune(options?: {
   dryRun?: boolean;
   rejectedDays?: number;
   neverContactedDays?: number;
   rawSignalDays?: number;
   asOf?: Date;
-}): RetentionResult {
+}): Promise<RetentionResult> {
   const dryRun = options?.dryRun ?? false;
   const rejectedDays = options?.rejectedDays ?? 30;
   const neverContactedDays = options?.neverContactedDays ?? 30;
@@ -63,23 +61,22 @@ export function runRetentionPrune(options?: {
     rawSignalsCleared: [],
   };
 
-  const rejectedLeads = db
+  const rejectedLeads = (await db
     .select()
-    .from(leads)
-    .all()
+    .from(leads))
     .filter((l) => l.state === "rejected");
 
   const rejectedCompanyIds = new Set(rejectedLeads.map((l) => l.companyId));
 
-  for (const contact of db.select().from(contacts).all()) {
+  for (const contact of await db.select().from(contacts)) {
     if (!olderThan(contact.createdAt, rejectedDays, asOf)) continue;
-    if (wasMessaged(contact.id)) continue;
+    if (await wasMessaged(contact.id)) continue;
 
     const onRejectedCompany = rejectedCompanyIds.has(contact.companyId);
-    const neverContacted = !wasMessaged(contact.id);
+    const neverContacted = !(await wasMessaged(contact.id));
 
     if (onRejectedCompany && olderThan(contact.createdAt, rejectedDays, asOf)) {
-      if (!dryRun) deleteContactData(contact.id, { force: false });
+      if (!dryRun) await deleteContactData(contact.id, { force: false });
       result.rejectedLeadContactsDeleted.push(contact.id);
       continue;
     }
@@ -97,19 +94,18 @@ export function runRetentionPrune(options?: {
         contact.confidence === "provider_verified";
 
       if (!looksPersonal) continue;
-      if (!dryRun) deleteContactData(contact.id, { force: false });
+      if (!dryRun) await deleteContactData(contact.id, { force: false });
       result.neverContactedDeleted.push(contact.id);
     }
   }
 
-  for (const signal of db.select().from(signals).all()) {
+  for (const signal of await db.select().from(signals)) {
     if (!signal.rawJson || signal.rawJson === "{}") continue;
     if (!olderThan(signal.createdAt, rawSignalDays, asOf)) continue;
     if (!dryRun) {
-      db.update(signals)
+      await db.update(signals)
         .set({ rawJson: "{}" })
-        .where(eq(signals.id, signal.id))
-        .run();
+        .where(eq(signals.id, signal.id));
     }
     result.rawSignalsCleared.push(signal.id);
   }

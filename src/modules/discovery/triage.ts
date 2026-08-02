@@ -95,11 +95,10 @@ export async function triageCandidatesBatch(
         failedKeys.push(c.companyKey);
         const leadId = options?.leadIdsByCompanyKey?.get(c.companyKey);
         if (leadId) {
-          getDb()
+          await getDb()
             .update(leads)
             .set({ state: "triage_failed", updatedAt: nowIso() })
-            .where(eq(leads.id, leadId))
-            .run();
+            .where(eq(leads.id, leadId));
         }
       }
       continue;
@@ -112,11 +111,10 @@ export async function triageCandidatesBatch(
         failedKeys.push(c.companyKey);
         const leadId = options?.leadIdsByCompanyKey?.get(c.companyKey);
         if (leadId) {
-          getDb()
+          await getDb()
             .update(leads)
             .set({ state: "triage_failed", updatedAt: nowIso() })
-            .where(eq(leads.id, leadId))
-            .run();
+            .where(eq(leads.id, leadId));
         }
         continue;
       }

@@ -17,174 +17,160 @@ export const CONTACT_CONFIDENCE = [
 
 export type ContactConfidence = (typeof CONTACT_CONFIDENCE)[number];
 
-export function acceptLead(leadId: string) {
+export async function acceptLead(leadId: string) {
   const db = getDb();
-  const lead = db.select().from(leads).where(eq(leads.id, leadId)).get();
+  const lead = (await db.select().from(leads).where(eq(leads.id, leadId)).limit(1))[0];
   if (!lead) throw new Error("Lead not found");
   if (lead.researchStatus !== "complete" && lead.researchStatus !== "incomplete") {
     throw new Error("Lead must be researched before acceptance");
   }
 
   const now = nowIso();
-  db.update(leads)
+  await db.update(leads)
     .set({ state: "accepted", updatedAt: now })
-    .where(eq(leads.id, leadId))
-    .run();
+    .where(eq(leads.id, leadId));
 
-  db.insert(activities)
+  await db.insert(activities)
     .values({
       id: newId("act"),
       leadId,
       type: "accepted",
       metadataJson: "{}",
       occurredAt: now,
-    })
-    .run();
+    });
 
   return lead;
 }
 
-export function rejectLead(leadId: string, reason: string) {
+export async function rejectLead(leadId: string, reason: string) {
   if (!reason.trim()) throw new Error("Reject reason is required");
   const db = getDb();
-  const lead = db.select().from(leads).where(eq(leads.id, leadId)).get();
+  const lead = (await db.select().from(leads).where(eq(leads.id, leadId)).limit(1))[0];
   if (!lead) throw new Error("Lead not found");
 
   const now = nowIso();
-  db.update(leads)
+  await db.update(leads)
     .set({
       state: "rejected",
       rejectReason: reason.trim(),
       updatedAt: now,
     })
-    .where(eq(leads.id, leadId))
-    .run();
+    .where(eq(leads.id, leadId));
 
-  db.insert(activities)
+  await db.insert(activities)
     .values({
       id: newId("act"),
       leadId,
       type: "rejected",
       metadataJson: JSON.stringify({ reason: reason.trim() }),
       occurredAt: now,
-    })
-    .run();
+    });
 }
 
-export function saveLeadForLater(leadId: string) {
+export async function saveLeadForLater(leadId: string) {
   const db = getDb();
-  const lead = db.select().from(leads).where(eq(leads.id, leadId)).get();
+  const lead = (await db.select().from(leads).where(eq(leads.id, leadId)).limit(1))[0];
   if (!lead) throw new Error("Lead not found");
 
   const now = nowIso();
-  db.update(leads)
+  await db.update(leads)
     .set({ state: "saved_for_later", updatedAt: now })
-    .where(eq(leads.id, leadId))
-    .run();
+    .where(eq(leads.id, leadId));
 
-  db.insert(activities)
+  await db.insert(activities)
     .values({
       id: newId("act"),
       leadId,
       type: "saved_for_later",
       metadataJson: "{}",
       occurredAt: now,
-    })
-    .run();
+    });
 }
 
-export function setLeadState(leadId: string, state: LeadState, metadata?: Record<string, unknown>) {
+export async function setLeadState(leadId: string, state: LeadState, metadata?: Record<string, unknown>) {
   const db = getDb();
-  const lead = db.select().from(leads).where(eq(leads.id, leadId)).get();
+  const lead = (await db.select().from(leads).where(eq(leads.id, leadId)).limit(1))[0];
   if (!lead) throw new Error("Lead not found");
   assertTransition(lead.state as LeadState, state);
 
   const now = nowIso();
-  db.update(leads)
+  await db.update(leads)
     .set({ state, updatedAt: now })
-    .where(eq(leads.id, leadId))
-    .run();
+    .where(eq(leads.id, leadId));
 
-  db.insert(activities)
+  await db.insert(activities)
     .values({
       id: newId("act"),
       leadId,
       type: `state:${state}`,
       metadataJson: JSON.stringify(metadata ?? {}),
       occurredAt: now,
-    })
-    .run();
+    });
 }
 
-export function markLeadReplied(leadId: string) {
-  setLeadState(leadId, "replied");
+export async function markLeadReplied(leadId: string) {
+  await setLeadState(leadId, "replied");
 }
 
-export function setFollowUpDate(leadId: string, followUpAt: string) {
+export async function setFollowUpDate(leadId: string, followUpAt: string) {
   const db = getDb();
-  const lead = db.select().from(leads).where(eq(leads.id, leadId)).get();
+  const lead = (await db.select().from(leads).where(eq(leads.id, leadId)).limit(1))[0];
   if (!lead) throw new Error("Lead not found");
 
   const now = nowIso();
-  db.update(leads)
+  await db.update(leads)
     .set({
       followUpAt,
       state: "follow_up_due",
       updatedAt: now,
     })
-    .where(eq(leads.id, leadId))
-    .run();
+    .where(eq(leads.id, leadId));
 
-  db.insert(activities)
+  await db.insert(activities)
     .values({
       id: newId("act"),
       leadId,
       type: "follow_up_set",
       metadataJson: JSON.stringify({ followUpAt }),
       occurredAt: now,
-    })
-    .run();
+    });
 }
 
-export function suppressLead(leadId: string, reason: string) {
+export async function suppressLead(leadId: string, reason: string) {
   const db = getDb();
-  const lead = db.select().from(leads).where(eq(leads.id, leadId)).get();
+  const lead = (await db.select().from(leads).where(eq(leads.id, leadId)).limit(1))[0];
   if (!lead) throw new Error("Lead not found");
 
-  const company = db
+  const company = (await db
     .select()
     .from(companies)
-    .where(eq(companies.id, lead.companyId))
-    .get();
+    .where(eq(companies.id, lead.companyId)).limit(1))[0];
 
   const now = nowIso();
-  db.insert(suppressions)
+  await db.insert(suppressions)
     .values({
       id: newId("sup"),
       email: null,
       domain: company?.domain ?? null,
       reason: reason.trim() || "manual_suppression",
       createdAt: now,
-    })
-    .run();
+    });
 
-  db.update(leads)
+  await db.update(leads)
     .set({ state: "suppressed", updatedAt: now })
-    .where(eq(leads.id, leadId))
-    .run();
+    .where(eq(leads.id, leadId));
 
-  db.insert(activities)
+  await db.insert(activities)
     .values({
       id: newId("act"),
       leadId,
       type: "suppressed",
       metadataJson: JSON.stringify({ reason }),
       occurredAt: now,
-    })
-    .run();
+    });
 }
 
-export function addManualContact(input: {
+export async function addManualContact(input: {
   companyId: string;
   leadId: string;
   name: string;
@@ -199,14 +185,13 @@ export function addManualContact(input: {
   const id = newId("ct");
 
   const isPattern = input.confidence === "pattern_unverified";
-  const company = db
+  const company = (await db
     .select()
     .from(companies)
-    .where(eq(companies.id, input.companyId))
-    .get();
-  const { policy } = resolveCountryPolicy(company?.country);
+    .where(eq(companies.id, input.companyId)).limit(1))[0];
+  const { policy } = await resolveCountryPolicy(company?.country);
 
-  db.insert(contacts)
+  await db.insert(contacts)
     .values({
       id,
       companyId: input.companyId,
@@ -226,38 +211,35 @@ export function addManualContact(input: {
       countryPolicyApplied: policy,
       manuallyConfirmed: !isPattern,
       createdAt: now,
-    })
-    .run();
+    });
 
-  db.insert(activities)
+  await db.insert(activities)
     .values({
       id: newId("act"),
       leadId: input.leadId,
       type: "contact_added",
       metadataJson: JSON.stringify({ contactId: id, confidence: input.confidence }),
       occurredAt: now,
-    })
-    .run();
+    });
 
   return id;
 }
 
 /** Promote pattern_unverified → manual_confirmed after human review. */
-export function confirmContact(contactId: string, leadId: string) {
+export async function confirmContact(contactId: string, leadId: string) {
   const db = getDb();
-  const contact = db.select().from(contacts).where(eq(contacts.id, contactId)).get();
+  const contact = (await db.select().from(contacts).where(eq(contacts.id, contactId)).limit(1))[0];
   if (!contact) throw new Error("Contact not found");
 
   const now = nowIso();
-  db.update(contacts)
+  await db.update(contacts)
     .set({
       confidence: "manual_confirmed",
       manuallyConfirmed: true,
     })
-    .where(eq(contacts.id, contactId))
-    .run();
+    .where(eq(contacts.id, contactId));
 
-  db.insert(activities)
+  await db.insert(activities)
     .values({
       id: newId("act"),
       leadId,
@@ -267,17 +249,15 @@ export function confirmContact(contactId: string, leadId: string) {
         previousConfidence: contact.confidence,
       }),
       occurredAt: now,
-    })
-    .run();
+    });
 }
 
-export function assertDraftJurisdiction(companyId: string) {
-  const company = getDb()
+export async function assertDraftJurisdiction(companyId: string) {
+  const company = (await getDb()
     .select()
     .from(companies)
-    .where(eq(companies.id, companyId))
-    .get();
-  const check = canGenerateDraft(company?.country);
+    .where(eq(companies.id, companyId)).limit(1))[0];
+  const check = await canGenerateDraft(company?.country);
   if (!check.allowed) {
     throw new Error(check.reason ?? "Jurisdiction policy blocks draft");
   }

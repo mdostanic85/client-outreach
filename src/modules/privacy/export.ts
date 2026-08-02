@@ -47,16 +47,16 @@ export type PersonalDataExport = {
 };
 
 /** Full personal/business contact export. Does not include API keys or mail credentials. */
-export function buildPersonalDataExport(options?: {
+export async function buildPersonalDataExport(options?: {
   companyId?: string;
   leadId?: string;
   includeRawSignals?: boolean;
-}): PersonalDataExport {
+}): Promise<PersonalDataExport> {
   const db = getDb();
   const companyId = options?.companyId;
   const leadId = options?.leadId;
 
-  let leadRows = db.select().from(leads).all();
+  let leadRows = await db.select().from(leads);
   if (leadId) leadRows = leadRows.filter((l) => l.id === leadId);
   if (companyId) leadRows = leadRows.filter((l) => l.companyId === companyId);
 
@@ -64,63 +64,54 @@ export function buildPersonalDataExport(options?: {
   const companyIds = new Set(leadRows.map((l) => l.companyId));
   if (companyId) companyIds.add(companyId);
 
-  const companyRows = db
+  const companyRows = (await db
     .select()
-    .from(companies)
-    .all()
+    .from(companies))
     .filter((c) => companyIds.size === 0 || companyIds.has(c.id));
 
   // When exporting everything (no filter), include all companies/contacts
   const exportAll = !companyId && !leadId;
-  const companiesOut = exportAll ? db.select().from(companies).all() : companyRows;
+  const companiesOut = exportAll ? await db.select().from(companies) : companyRows;
   const companyIdSet = new Set(companiesOut.map((c) => c.id));
 
-  const contactRows = db
+  const contactRows = (await db
     .select()
-    .from(contacts)
-    .all()
+    .from(contacts))
     .filter((c) => companyIdSet.has(c.companyId));
 
-  const draftRows = db
+  const draftRows = (await db
     .select()
-    .from(drafts)
-    .all()
+    .from(drafts))
     .filter((d) => exportAll || leadIds.has(d.leadId));
 
-  const activityRows = db
+  const activityRows = (await db
     .select()
-    .from(activities)
-    .all()
+    .from(activities))
     .filter((a) => exportAll || leadIds.has(a.leadId));
 
-  const threadRows = db
+  const threadRows = (await db
     .select()
-    .from(threads)
-    .all()
+    .from(threads))
     .filter((t) => exportAll || leadIds.has(t.leadId));
 
-  const messageRows = db
+  const messageRows = (await db
     .select()
-    .from(messages)
-    .all()
+    .from(messages))
     .filter((m) => exportAll || leadIds.has(m.leadId));
 
-  const deliveryRows = db
+  const deliveryRows = (await db
     .select()
-    .from(deliveryEvents)
-    .all()
+    .from(deliveryEvents))
     .filter((e) => exportAll || (e.leadId != null && leadIds.has(e.leadId)));
 
-  const briefRows = db
+  const briefRows = (await db
     .select()
-    .from(researchBriefs)
-    .all()
+    .from(researchBriefs))
     .filter((b) => companyIdSet.has(b.companyId));
 
-  const signalRows = db
+  const signalRows = (await db
     .select()
-    .from(signals)
-    .all()
+    .from(signals))
     .filter((s) => companyIdSet.has(s.companyId))
     .map((s) => ({
       id: s.id,
@@ -137,7 +128,7 @@ export function buildPersonalDataExport(options?: {
   return {
     exportedAt: nowIso(),
     companies: companiesOut,
-    leads: exportAll ? db.select().from(leads).all() : leadRows,
+    leads: exportAll ? await db.select().from(leads) : leadRows,
     contacts: contactRows,
     drafts: draftRows,
     activities: activityRows,
@@ -146,22 +137,22 @@ export function buildPersonalDataExport(options?: {
     deliveryEvents: deliveryRows,
     researchBriefs: briefRows,
     signals: signalRows,
-    suppressions: db.select().from(suppressions).all(),
+    suppressions: await db.select().from(suppressions),
     ...(exportAll
       ? {
-          profileSources: db.select().from(profileSources).all(),
-          structuredProfiles: db.select().from(structuredProfiles).all(),
+          profileSources: await db.select().from(profileSources),
+          structuredProfiles: await db.select().from(structuredProfiles),
         }
       : {}),
   };
 }
 
-export function writePersonalDataExport(options?: {
+export async function writePersonalDataExport(options?: {
   companyId?: string;
   leadId?: string;
   includeRawSignals?: boolean;
-}): { path: string; bytes: number } {
-  const payload = buildPersonalDataExport(options);
+}): Promise<{ path: string; bytes: number }> {
+  const payload = await buildPersonalDataExport(options);
   const dir = path.join(process.cwd(), "data", "exports");
   fs.mkdirSync(dir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -177,9 +168,9 @@ export function writePersonalDataExport(options?: {
   return { path: filePath, bytes: Buffer.byteLength(text) };
 }
 
-export function getLeadCompanyId(leadId: string): string | null {
+export async function getLeadCompanyId(leadId: string): Promise<string | null> {
   return (
-    getDb().select().from(leads).where(eq(leads.id, leadId)).get()?.companyId ??
+    (await getDb().select().from(leads).where(eq(leads.id, leadId)).limit(1))[0]?.companyId ??
     null
   );
 }
