@@ -4,13 +4,36 @@ import { collectorRuns } from "@/db/schema";
 import { newId, nowIso } from "@/lib/ids";
 import { logger } from "@/lib/logging/logger";
 import type { JobSearchParams, JobSource } from "@/modules/search-profile/schemas";
-import { collectAtsBoardsViaApify, collectViaApify, getApifyToken } from "./apify";
+import {
+  canAffordApifyRun,
+  collectAtsBoardsViaApify,
+  collectViaApify,
+  getApifyToken,
+} from "./apify";
+import {
+  collectPercent,
+  progressFor,
+  type JobSearchProgressCallback,
+} from "@/modules/jobs/progress";
 import { collectArbeitnow } from "./arbeitnow";
 import { collectRemotive } from "./remotive";
 import type { CollectorQuery, RawCollectedJob } from "./types";
 
+function queryDetail(query: CollectorQuery): string {
+  const source =
+    query.source === "helloworld"
+      ? "HelloWorld"
+      : query.source.charAt(0).toUpperCase() + query.source.slice(1);
+  return `${source} · ${query.title} · ${query.location}`;
+}
+
 const FREE_SOURCES = new Set<JobSource>(["remotive", "arbeitnow"]);
 const ATS_SOURCES = new Set<JobSource>(["greenhouse", "lever", "ashby", "apify"]);
+const PAID_BOARD_SOURCES = new Set<JobSource>([
+  "linkedin",
+  "helloworld",
+  "infostud",
+]);
 
 /** Free-API queries: one per title (not every location). */
 export function expandFreeQueries(params: JobSearchParams): CollectorQuery[] {
@@ -32,9 +55,92 @@ export function expandFreeQueries(params: JobSearchParams): CollectorQuery[] {
   return queries;
 }
 
+/**
+ * LinkedIn: 2–3 focused queries (not title×location matrix).
+ * Budget-aware defaults for US / Europe / Serbia coverage.
+ */
+export function expandLinkedInQueries(params: JobSearchParams): CollectorQuery[] {
+  if (!params.sourcesEnabled.includes("linkedin")) return [];
+
+  const title = params.targetTitles[0];
+  if (!title) return [];
+
+  const maxResults = Math.min(15, params.maxResultsPerQuery);
+  const base = {
+    keywords: params.searchKeywords,
+    postedWithinHours: params.postedWithinHours,
+    maxResults,
+    source: "linkedin" as const,
+  };
+
+  const queries: CollectorQuery[] = [];
+  const remoteLoc =
+    params.locations.find((l) => /remote|europe|emea/i.test(l)) ?? "Remote";
+
+  queries.push({ ...base, title, location: remoteLoc });
+
+  // US coverage — largest remote market; LinkedIn workplaceType=remote filters onsite noise
+  queries.push({ ...base, title, location: "United States" });
+
+  if (params.locations.some((l) => /serbia|belgrade|balkan/i.test(l))) {
+    queries.push({ ...base, title, location: "Serbia" });
+  } else if (params.targetTitles[1]) {
+    queries.push({
+      ...base,
+      title: params.targetTitles[1]!,
+      location: remoteLoc,
+    });
+  }
+
+  // Dedupe identical title|location pairs, hard-cap at 3
+  const seen = new Set<string>();
+  return queries.filter((q) => {
+    const k = `${q.title}|${q.location}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  }).slice(0, 3);
+}
+
+/** HelloWorld (daily) + Infostud (only when explicitly enabled). */
+export function expandRegionalQueries(params: JobSearchParams): CollectorQuery[] {
+  const title = params.targetTitles[0];
+  if (!title) return [];
+
+  const maxResults = Math.min(15, params.maxResultsPerQuery);
+  const serbiaLoc =
+    params.locations.find((l) => /serbia|belgrade/i.test(l)) ?? "Belgrade";
+  const queries: CollectorQuery[] = [];
+
+  if (params.sourcesEnabled.includes("helloworld")) {
+    queries.push({
+      title,
+      location: serbiaLoc,
+      keywords: params.searchKeywords,
+      postedWithinHours: params.postedWithinHours,
+      maxResults,
+      source: "helloworld",
+    });
+  }
+
+  if (params.sourcesEnabled.includes("infostud")) {
+    queries.push({
+      title,
+      location: serbiaLoc,
+      keywords: params.searchKeywords,
+      postedWithinHours: params.postedWithinHours,
+      maxResults,
+      source: "infostud",
+    });
+  }
+
+  return queries;
+}
+
 async function runOneQuery(
   query: CollectorQuery,
   searchProfileVersion: number,
+  params: JobSearchParams,
 ): Promise<{ jobs: RawCollectedJob[]; costUsd: number }> {
   const runId = newId("crun");
   const db = getDb();
@@ -58,7 +164,10 @@ async function runOneQuery(
     } else if (query.source === "arbeitnow") {
       jobs = await collectArbeitnow(query);
     } else {
-      const result = await collectViaApify(query);
+      const result = await collectViaApify(query, {
+        remoteRequired: params.remoteRequired,
+        seniority: params.seniority,
+      });
       jobs = result.jobs;
       costUsd = result.costUsd;
     }
@@ -91,12 +200,17 @@ async function runOneQuery(
 
 /**
  * Run focused collectors for an approved search profile.
- * - Remotive/Arbeitnow: title queries (free)
- * - Apify ATS: one batched board scrape with keywordFilter (needs APIFY_TOKEN)
+ *
+ * Daily mix (target ≤ $0.50 Apify):
+ * 1. Remotive / Arbeitnow — free baseline
+ * 2. ATS boards — one batched run (primary title)
+ * 3. LinkedIn — 2–3 focused queries
+ * 4. HelloWorld (+ Infostud if enabled) — regional
  */
 export async function collectJobsForProfile(options: {
   params: JobSearchParams;
   searchProfileVersion: number;
+  onProgress?: JobSearchProgressCallback;
 }): Promise<{
   raw: RawCollectedJob[];
   queryCount: number;
@@ -106,6 +220,8 @@ export async function collectJobsForProfile(options: {
   const seen = new Set<string>();
   let apifyCostUsd = 0;
   let queryCount = 0;
+  const budget = options.params.maxDailyApifyUsd;
+  const report = options.onProgress;
 
   const pushJobs = (jobs: RawCollectedJob[]) => {
     for (const job of jobs) {
@@ -117,28 +233,90 @@ export async function collectJobsForProfile(options: {
     }
   };
 
-  // 1) Free APIs
+  const roomForJobs = () => raw.length < options.params.maxDailyRawJobs;
+  const afford = (source: JobSource | "ats") =>
+    canAffordApifyRun(apifyCostUsd, budget, source);
+
   const freeQueries = expandFreeQueries(options.params);
-  queryCount += freeQueries.length;
+  const linkedInQueries = expandLinkedInQueries(options.params);
+  const regionalQueries = expandRegionalQueries(options.params).filter((q) =>
+    PAID_BOARD_SOURCES.has(q.source),
+  );
+  const wantsAts = options.params.sourcesEnabled.some((s) => ATS_SOURCES.has(s));
+  const hasApify = Boolean(getApifyToken());
+  const willRunAts = Boolean(wantsAts && hasApify && afford("ats"));
+  const linkedInPlanned = hasApify ? linkedInQueries : [];
+  const regionalPlanned = hasApify ? regionalQueries : [];
+  const collectTotal =
+    freeQueries.length +
+    (willRunAts ? 1 : 0) +
+    linkedInPlanned.length +
+    regionalPlanned.length;
+  let collectDone = 0;
+
+  const markCollect = async (detail: string) => {
+    collectDone += 1;
+    queryCount += 1;
+    await report?.(
+      progressFor(
+        "collect",
+        collectPercent(collectDone, Math.max(collectTotal, 1)),
+        detail,
+      ),
+    );
+  };
+
+  await report?.(
+    progressFor(
+      "collect",
+      0,
+      collectTotal > 0
+        ? `Starting ${collectTotal} board searches…`
+        : "No sources enabled",
+    ),
+  );
+
+  // 1) Free APIs
   for (const query of freeQueries) {
-    if (raw.length >= options.params.maxDailyRawJobs) break;
-    const result = await runOneQuery(query, options.searchProfileVersion);
+    if (!roomForJobs()) break;
+    await report?.(
+      progressFor(
+        "collect",
+        collectPercent(collectDone, Math.max(collectTotal, 1)),
+        queryDetail(query),
+      ),
+    );
+    const result = await runOneQuery(
+      query,
+      options.searchProfileVersion,
+      options.params,
+    );
     pushJobs(result.jobs);
+    await markCollect(
+      `${queryDetail(query)} · ${result.jobs.length} found`,
+    );
   }
 
-  // 2) Apify ATS — one run per primary target title (capped), if ATS sources enabled
-  const wantsAts = options.params.sourcesEnabled.some((s) => ATS_SOURCES.has(s));
-  if (wantsAts && getApifyToken() && apifyCostUsd < options.params.maxDailyApifyUsd) {
-    const titles = options.params.targetTitles.slice(0, 3);
-    for (const title of titles) {
-      if (raw.length >= options.params.maxDailyRawJobs) break;
-      if (apifyCostUsd >= options.params.maxDailyApifyUsd) break;
-
-      const remaining = Math.max(
+  // 2) Apify ATS — single run on primary title (quality/$ winner)
+  if (willRunAts) {
+    const title = options.params.targetTitles[0];
+    if (title) {
+      const maxItems = Math.max(
         5,
         Math.min(
+          40,
           options.params.maxResultsPerQuery * 2,
           options.params.maxDailyRawJobs - raw.length,
+        ),
+      );
+      const boardCount = options.params.atsBoardUrls?.length ?? 0;
+      const atsDetail = `ATS boards · ${title} · ${boardCount} pages`;
+
+      await report?.(
+        progressFor(
+          "collect",
+          collectPercent(collectDone, Math.max(collectTotal, 1)),
+          atsDetail,
         ),
       );
 
@@ -152,7 +330,7 @@ export async function collectJobsForProfile(options: {
           queryJson: JSON.stringify({
             mode: "ats_boards",
             titleFilter: title,
-            boards: options.params.atsBoardUrls?.length ?? 0,
+            boards: boardCount,
           }),
           startedAt: nowIso(),
           status: "running",
@@ -163,10 +341,9 @@ export async function collectJobsForProfile(options: {
         const result = await collectAtsBoardsViaApify({
           params: options.params,
           titleFilter: title,
-          maxItems: remaining,
+          maxItems,
         });
         apifyCostUsd += result.costUsd;
-        queryCount += 1;
         pushJobs(result.jobs);
 
         db.update(collectorRuns)
@@ -178,6 +355,7 @@ export async function collectJobsForProfile(options: {
           })
           .where(eq(collectorRuns.id, runId))
           .run();
+        await markCollect(`${atsDetail} · ${result.jobs.length} found`);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         db.update(collectorRuns)
@@ -189,6 +367,7 @@ export async function collectJobsForProfile(options: {
           .where(eq(collectorRuns.id, runId))
           .run();
         logger.warn({ err, title }, "Apify ATS collect failed");
+        await markCollect(`${atsDetail} · failed`);
       }
     }
   } else if (wantsAts && !getApifyToken()) {
@@ -197,11 +376,71 @@ export async function collectJobsForProfile(options: {
     );
   }
 
+  // 3) LinkedIn — focused coverage queries
+  for (const query of linkedInPlanned) {
+    if (!roomForJobs() || !afford("linkedin")) break;
+    await report?.(
+      progressFor(
+        "collect",
+        collectPercent(collectDone, Math.max(collectTotal, 1)),
+        queryDetail(query),
+      ),
+    );
+    const result = await runOneQuery(
+      query,
+      options.searchProfileVersion,
+      options.params,
+    );
+    apifyCostUsd += result.costUsd;
+    pushJobs(result.jobs);
+    await markCollect(
+      `${queryDetail(query)} · ${result.jobs.length} found`,
+    );
+  }
+
+  // 4) Regional boards (HelloWorld daily; Infostud if enabled)
+  for (const query of regionalPlanned) {
+    if (!roomForJobs() || !afford(query.source)) break;
+    await report?.(
+      progressFor(
+        "collect",
+        collectPercent(collectDone, Math.max(collectTotal, 1)),
+        queryDetail(query),
+      ),
+    );
+    const result = await runOneQuery(
+      query,
+      options.searchProfileVersion,
+      options.params,
+    );
+    apifyCostUsd += result.costUsd;
+    pushJobs(result.jobs);
+    await markCollect(
+      `${queryDetail(query)} · ${result.jobs.length} found`,
+    );
+  }
+
+  if (apifyCostUsd > budget) {
+    logger.warn(
+      { apifyCostUsd, budget },
+      "Apify spend slightly over daily cap after in-flight run",
+    );
+  }
+
+  await report?.(
+    progressFor(
+      "collect",
+      55,
+      `Collected ${raw.length} openings from ${queryCount} searches`,
+    ),
+  );
+
   logger.info(
     {
       queryCount,
       raw: raw.length,
       apifyCostUsd,
+      budget,
     },
     "job collection finished",
   );

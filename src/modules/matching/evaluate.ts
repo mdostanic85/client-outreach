@@ -8,8 +8,44 @@ import { resolveModel } from "@/lib/ai/routing";
 import { assertPublicBudgetAllows } from "@/lib/budgets";
 import { newId, nowIso } from "@/lib/ids";
 import { logger } from "@/lib/logging/logger";
+import {
+  getMatchingSourcesConfig,
+  matchingPromptSuffix,
+  profileForMatching,
+  resolveMatchingSourcesForScoring,
+  type MatchingSourcesConfig,
+} from "@/modules/profile/matching-sources";
 import { getApprovedProfile } from "@/modules/profile/queries";
 import type { JobSearchParams } from "@/modules/search-profile/schemas";
+import {
+  evaluatePercent,
+  progressFor,
+  type JobSearchProgressCallback,
+} from "@/modules/jobs/progress";
+import {
+  RemoteFitSchema,
+  deriveRemoteFit,
+} from "@/modules/matching/remote-fit";
+import {
+  STRONG_MATCH_MIN,
+  WORTH_A_LOOK_LIMIT,
+  WORTH_A_LOOK_MIN,
+} from "@/modules/matching/tiers";
+
+export {
+  STRONG_MATCH_MIN,
+  WORTH_A_LOOK_LIMIT,
+  WORTH_A_LOOK_MIN,
+  matchTierForScore,
+  type MatchTier,
+} from "@/modules/matching/tiers";
+
+export { profileForMatching } from "@/modules/profile/matching-sources";
+export {
+  RemoteFitSchema,
+  type RemoteFit,
+  type MatchHighlight,
+} from "@/modules/matching/remote-fit";
 
 export const JobMatchResultSchema = z.object({
   matchScore: z.number().min(0).max(100),
@@ -20,9 +56,17 @@ export const JobMatchResultSchema = z.object({
   concerns: z.array(z.string()).default([]),
   missingRequirements: z.array(z.string()).default([]),
   mainRisk: z.string().optional(),
+  remoteFit: RemoteFitSchema.optional(),
 });
 
 export type JobMatchResult = z.infer<typeof JobMatchResultSchema>;
+
+function matchPromptVersion(config: MatchingSourcesConfig): string {
+  const suffix = matchingPromptSuffix(config);
+  return suffix
+    ? `${JOB_MATCH_PROMPT_VERSION}${suffix}`
+    : JOB_MATCH_PROMPT_VERSION;
+}
 
 function parseJsonLoose(text: string): unknown {
   const trimmed = text.trim();
@@ -30,7 +74,14 @@ function parseJsonLoose(text: string): unknown {
   return JSON.parse(fenced ? fenced[1]!.trim() : trimmed);
 }
 
-function normalizeRecommendation(r: JobMatchResult): JobMatchResult {
+function normalizeRecommendation(
+  r: JobMatchResult,
+  jobContext?: {
+    remotePolicy: string | null;
+    location: string | null;
+    remoteRequired: boolean;
+  },
+): JobMatchResult {
   let recommendation = r.recommendation;
   if (!recommendation) {
     if (!r.recommend || r.eligibility === "ineligible") recommendation = "skip";
@@ -41,7 +92,24 @@ function normalizeRecommendation(r: JobMatchResult): JobMatchResult {
   if (r.eligibility === "ineligible" || !r.recommend) {
     recommendation = "skip";
   }
-  return { ...r, recommendation, recommend: recommendation !== "skip" };
+
+  let remoteFit = r.remoteFit;
+  if (!remoteFit && jobContext) {
+    remoteFit = deriveRemoteFit({
+      remotePolicy: jobContext.remotePolicy,
+      location: jobContext.location,
+      concerns: r.concerns,
+      eligibility: r.eligibility,
+      remoteRequired: jobContext.remoteRequired,
+    });
+  }
+
+  return {
+    ...r,
+    recommendation,
+    recommend: recommendation !== "skip",
+    remoteFit,
+  };
 }
 
 async function evaluateOne(
@@ -76,6 +144,8 @@ async function evaluateOne(
     2,
   );
 
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
   const tryOnce = async () => {
     const completion = await googleProvider.complete({
       model,
@@ -86,6 +156,11 @@ async function evaluateOne(
     });
     const parsed = normalizeRecommendation(
       JobMatchResultSchema.parse(parseJsonLoose(completion.text)),
+      {
+        remotePolicy: jobRow.remotePolicy,
+        location: jobRow.location,
+        remoteRequired: searchParams.remoteRequired,
+      },
     );
     return {
       result: parsed,
@@ -94,12 +169,32 @@ async function evaluateOne(
     };
   };
 
-  try {
-    return await tryOnce();
-  } catch (err) {
-    logger.warn({ err, jobId: jobRow.id }, "job match parse failed — retry");
-    return await tryOnce();
+  const isRateLimited = (err: unknown) =>
+    err instanceof Error && /Google LLM error 429|RESOURCE_EXHAUSTED/i.test(err.message);
+
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      return await tryOnce();
+    } catch (err) {
+      lastErr = err;
+      if (isRateLimited(err) && attempt < 3) {
+        const waitMs = 18_000 + attempt * 5_000;
+        logger.warn(
+          { jobId: jobRow.id, attempt, waitMs },
+          "job match rate-limited — waiting before retry",
+        );
+        await sleep(waitMs);
+        continue;
+      }
+      if (attempt === 0) {
+        logger.warn({ err, jobId: jobRow.id }, "job match parse failed — retry");
+        continue;
+      }
+      break;
+    }
   }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
 
 export async function evaluateJobsBatch(options: {
@@ -108,10 +203,30 @@ export async function evaluateJobsBatch(options: {
   searchProfileVersion: number;
   searchParams: JobSearchParams;
   profileJson: string;
+  /** Defaults from settings when omitted. */
+  usePortfolioInMatching?: boolean;
+  onProgress?: JobSearchProgressCallback;
 }): Promise<{ evaluated: number; recommended: number }> {
   const db = getDb();
   let evaluated = 0;
   let recommended = 0;
+  const matchingConfig = getMatchingSourcesConfig();
+  if (options.usePortfolioInMatching != null) {
+    matchingConfig.portfolioProjects = options.usePortfolioInMatching;
+  }
+  const promptVersion = matchPromptVersion(matchingConfig);
+  const total = options.jobIds.length;
+  let done = 0;
+
+  await options.onProgress?.(
+    progressFor(
+      "evaluate",
+      evaluatePercent(0, Math.max(total, 1)),
+      total > 0
+        ? `Scoring ${total} roles against your profile…`
+        : "Nothing new to score",
+    ),
+  );
 
   for (const jobId of options.jobIds) {
     const existing = db
@@ -121,18 +236,37 @@ export async function evaluateJobsBatch(options: {
         and(
           eq(jobMatches.jobId, jobId),
           eq(jobMatches.profileVersion, options.profileVersion),
-          eq(jobMatches.promptVersion, JOB_MATCH_PROMPT_VERSION),
+          eq(jobMatches.promptVersion, promptVersion),
         ),
       )
       .get();
     if (existing) {
       evaluated++;
       if (existing.recommend) recommended++;
+      done++;
+      await options.onProgress?.(
+        progressFor(
+          "evaluate",
+          evaluatePercent(done, Math.max(total, 1)),
+          `Cached score · ${done}/${total}`,
+        ),
+      );
       continue;
     }
 
     const jobRow = db.select().from(jobs).where(eq(jobs.id, jobId)).get();
-    if (!jobRow) continue;
+    if (!jobRow) {
+      done++;
+      continue;
+    }
+
+    await options.onProgress?.(
+      progressFor(
+        "evaluate",
+        evaluatePercent(done, Math.max(total, 1)),
+        `${jobRow.title}${jobRow.location ? ` · ${jobRow.location}` : ""}`,
+      ),
+    );
 
     try {
       const { result, model, costUsd } = await evaluateOne(
@@ -155,7 +289,7 @@ export async function evaluateJobsBatch(options: {
           concernsJson: JSON.stringify(result.concerns),
           scoreJson: JSON.stringify(result),
           modelId: model,
-          promptVersion: JOB_MATCH_PROMPT_VERSION,
+          promptVersion,
           costUsd,
           createdAt: nowIso(),
         })
@@ -163,8 +297,26 @@ export async function evaluateJobsBatch(options: {
 
       evaluated++;
       if (result.recommend && result.eligibility !== "ineligible") recommended++;
+      done++;
+      await options.onProgress?.(
+        progressFor(
+          "evaluate",
+          evaluatePercent(done, Math.max(total, 1)),
+          `${jobRow.title} · score ${Math.round(result.matchScore)} · ${done}/${total}`,
+        ),
+      );
+      // Free-tier Gemini is ~15 RPM — pace new matches so a full batch survives.
+      await new Promise((r) => setTimeout(r, 4_500));
     } catch (err) {
+      done++;
       logger.warn({ err, jobId }, "job evaluate failed");
+      await options.onProgress?.(
+        progressFor(
+          "evaluate",
+          evaluatePercent(done, Math.max(total, 1)),
+          `Skipped one role · ${done}/${total}`,
+        ),
+      );
     }
   }
 
@@ -182,13 +334,16 @@ export type RankedJob = {
 };
 
 /**
- * Rank survivors for daily publish. Quality floor — never pad.
+ * Rank survivors for daily publish.
+ * Strong band keeps a hard quality floor; worth-a-look is a separate secondary band.
  */
 export function rankJobsForPublish(options: {
   minScore?: number;
+  maxScoreExclusive?: number;
   limit: number;
 }): RankedJob[] {
-  const minScore = options.minScore ?? 70;
+  const minScore = options.minScore ?? STRONG_MATCH_MIN;
+  const maxScoreExclusive = options.maxScoreExclusive;
   const db = getDb();
   const active = db
     .select()
@@ -221,6 +376,12 @@ export function rankJobsForPublish(options: {
     if (!match.recommend) continue;
     if (match.eligibility === "ineligible") continue;
     if (match.matchScore < minScore) continue;
+    if (
+      maxScoreExclusive != null &&
+      match.matchScore >= maxScoreExclusive
+    ) {
+      continue;
+    }
 
     let reasons: string[] = [];
     let concerns: string[] = [];
@@ -252,16 +413,11 @@ export function rankJobsForPublish(options: {
   return ranked.slice(0, options.limit);
 }
 
-export function publishDailyJobList(limit: number): {
-  published: number;
-  jobIds: string[];
-} {
-  const ranked = rankJobsForPublish({ limit });
+function markJobsPublished(ranked: RankedJob[]): string[] {
   const db = getDb();
   const now = nowIso();
   const jobIds: string[] = [];
 
-  // Clear prior published-only markers for jobs not in new list? Keep simple: set published_at on selected
   for (const row of ranked) {
     db.update(jobs)
       .set({
@@ -278,20 +434,57 @@ export function publishDailyJobList(limit: number): {
     jobIds.push(row.jobId);
   }
 
-  return { published: jobIds.length, jobIds };
+  return jobIds;
+}
+
+export function publishDailyJobList(limit: number): {
+  published: number;
+  strong: number;
+  worthALook: number;
+  jobIds: string[];
+} {
+  const strong = rankJobsForPublish({
+    minScore: STRONG_MATCH_MIN,
+    limit,
+  });
+  const worthALook = rankJobsForPublish({
+    minScore: WORTH_A_LOOK_MIN,
+    maxScoreExclusive: STRONG_MATCH_MIN,
+    limit: WORTH_A_LOOK_LIMIT,
+  });
+
+  const strongIds = markJobsPublished(strong);
+  const worthIds = markJobsPublished(worthALook);
+  const jobIds = [...strongIds, ...worthIds];
+
+  return {
+    published: jobIds.length,
+    strong: strongIds.length,
+    worthALook: worthIds.length,
+    jobIds,
+  };
 }
 
 /** Helper used by pipeline when profile must exist. */
 export function requireMatchingProfileJson(): {
   profileJson: string;
   version: number;
+  usePortfolioInMatching: boolean;
+  matchingConfig: MatchingSourcesConfig;
 } {
   const approved = getApprovedProfile();
   if (!approved) {
     throw new Error("No approved structured profile for job matching");
   }
+  const matchingConfig = resolveMatchingSourcesForScoring(
+    getMatchingSourcesConfig(),
+  );
   return {
-    profileJson: JSON.stringify(approved.profile),
+    profileJson: JSON.stringify(
+      profileForMatching(approved.profile, matchingConfig),
+    ),
     version: approved.version,
+    usePortfolioInMatching: matchingConfig.portfolioProjects,
+    matchingConfig,
   };
 }

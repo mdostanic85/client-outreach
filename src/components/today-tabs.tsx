@@ -1,14 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { setTodayModeAction } from "@/app/actions";
 import { JobsInbox, type JobTriageRow } from "@/components/jobs-inbox";
 import type { SetupChecklistItem } from "@/modules/onboarding/state";
 import { SetupChecklistBanner } from "@/components/onboarding/setup-checklist-banner";
+import { AnimateIn } from "@/components/motion";
 import { PageShell } from "@/components/page-shell";
+import { ModeSwitch } from "@/components/segmented-control";
 import { TriageInbox, type TriageRow } from "@/components/triage-inbox";
-import { cn } from "@/lib/utils";
 
 export function TodayTabs({
   mode,
@@ -25,8 +26,13 @@ export function TodayTabs({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [jobsSearching, setJobsSearching] = useState(false);
+  const onSearchingChange = useCallback((next: boolean) => {
+    setJobsSearching(next);
+  }, []);
 
   const switchMode = (next: "jobs" | "clients") => {
+    if (jobsSearching) return;
     startTransition(async () => {
       await setTodayModeAction(next);
       router.refresh();
@@ -34,60 +40,45 @@ export function TodayTabs({
   };
 
   return (
-    <PageShell className="gap-6 lg:gap-8">
+    <PageShell>
       {checklistItems && checklistItems.length > 0 ? (
         <SetupChecklistBanner items={checklistItems} />
       ) : null}
 
       <div className="space-y-6">
-        <div
-          role="tablist"
-          aria-label="Today view"
-          className="bg-muted/50 border-border inline-flex rounded-xl border p-1"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "jobs"}
-            disabled={pending}
-            onClick={() => switchMode("jobs")}
-            className={cn(
-              "rounded-lg px-3.5 py-1.5 text-[13px] font-medium transition-colors",
-              mode === "jobs"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            Jobs
-            {jobRows.length > 0 ? (
-              <span className="ml-1.5 tabular opacity-80">{jobRows.length}</span>
-            ) : null}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "clients"}
-            disabled={pending}
-            onClick={() => switchMode("clients")}
-            className={cn(
-              "rounded-lg px-3.5 py-1.5 text-[13px] font-medium transition-colors",
-              mode === "clients"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            Clients
-            {leadRows.length > 0 ? (
-              <span className="ml-1.5 tabular opacity-80">{leadRows.length}</span>
-            ) : null}
-          </button>
-        </div>
+        <ModeSwitch
+          ariaLabel="Today view"
+          value={mode}
+          disabled={pending || jobsSearching}
+          disabledHint="Stay on this page until the search finishes."
+          onChange={switchMode}
+          options={[
+            {
+              id: "jobs",
+              label: "Jobs",
+              count: jobRows.length,
+              description: "Roles that match your profile",
+            },
+            {
+              id: "clients",
+              label: "Companies",
+              count: leadRows.length,
+              description: "Companies to research and email",
+            },
+          ]}
+        />
 
-        {mode === "jobs" ? (
-          <JobsInbox rows={jobRows} hasSearchProfile={hasSearchProfile} />
-        ) : (
-          <TriageInbox rows={leadRows} embedded />
-        )}
+        <AnimateIn key={mode} variant="fade">
+          {mode === "jobs" ? (
+            <JobsInbox
+              rows={jobRows}
+              hasSearchProfile={hasSearchProfile}
+              onSearchingChange={onSearchingChange}
+            />
+          ) : (
+            <TriageInbox rows={leadRows} embedded />
+          )}
+        </AnimateIn>
       </div>
     </PageShell>
   );

@@ -43,7 +43,7 @@ export function ProductPanel({
           {steps.map((step, index) => (
             <li key={step} className="flex items-start gap-x-4">
               <span
-                className="bg-primary/15 text-primary grid size-8 shrink-0 place-items-center rounded-lg text-[13px] font-semibold tabular-nums"
+                className="bg-primary/15 text-primary grid size-8 shrink-0 place-items-center rounded-lg text-[15px] font-semibold tabular-nums"
                 aria-hidden="true"
               >
                 {index + 1}
@@ -57,7 +57,7 @@ export function ProductPanel({
       <div className="border-border bg-card/80 shadow-card mt-10 max-w-md rounded-2xl border p-5 backdrop-blur-sm">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-muted-foreground text-[12px] font-medium tracking-wide uppercase">
+            <p className="text-muted-foreground text-[14px] font-medium tracking-wide uppercase">
               Today&apos;s shortlist
             </p>
             <p className="font-display mt-1.5 text-[18px] font-semibold text-[var(--card-foreground)]">
@@ -67,11 +67,11 @@ export function ProductPanel({
               {SAMPLE_MATCH.company}
             </p>
           </div>
-          <div className="bg-primary/15 text-primary rounded-xl px-3 py-2 text-center">
-            <p className="font-display text-[22px] leading-none font-bold tabular-nums">
+          <div className="bg-primary/15 text-primary rounded-2xl px-3.5 py-2.5 text-center ring-1 ring-primary/30">
+            <p className="font-display text-[28px] leading-none font-bold tabular-nums">
               {SAMPLE_MATCH.score}
             </p>
-            <p className="mt-1 text-[10px] font-medium tracking-wide uppercase opacity-80">
+            <p className="mt-1 text-[14px] font-medium tracking-wide uppercase opacity-80">
               fit
             </p>
           </div>
@@ -80,7 +80,7 @@ export function ProductPanel({
           {SAMPLE_MATCH.reasons.map((reason) => (
             <li
               key={reason}
-              className="text-foreground/90 flex gap-2.5 text-[13px] leading-[1.4]"
+              className="text-foreground/90 flex gap-2.5 text-[15px] leading-[1.4]"
             >
               <span
                 className="bg-success/20 text-success mt-[0.45em] size-1.5 shrink-0 rounded-full"
@@ -90,7 +90,7 @@ export function ProductPanel({
             </li>
           ))}
         </ul>
-        <p className="border-border text-muted-foreground mt-4 border-t pt-3 text-[12px] leading-snug">
+        <p className="border-border text-muted-foreground mt-4 border-t pt-3 text-[14px] leading-snug">
           Watch for: {SAMPLE_MATCH.concern}
         </p>
       </div>

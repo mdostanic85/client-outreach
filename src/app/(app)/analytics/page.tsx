@@ -1,16 +1,18 @@
 import Link from "next/link";
+import { AnalyticsKpiGrid } from "@/components/analytics-kpi-grid";
 import { EmptyState } from "@/components/empty-state";
 import {
+  PageHeader,
   PageShell,
   PanelBody,
   PanelHeader,
-  SectionTitle,
   Surface,
 } from "@/components/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { ensureDb } from "@/db/ensure";
 import { getLearningDashboard } from "@/modules/learning/queries";
+import { labelLeadState } from "@/lib/ui-labels";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -19,45 +21,29 @@ export default function AnalyticsPage() {
   ensureDb();
   const { funnel, source } = getLearningDashboard();
 
-  const kpis = [
-    { label: "Leads", value: funnel.totalLeads },
-    { label: "Sent", value: funnel.sent },
-    { label: "Replies", value: funnel.replies },
-    {
-      label: "Reply rate",
-      value: `${(funnel.replyRate * 100).toFixed(0)}%`,
-    },
-  ];
-
   const hasActivity = funnel.totalLeads > 0 || funnel.sent > 0;
 
   return (
-    <PageShell className="gap-6 lg:gap-8">
-      <SectionTitle
-        title="Analytics"
+    <PageShell>
+      <PageHeader
+        title="Outreach analytics"
         description="Funnel snapshot from your outreach activity."
         actions={
           <Link
             href="/learning"
             className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
           >
-            Learning
+            Improve
           </Link>
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {kpis.map((k) => (
-          <Surface key={k.label} className="px-5 py-5">
-            <p className="text-muted-foreground text-[12px] font-medium tracking-wide uppercase">
-              {k.label}
-            </p>
-            <p className="font-display tabular mt-2 text-[28px] font-semibold tracking-tight text-[var(--card-foreground)]">
-              {k.value}
-            </p>
-          </Surface>
-        ))}
-      </div>
+      <AnalyticsKpiGrid
+        totalLeads={funnel.totalLeads}
+        sent={funnel.sent}
+        replies={funnel.replies}
+        replyRate={funnel.replyRate}
+      />
 
       {!hasActivity ? (
         <Surface>
@@ -84,7 +70,7 @@ export default function AnalyticsPage() {
                     key={state}
                     className="border-border flex justify-between gap-4 border-b px-6 py-3.5 last:border-0 sm:px-8 sm:odd:border-r"
                   >
-                    <span>{state}</span>
+                    <span>{labelLeadState(state)}</span>
                     <span className="tabular font-semibold">{count}</span>
                   </li>
                 ))}
@@ -129,7 +115,7 @@ export default function AnalyticsPage() {
                     className="flex justify-between gap-4 px-6 py-4 sm:px-8"
                   >
                     <span className="font-medium">{r.source}</span>
-                    <span className="text-muted-foreground tabular text-[13px]">
+                    <span className="text-muted-foreground tabular text-[15px]">
                       {r.accepted}/{r.leads} accept · {r.replied}/{r.sent} reply
                     </span>
                   </li>

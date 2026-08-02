@@ -52,7 +52,14 @@
   --radius-3xl: calc(var(--radius) * 2.1);
   --radius-4xl: calc(var(--radius) * 2.5);
   --ease-out-soft: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.1);
+  --duration-quick: 120ms;
+  --duration-standard: 220ms;
+  --duration-slow: 380ms;
   --shadow-card: 0 16px 44px -18px #000000a6, 0 2px 10px #00000059;
+  --shadow-card-hover: 0 22px 48px -16px #000000c4, 0 4px 14px #00000066;
 }
 
 /* Vireo dark + verdigris — default (forced dark) */
@@ -71,7 +78,8 @@
   --secondary: #1c212c;
   --secondary-foreground: #eaedf3;
   --muted: #1c212c;
-  --muted-foreground: #98a2b3;
+  /* Slightly brighter for AA contrast on card/background at 14–16px */
+  --muted-foreground: #a4aec0;
   --accent: #16302a;
   --accent-foreground: #63b8a3;
   --destructive: #e26a5b;
@@ -103,7 +111,8 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-size: 15px;
+    /* 16px base — WCAG-friendly body; avoid sub-14px UI text in components */
+    font-size: 16px;
     line-height: 1.55;
   }
   html {
@@ -133,6 +142,116 @@
   }
 }
 
+@keyframes job-search-ring {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.85;
+  }
+}
+
+@keyframes job-search-bar {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+/* Optra motion system — Corporate / calm SaaS (Mobbin: Twenty, Vercel, Basedash) */
+@keyframes optra-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes optra-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes optra-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes optra-expand-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes optra-pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
+}
+
+@keyframes optra-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 14px rgba(57, 161, 133, 0.28);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(57, 161, 133, 0.55);
+  }
+}
+
+@keyframes optra-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes optra-badge-pop {
+  0% {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 @layer utilities {
   .tabular {
     font-variant-numeric: tabular-nums;
@@ -151,16 +270,162 @@
     width: 3px;
     border-radius: 2px;
     background: transparent;
-    transition: background 160ms var(--ease-out-soft);
+    transition: background var(--duration-standard) var(--ease-out-soft);
   }
   .row-accent:hover::before,
   .row-accent:focus-within::before {
     background: var(--primary);
   }
 
+  .job-search-ring {
+    animation: job-search-ring 2.4s var(--ease-out-soft) infinite;
+  }
+
+  .job-search-bar {
+    animation: job-search-bar 1.6s ease-in-out infinite;
+  }
+
+  /* Page / region entrance */
+  .animate-enter {
+    animation: optra-fade-up var(--duration-slow) var(--ease-emphasized) both;
+  }
+
+  .animate-enter-fade {
+    animation: optra-fade-in var(--duration-standard) var(--ease-out-soft) both;
+  }
+
+  .animate-enter-scale {
+    animation: optra-scale-in var(--duration-slow) var(--ease-emphasized) both;
+  }
+
+  .animate-expand {
+    animation: optra-expand-in var(--duration-standard) var(--ease-emphasized)
+      both;
+  }
+
+  /* Stagger: set --stagger-index on children (0-based) */
+  .stagger-item {
+    --stagger-index: 0;
+    animation: optra-fade-up var(--duration-slow) var(--ease-emphasized) both;
+    animation-delay: calc(var(--stagger-index) * 40ms);
+  }
+
+  /* Interactive surfaces — Twenty / Vercel card lift */
+  .interactive-lift {
+    transition:
+      transform var(--duration-standard) var(--ease-out-soft),
+      box-shadow var(--duration-standard) var(--ease-out-soft),
+      border-color var(--duration-standard) var(--ease-out-soft),
+      background-color var(--duration-quick) var(--ease-out-soft);
+  }
+  .interactive-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-hover);
+  }
+  .interactive-lift:active {
+    transform: translateY(0);
+    transition-duration: var(--duration-quick);
+  }
+
+  .interactive-row {
+    transition:
+      background-color var(--duration-quick) var(--ease-out-soft),
+      transform var(--duration-quick) var(--ease-out-soft);
+  }
+  .interactive-row:hover {
+    background-color: color-mix(in oklch, var(--accent-wash) 40%, transparent);
+  }
+
+  .pressable {
+    transition:
+      transform var(--duration-quick) var(--ease-out-soft),
+      opacity var(--duration-quick) var(--ease-out-soft),
+      background-color var(--duration-quick) var(--ease-out-soft),
+      box-shadow var(--duration-standard) var(--ease-out-soft);
+  }
+  .pressable:active:not(:disabled):not([aria-disabled="true"]) {
+    transform: scale(0.97);
+  }
+
+  .nav-icon-motion {
+    transition:
+      transform var(--duration-quick) var(--ease-out-soft),
+      color var(--duration-quick) var(--ease-out-soft);
+  }
+  .group:hover .nav-icon-motion {
+    transform: scale(1.06);
+  }
+
+  .status-pulse {
+    animation: optra-pulse-soft 2s ease-in-out infinite;
+  }
+
+  .brand-breathe {
+    animation: optra-breathe 3.2s ease-in-out infinite;
+  }
+
+  .empty-float {
+    animation: optra-float 3.6s ease-in-out infinite;
+  }
+
+  .badge-pop {
+    animation: optra-badge-pop var(--duration-standard) var(--ease-spring) both;
+  }
+
+  .segment-option {
+    transition:
+      background-color var(--duration-standard) var(--ease-out-soft),
+      color var(--duration-quick) var(--ease-out-soft),
+      box-shadow var(--duration-standard) var(--ease-out-soft),
+      transform var(--duration-quick) var(--ease-out-soft);
+  }
+  .segment-option:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .row-accent::before {
       transition: none;
+    }
+
+    .job-search-ring,
+    .job-search-bar,
+    .animate-enter,
+    .animate-enter-fade,
+    .animate-enter-scale,
+    .animate-expand,
+    .stagger-item,
+    .status-pulse,
+    .brand-breathe,
+    .empty-float,
+    .badge-pop {
+      animation: none !important;
+    }
+
+    .job-search-ring {
+      opacity: 0.45;
+      transform: none;
+    }
+
+    .job-search-bar {
+      left: 0;
+      width: 40%;
+      transform: none;
+    }
+
+    .interactive-lift,
+    .interactive-row,
+    .pressable,
+    .nav-icon-motion,
+    .segment-option {
+      transition: none !important;
+    }
+
+    .interactive-lift:hover,
+    .pressable:active:not(:disabled),
+    .segment-option:active:not(:disabled),
+    .group:hover .nav-icon-motion {
+      transform: none;
     }
   }
 }

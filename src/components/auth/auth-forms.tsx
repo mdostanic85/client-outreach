@@ -20,7 +20,7 @@ function FieldError({ message }: { message?: string }) {
   return (
     <p
       role="alert"
-      className="bg-destructive/10 text-destructive rounded-xl px-3.5 py-2.5 text-[13px]"
+      className="bg-destructive/10 text-destructive rounded-xl px-3.5 py-2.5 text-[15px]"
     >
       {message}
     </p>
@@ -63,7 +63,7 @@ export function SignUpForm() {
       <Button type="submit" disabled={pending} className="mt-1 w-full">
         {pending ? "Creating account…" : "Create account"}
       </Button>
-      <p className="text-muted-foreground text-center text-[13px]">
+      <p className="text-muted-foreground text-center text-[15px]">
         Already have an account?{" "}
         <Link href="/login" className="text-primary font-medium hover:underline">
           Log in
@@ -95,7 +95,7 @@ export function SignInForm() {
           <Label htmlFor="password">Password</Label>
           <Link
             href="/forgot-password"
-            className="text-primary text-[13px] font-medium hover:underline"
+            className="text-primary text-[15px] font-medium hover:underline"
           >
             Forgot password?
           </Link>
@@ -113,7 +113,7 @@ export function SignInForm() {
       <Button type="submit" disabled={pending} className="mt-1 w-full">
         {pending ? "Signing in…" : "Log in"}
       </Button>
-      <p className="text-muted-foreground text-center text-[13px]">
+      <p className="text-muted-foreground text-center text-[15px]">
         New here?{" "}
         <Link href="/signup" className="text-primary font-medium hover:underline">
           Create an account
@@ -130,7 +130,7 @@ export function ForgotPasswordForm() {
     <form action={action} className="flex flex-col gap-4">
       <FieldError message={state.error} />
       {state.success ? (
-        <div className="bg-primary/10 text-accent-foreground space-y-3 rounded-xl px-3.5 py-3 text-[13px]">
+        <div className="bg-primary/10 text-accent-foreground space-y-3 rounded-xl px-3.5 py-3 text-[15px]">
           <p>{state.success}</p>
           {state.resetPath ? (
             <p>
@@ -159,7 +159,7 @@ export function ForgotPasswordForm() {
       <Button type="submit" disabled={pending} className="mt-1 w-full">
         {pending ? "Sending…" : "Send reset link"}
       </Button>
-      <p className="text-muted-foreground text-center text-[13px]">
+      <p className="text-muted-foreground text-center text-[15px]">
         <Link href="/login" className="text-primary font-medium hover:underline">
           Back to log in
         </Link>

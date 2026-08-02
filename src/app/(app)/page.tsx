@@ -18,7 +18,7 @@ export default function HomePage() {
   const settings = getSettingsRow();
   const limit = settings?.dailyLeadCount ?? 12;
   const leadRows = listDailyLeads(limit);
-  const jobRows = listDailyJobs(settings?.dailyJobCount ?? 20);
+  const jobRows = listDailyJobs();
   const mode = getTodayMode();
   const hasSearchProfile = Boolean(getApprovedSearchProfile());
   const showChecklist = !isSetupChecklistDismissed();
@@ -43,6 +43,10 @@ export default function HomePage() {
         recommendation: row.match?.recommendation ?? null,
         matchingReasons: row.matchingReasons,
         concerns: row.concerns,
+        remoteFit: row.remoteFit,
+        mainRisk: row.mainRisk,
+        missingRequirements: row.missingRequirements,
+        remoteRequired: row.remoteRequired,
         postedAt: row.job.postedAt,
         triageState: row.job.triageState,
       }))}

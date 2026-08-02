@@ -94,7 +94,17 @@ export async function collectArbeitnow(
     return titleTokens.some((tok) => t.includes(tok));
   });
 
-  const slice = (matched.length ? matched : designish).slice(0, query.maxResults);
+  // Prefer title matches; otherwise only product/UX-adjacent design roles
+  // (never dump unrelated "designish" noise into the pipeline).
+  const productish = designish.filter((job) =>
+    /product\s*design|ux\s*design|ui\s*\/?\s*ux|\bux\/ui\b|design systems/i.test(
+      job.title,
+    ),
+  );
+  const slice = (matched.length ? matched : productish).slice(
+    0,
+    query.maxResults,
+  );
 
   return slice.map((job) => {
     const types = asStringList(job.job_types);

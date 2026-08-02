@@ -1,30 +1,28 @@
 "use client";
 
-import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
+import { ModeSwitch } from "@/components/segmented-control";
 
 export function LearningModeSwitch({ mode }: { mode: "jobs" | "clients" }) {
+  const router = useRouter();
+
   return (
-    <div className="bg-muted/60 inline-flex rounded-xl p-1">
-      {(
-        [
-          ["jobs", "Jobs"],
-          ["clients", "Clients"],
-        ] as const
-      ).map(([id, label]) => (
-        <Link
-          key={id}
-          href={`/learning?mode=${id}`}
-          className={cn(
-            "rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors",
-            mode === id
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {label}
-        </Link>
-      ))}
-    </div>
+    <ModeSwitch
+      ariaLabel="Improve view"
+      value={mode}
+      onChange={(next) => router.push(`/learning?mode=${next}`)}
+      options={[
+        {
+          id: "jobs",
+          label: "Jobs",
+          description: "Log outcomes after you apply",
+        },
+        {
+          id: "clients",
+          label: "Companies",
+          description: "See which sources work",
+        },
+      ]}
+    />
   );
 }

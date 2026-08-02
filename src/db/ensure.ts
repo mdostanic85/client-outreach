@@ -64,6 +64,16 @@ export function ensureDb() {
         mailboxHealthJson: "{}",
         opsChecklistJson: "{}",
         adaptiveJobRanking: 1,
+        usePortfolioInMatching: 1,
+        matchingSourcesJson: JSON.stringify({
+          portfolioProjects: true,
+          linkedin: true,
+          cv: true,
+          manual: true,
+          github: true,
+          jobPreferences: true,
+          activitySignals: true,
+        }),
         createdAt: now,
         updatedAt: now,
       })

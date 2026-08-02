@@ -3,6 +3,13 @@ import { getDb } from "@/db/client";
 import { companies, jobMatches, jobs, settings } from "@/db/schema";
 import { nowIso } from "@/lib/ids";
 import { recordJobOutcomeEvent } from "@/modules/learning/job-outcomes";
+import {
+  parseMatchExtrasFromScoreJson,
+  resolveRemoteFit,
+  type RemoteFit,
+} from "@/modules/matching/remote-fit";
+import { WORTH_A_LOOK_LIMIT } from "@/modules/matching/tiers";
+import { getApprovedSearchProfile } from "@/modules/search-profile/queries";
 
 export type JobTriageState =
   | "discovered"
@@ -18,30 +25,18 @@ export type DailyJobRow = {
   match: typeof jobMatches.$inferSelect | null;
   matchingReasons: string[];
   concerns: string[];
+  remoteFit: RemoteFit;
+  mainRisk: string | null;
+  missingRequirements: string[];
+  remoteRequired: boolean;
 };
 
-export function listDailyJobs(limit?: number): DailyJobRow[] {
+function hydrateJobRows(jobList: (typeof jobs.$inferSelect)[]): DailyJobRow[] {
   const db = getDb();
-  const setting = db.select().from(settings).all()[0];
-  const cap = limit ?? setting?.dailyJobCount ?? 20;
-
-  const published = db
-    .select()
-    .from(jobs)
-    .where(
-      and(
-        eq(jobs.status, "active"),
-        isNotNull(jobs.publishedAt),
-        inArray(jobs.triageState, ["published", "saved", "discovered"]),
-      ),
-    )
-    .orderBy(desc(jobs.publishedAt))
-    .all()
-    .filter((j) => j.triageState !== "rejected" && j.triageState !== "applied")
-    .slice(0, cap);
-
+  const remoteRequired =
+    getApprovedSearchProfile()?.params.remoteRequired ?? true;
   const rows: DailyJobRow[] = [];
-  for (const job of published) {
+  for (const job of jobList) {
     const company = job.companyId
       ? db.select().from(companies).where(eq(companies.id, job.companyId)).get() ??
         null
@@ -65,13 +60,83 @@ export function listDailyJobs(limit?: number): DailyJobRow[] {
       }
     }
 
-    rows.push({ job, company, match, matchingReasons, concerns });
+    const extras = parseMatchExtrasFromScoreJson(match?.scoreJson);
+    const remoteFit = resolveRemoteFit({
+      scoreJson: match?.scoreJson,
+      remotePolicy: job.remotePolicy,
+      location: job.location,
+      concerns,
+      eligibility: match?.eligibility ?? null,
+      remoteRequired,
+    });
+
+    rows.push({
+      job,
+      company,
+      match,
+      matchingReasons,
+      concerns,
+      remoteFit,
+      mainRisk: extras.mainRisk,
+      missingRequirements: extras.missingRequirements,
+      remoteRequired,
+    });
   }
 
   rows.sort(
     (a, b) => (b.match?.matchScore ?? 0) - (a.match?.matchScore ?? 0),
   );
   return rows;
+}
+
+export function listDailyJobs(limit?: number): DailyJobRow[] {
+  const db = getDb();
+  const setting = db.select().from(settings).all()[0];
+  // Strong cap + secondary “Worth a look” band.
+  const cap = limit ?? (setting?.dailyJobCount ?? 20) + WORTH_A_LOOK_LIMIT;
+
+  const published = db
+    .select()
+    .from(jobs)
+    .where(
+      and(
+        eq(jobs.status, "active"),
+        isNotNull(jobs.publishedAt),
+        inArray(jobs.triageState, ["published", "saved", "discovered"]),
+      ),
+    )
+    .orderBy(desc(jobs.publishedAt))
+    .all()
+    .filter((j) => j.triageState !== "rejected" && j.triageState !== "applied")
+    .slice(0, cap);
+
+  return hydrateJobRows(published);
+}
+
+/** Roles the user marked Interested — leaves Today until applied / rejected / moved back. */
+export function listInterestedJobs(limit = 80): DailyJobRow[] {
+  const db = getDb();
+  const interested = db
+    .select()
+    .from(jobs)
+    .where(
+      and(eq(jobs.status, "active"), eq(jobs.triageState, "interested")),
+    )
+    .orderBy(desc(jobs.updatedAt))
+    .all()
+    .slice(0, limit);
+
+  return hydrateJobRows(interested);
+}
+
+export function countInterestedJobs(): number {
+  return getDb()
+    .select()
+    .from(jobs)
+    .where(
+      and(eq(jobs.status, "active"), eq(jobs.triageState, "interested")),
+    )
+    .all().length;
 }
 
 export function getJobDetail(jobId: string): DailyJobRow | null {
@@ -99,7 +164,28 @@ export function getJobDetail(jobId: string): DailyJobRow | null {
       /* ignore */
     }
   }
-  return { job, company, match, matchingReasons, concerns };
+  const remoteRequired =
+    getApprovedSearchProfile()?.params.remoteRequired ?? true;
+  const extras = parseMatchExtrasFromScoreJson(match?.scoreJson);
+  const remoteFit = resolveRemoteFit({
+    scoreJson: match?.scoreJson,
+    remotePolicy: job.remotePolicy,
+    location: job.location,
+    concerns,
+    eligibility: match?.eligibility ?? null,
+    remoteRequired,
+  });
+  return {
+    job,
+    company,
+    match,
+    matchingReasons,
+    concerns,
+    remoteFit,
+    mainRisk: extras.mainRisk,
+    missingRequirements: extras.missingRequirements,
+    remoteRequired,
+  };
 }
 
 export function setJobTriageState(
@@ -175,3 +261,10 @@ export function setAdaptiveJobRanking(enabled: boolean) {
     .where(eq(settings.id, row.id))
     .run();
 }
+
+export {
+  getMatchingSourcesConfig,
+  getUsePortfolioInMatching,
+  setMatchingSourcesConfig,
+  setUsePortfolioInMatching,
+} from "@/modules/profile/matching-sources";

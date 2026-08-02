@@ -76,7 +76,7 @@ export default function AdminPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Surface>
           <PanelBody className="space-y-2 py-6">
-            <p className="text-muted-foreground text-[13px] font-medium tracking-wide">
+            <p className="text-muted-foreground text-[15px] font-medium tracking-wide">
               Credentials
             </p>
             <p className="font-display tabular text-[28px] font-semibold tracking-tight">
@@ -85,7 +85,7 @@ export default function AdminPage() {
                 /{secrets.length}
               </span>
             </p>
-            <p className="text-muted-foreground text-[13px]">
+            <p className="text-muted-foreground text-[15px]">
               {missingSecrets.length === 0
                 ? "All keys present"
                 : `${missingSecrets.length} missing`}
@@ -95,7 +95,7 @@ export default function AdminPage() {
 
         <Surface>
           <PanelBody className="space-y-2 py-6">
-            <p className="text-muted-foreground text-[13px] font-medium tracking-wide">
+            <p className="text-muted-foreground text-[15px] font-medium tracking-wide">
               AI budget
             </p>
             <p className="font-display tabular text-[28px] font-semibold tracking-tight">
@@ -115,7 +115,7 @@ export default function AdminPage() {
 
         <Surface>
           <PanelBody className="space-y-2 py-6">
-            <p className="text-muted-foreground text-[13px] font-medium tracking-wide">
+            <p className="text-muted-foreground text-[15px] font-medium tracking-wide">
               Latest run
             </p>
             <p className="font-display text-[22px] font-semibold tracking-tight">
@@ -125,7 +125,7 @@ export default function AdminPage() {
                   ? "In progress"
                   : "None yet"}
             </p>
-            <p className="text-muted-foreground truncate text-[13px]">
+            <p className="text-muted-foreground truncate text-[15px]">
               {admin.latestRun
                 ? `Started ${admin.latestRun.startedAt}`
                 : "Run the daily pipeline from Today"}
@@ -135,13 +135,13 @@ export default function AdminPage() {
 
         <Surface>
           <PanelBody className="space-y-2 py-6">
-            <p className="text-muted-foreground text-[13px] font-medium tracking-wide">
+            <p className="text-muted-foreground text-[15px] font-medium tracking-wide">
               Needs action
             </p>
             <p className="font-display tabular text-[28px] font-semibold tracking-tight">
               {actionItems.length}
             </p>
-            <p className="text-muted-foreground text-[13px]">
+            <p className="text-muted-foreground text-[15px]">
               {actionItems.length === 0
                 ? "Nothing outstanding"
                 : "See list below"}
@@ -171,7 +171,7 @@ export default function AdminPage() {
             {admin.latestRun ? (
               <div className="space-y-5">
                 <div className="space-y-1">
-                  <p className="text-muted-foreground font-mono text-[13px]">
+                  <p className="text-muted-foreground font-mono text-[15px]">
                     {admin.latestRun.id}
                   </p>
                   <p className="text-[15px]">
@@ -257,57 +257,82 @@ export default function AdminPage() {
         </Surface>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <Surface>
-          <PanelHeader>
-            <SectionTitle title="Lead states" />
-          </PanelHeader>
-          {admin.stateCounts.length === 0 ? (
-            <p className="text-muted-foreground px-8 py-10 text-[15px]">
-              No leads yet.
-            </p>
-          ) : (
-            <ul className="grid gap-0 text-[15px] sm:grid-cols-2">
-              {admin.stateCounts.map((s) => (
-                <li
-                  key={s.state}
-                  className="border-border flex justify-between gap-4 border-b px-8 py-4"
-                >
-                  <span>{s.state}</span>
-                  <span className="tabular font-semibold">
-                    {Number(s.count)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Surface>
+      <details className="border-border rounded-xl border">
+        <summary className="cursor-pointer px-5 py-4 font-medium select-none">
+          Advanced
+        </summary>
+        <div className="border-border space-y-8 border-t p-8">
+          <div className="grid gap-8 lg:grid-cols-2">
+            <Surface>
+              <PanelHeader>
+                <SectionTitle title="Lead states" />
+              </PanelHeader>
+              {admin.stateCounts.length === 0 ? (
+                <p className="text-muted-foreground px-8 py-10 text-[15px]">
+                  No leads yet.
+                </p>
+              ) : (
+                <ul className="grid gap-0 text-[15px] sm:grid-cols-2">
+                  {admin.stateCounts.map((s) => (
+                    <li
+                      key={s.state}
+                      className="border-border flex justify-between gap-4 border-b px-8 py-4"
+                    >
+                      <span>{s.state}</span>
+                      <span className="tabular font-semibold">
+                        {Number(s.count)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Surface>
 
-        <Surface>
-          <PanelHeader>
-            <SectionTitle title="Reject reasons" />
-          </PanelHeader>
-          {admin.rejectReasons.length === 0 ? (
-            <p className="text-muted-foreground px-8 py-10 text-[15px]">
-              None yet.
-            </p>
-          ) : (
-            <ul className="divide-border divide-y text-[15px]">
-              {admin.rejectReasons.map((r) => (
-                <li
-                  key={r.reason ?? "null"}
-                  className="flex justify-between gap-4 px-8 py-4"
-                >
-                  <span>{r.reason ?? "(empty)"}</span>
-                  <span className="tabular font-semibold">
-                    {Number(r.count)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Surface>
-      </div>
+            <Surface>
+              <PanelHeader>
+                <SectionTitle title="Reject reasons" />
+              </PanelHeader>
+              {admin.rejectReasons.length === 0 ? (
+                <p className="text-muted-foreground px-8 py-10 text-[15px]">
+                  None yet.
+                </p>
+              ) : (
+                <ul className="divide-border divide-y text-[15px]">
+                  {admin.rejectReasons.map((r) => (
+                    <li
+                      key={r.reason ?? "null"}
+                      className="flex justify-between gap-4 px-8 py-4"
+                    >
+                      <span>{r.reason ?? "(empty)"}</span>
+                      <span className="tabular font-semibold">
+                        {Number(r.count)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Surface>
+          </div>
+
+          <Surface>
+            <PanelHeader>
+              <SectionTitle
+                title="Validation readiness"
+                description="Phase checklist for outreach quality and mailbox ops."
+              />
+            </PanelHeader>
+            <PanelBody>
+              <ReadinessPanel
+                phase1={readiness.phase1}
+                phase2={readiness.phase2}
+                phase3Ops={readiness.phase3Ops}
+                phase4Gates={readiness.phase4Gates}
+                ops={ops}
+              />
+            </PanelBody>
+          </Surface>
+        </div>
+      </details>
 
       <Surface>
         <PanelHeader>
@@ -324,24 +349,6 @@ export default function AdminPage() {
             ))}
           </ul>
         )}
-      </Surface>
-
-      <Surface>
-        <PanelHeader>
-          <SectionTitle
-            title="Validation readiness"
-            description="Phase checklist for outreach quality and mailbox ops."
-          />
-        </PanelHeader>
-        <PanelBody>
-          <ReadinessPanel
-            phase1={readiness.phase1}
-            phase2={readiness.phase2}
-            phase3Ops={readiness.phase3Ops}
-            phase4Gates={readiness.phase4Gates}
-            ops={ops}
-          />
-        </PanelBody>
       </Surface>
 
       <Surface>

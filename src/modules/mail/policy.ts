@@ -2,21 +2,13 @@ import { and, eq, gte } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { deliveryEvents, settings } from "@/db/schema";
 import { getMailboxHealth } from "./approvals";
+import {
+  DEFAULT_SEND_POLICY,
+  type SendPolicy,
+} from "./policy-defaults";
 
-export type SendPolicy = {
-  maxNewPerDay: number;
-  weekdaysOnly: boolean;
-  maxFollowUps: number;
-  /** Days after initial send before follow-up 1 / 2 */
-  followUpOffsetsDays: [number, number];
-};
-
-export const DEFAULT_SEND_POLICY: SendPolicy = {
-  maxNewPerDay: 5,
-  weekdaysOnly: true,
-  maxFollowUps: 2,
-  followUpOffsetsDays: [5, 12],
-};
+export type { SendPolicy } from "./policy-defaults";
+export { DEFAULT_SEND_POLICY } from "./policy-defaults";
 
 export function getSendPolicy(): SendPolicy {
   const row = getDb().select().from(settings).all()[0];

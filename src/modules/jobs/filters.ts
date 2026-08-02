@@ -4,6 +4,7 @@ import { jobFingerprint } from "@/modules/collectors/types";
 
 export type FilterDropReason =
   | "excluded_title"
+  | "unrelated_title"
   | "too_old"
   | "bad_location"
   | "remote_required"
@@ -12,6 +13,17 @@ export type FilterDropReason =
   | "excluded_keyword"
   | "duplicate"
   | "avoid_industry";
+
+const WORK_MODE_RE = /remote|hybrid|on[- ]?site|onsite|wfh|work from home/i;
+const SENIORITY_STOP = new Set([
+  "senior",
+  "lead",
+  "staff",
+  "principal",
+  "junior",
+  "mid",
+  "level",
+]);
 
 export type FilteredJob = {
   job: RawCollectedJob;
@@ -50,6 +62,45 @@ function titleExcluded(title: string, excluded: string[]): boolean {
   });
 }
 
+function titleTokens(title: string): string[] {
+  return title
+    .toLowerCase()
+    .split(/[^a-z0-9+]+/)
+    .filter((t) => t.length > 2 && !SENIORITY_STOP.has(t));
+}
+
+/**
+ * Keep roles that share meaningful tokens with target titles
+ * (e.g. "product"+"designer"), or clear UX/UI/product-design titles
+ * when the search is design-oriented.
+ */
+function titleRelevant(title: string, targetTitles: string[]): boolean {
+  if (!targetTitles.length) return true;
+  const t = title.toLowerCase();
+  const designSearch = targetTitles.some((target) =>
+    /design|ux|ui|figma/i.test(target),
+  );
+
+  for (const target of targetTitles) {
+    const tokens = titleTokens(target);
+    if (!tokens.length) continue;
+    const hits = tokens.filter((tok) => t.includes(tok)).length;
+    if (hits >= Math.min(2, tokens.length)) return true;
+    if (tokens.length === 1 && hits === 1) return true;
+  }
+
+  if (designSearch) {
+    return /product\s*design|ux\s*design|ui\s*design|ui\s*\/?\s*ux|\bux\/ui\b|design systems|design\s*lead|head\s*of\s*design|director\s*of\s*design|\b(ux|ui)\s*designer\b/i.test(
+      t,
+    );
+  }
+  return false;
+}
+
+function employmentTypesForFilter(types: string[]): string[] {
+  return types.filter((t) => !WORK_MODE_RE.test(t.trim()));
+}
+
 /**
  * Deterministic pre-LLM filter (Serbia remote hard rules + search profile).
  */
@@ -68,9 +119,15 @@ export function filterRawJobs(
 
   for (const job of raw) {
     const blob = `${job.title}\n${job.location ?? ""}\n${job.description}\n${job.remotePolicy ?? ""}`;
+    const flags: string[] = [];
 
     if (titleExcluded(job.title, params.excludedTitles)) {
       dropped.push({ job, reason: "excluded_title" });
+      continue;
+    }
+
+    if (!titleRelevant(job.title, params.targetTitles)) {
+      dropped.push({ job, reason: "unrelated_title" });
       continue;
     }
 
@@ -111,32 +168,38 @@ export function filterRawJobs(
         /remote|worldwide|anywhere|europe|emea|serbia|eu\b/i.test(loc) ||
         /remote/i.test(job.remotePolicy ?? "") ||
         job.source === "remotive";
-      if (
+      const usCentricLoc =
         loc &&
         !remoteish &&
         /\b(united states|usa|new york|san francisco|london only)\b/i.test(loc) &&
-        !/remote/i.test(loc)
-      ) {
-        dropped.push({ job, reason: "bad_location" });
-        continue;
+        !/remote/i.test(loc);
+      if (usCentricLoc) {
+        // Description mentions remote/EMEA → keep for AI scoring with a soft flag.
+        if (/remote|europe|emea|worldwide|serbia|work from (home|anywhere)/i.test(blob)) {
+          flags.push("ambiguous_location");
+        } else {
+          dropped.push({ job, reason: "bad_location" });
+          continue;
+        }
       }
     }
 
-    if (params.employmentTypes.length > 0 && job.employmentType) {
+    const employmentAllowed = employmentTypesForFilter(params.employmentTypes);
+    if (employmentAllowed.length > 0 && job.employmentType) {
       const et = job.employmentType.toLowerCase();
-      const ok = params.employmentTypes.some((allowed) => {
+      const ok = employmentAllowed.some((allowed) => {
         const a = allowed.toLowerCase();
         if (a.includes("full") && /full/.test(et)) return true;
         if (a.includes("contract") && /contract|freelance|temp/.test(et))
           return true;
         return et.includes(a) || a.includes(et);
       });
-      // Only drop when clearly mismatched
+      // Only drop when clearly mismatched (ignore work-mode labels like "Remote")
       if (
         !ok &&
         (/intern|part[- ]?time/i.test(et) ||
           (/full/.test(et) &&
-            !params.employmentTypes.some((x) => /full/i.test(x))))
+            !employmentAllowed.some((x) => /full/i.test(x))))
       ) {
         dropped.push({ job, reason: "wrong_employment" });
         continue;
@@ -163,7 +226,6 @@ export function filterRawJobs(
     }
     fingerprints.add(fp);
 
-    const flags: string[] = [];
     if (/us preferred|americas tz|hybrid uk|timezone.*us/i.test(blob)) {
       flags.push("ambiguous_timezone");
     }

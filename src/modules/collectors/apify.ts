@@ -10,9 +10,18 @@ import {
 /** Default ATS actor — Greenhouse / Lever / Ashby / etc. public boards. */
 export const DEFAULT_ATS_ACTOR = "fetch_cat/ats-jobs-scraper";
 
+/** Built-in actor IDs for the $0.50/day MVP mix (overridable via env). */
+export const DEFAULT_ACTORS = {
+  ats: DEFAULT_ATS_ACTOR,
+  // Returns full descriptions on Apify FREE (unlike apt_marble/* details gate).
+  linkedin: "mfrostbutter/linkedin-jobs-scraper",
+  helloworld: "unfenced-group/helloworld-rs-scraper",
+  infostud: "unfenced-group/poslovi-infostud-scraper",
+} as const;
+
 /**
  * Env-configurable Apify actor IDs per source.
- * Falls back to APIFY_ACTOR_GENERIC, then DEFAULT_ATS_ACTOR for ATS sources.
+ * Falls back to APIFY_ACTOR_GENERIC / built-in defaults.
  */
 export function apifyActorIdForSource(source: JobSource): string | null {
   const map: Partial<Record<JobSource, string | undefined>> = {
@@ -27,10 +36,13 @@ export function apifyActorIdForSource(source: JobSource): string | null {
   const explicit = map[source]?.trim();
   if (explicit) return explicit;
 
+  if (source === "linkedin") return DEFAULT_ACTORS.linkedin;
+  if (source === "helloworld") return DEFAULT_ACTORS.helloworld;
+  if (source === "infostud") return DEFAULT_ACTORS.infostud;
+
   const generic = process.env.APIFY_ACTOR_GENERIC?.trim();
   if (generic) return generic;
 
-  // Built-in default for ATS sources so token-only setup works
   if (
     source === "greenhouse" ||
     source === "lever" ||
@@ -111,6 +123,141 @@ export async function runApifyActor(options: {
   return { items: Array.isArray(items) ? items : [], costUsd, runId };
 }
 
+/** Soft PPE estimate when Apify omits usageTotalUsd — keeps daily cap honest. */
+export function estimateApifyCostUsd(
+  source: JobSource | "ats",
+  resultCount: number,
+): number {
+  const n = Math.max(0, resultCount);
+  switch (source) {
+    case "ats":
+    case "greenhouse":
+    case "lever":
+    case "ashby":
+    case "apify":
+      return 0.005 + n * 0.00012;
+    case "linkedin":
+      // mfrostbutter PPE ≈ $0.0005/job + tiny start fee
+      return Math.max(0.005, n * 0.0005 + 0.001);
+    case "helloworld":
+    case "infostud":
+      return Math.max(0.01, n * 0.0015);
+    default:
+      return Math.max(0.01, n * 0.001);
+  }
+}
+
+/** Minimum remaining budget required before starting a paid source run. */
+export function minBudgetReserveUsd(source: JobSource | "ats"): number {
+  switch (source) {
+    case "linkedin":
+      return 0.02;
+    case "helloworld":
+    case "infostud":
+      return 0.02;
+    case "ats":
+    case "greenhouse":
+    case "lever":
+    case "ashby":
+    case "apify":
+      return 0.015;
+    default:
+      return 0.02;
+  }
+}
+
+export function canAffordApifyRun(
+  spentUsd: number,
+  budgetUsd: number,
+  source: JobSource | "ats",
+): boolean {
+  return budgetUsd - spentUsd >= minBudgetReserveUsd(source);
+}
+
+export function resolveRunCostUsd(
+  reportedUsd: number,
+  source: JobSource | "ats",
+  resultCount: number,
+): number {
+  if (Number.isFinite(reportedUsd) && reportedUsd > 0) return reportedUsd;
+  return estimateApifyCostUsd(source, resultCount);
+}
+
+function daysFromPostedWithin(hours: number): number {
+  return Math.max(1, Math.ceil(hours / 24));
+}
+
+/** mfrostbutter/linkedin-jobs-scraper datePosted enum. */
+function linkedInDatePosted(hours: number): string {
+  if (hours <= 24) return "past_24h";
+  if (hours <= 168) return "past_week";
+  return "past_month";
+}
+
+/**
+ * Per-source Apify input contracts. Generic field spam fails silently on PPE actors.
+ */
+export function buildApifyInputForSource(
+  query: CollectorQuery,
+  params?: Pick<JobSearchParams, "remoteRequired" | "seniority">,
+): Record<string, unknown> {
+  const daysOld = daysFromPostedWithin(query.postedWithinHours);
+
+  if (query.source === "linkedin") {
+    // Contract: mfrostbutter/linkedin-jobs-scraper
+    return {
+      keywords: query.title,
+      location: query.location,
+      maxResults: query.maxResults,
+      fetchFullDescription: true,
+      datePosted: linkedInDatePosted(query.postedWithinHours),
+      workType: params?.remoteRequired === false ? "any" : "remote",
+    };
+  }
+
+  if (query.source === "helloworld") {
+    const seniority =
+      params?.seniority?.[0] ?
+        params.seniority[0]!.charAt(0).toUpperCase() +
+        params.seniority[0]!.slice(1).toLowerCase()
+      : "Senior";
+    const location =
+      /remote/i.test(query.location) ? "" : query.location;
+    return {
+      searchQuery: query.title,
+      location,
+      seniority,
+      maxResults: query.maxResults,
+      fetchDetails: true,
+      daysOld: String(daysOld),
+    };
+  }
+
+  if (query.source === "infostud") {
+    return {
+      searchQuery: query.title,
+      maxResults: query.maxResults,
+      fetchDetails: true,
+      daysOld,
+    };
+  }
+
+  const search = [query.title, ...(query.keywords ?? []).slice(0, 3)]
+    .filter(Boolean)
+    .join(" ");
+  return {
+    search,
+    query: search,
+    searchQuery: search,
+    title: query.title,
+    location: query.location,
+    maxItems: query.maxResults,
+    maxResults: query.maxResults,
+    postedWithinHours: query.postedWithinHours,
+    keywords: query.keywords ?? [],
+  };
+}
+
 function asLocationString(value: unknown): string | undefined {
   if (!value) return undefined;
   if (typeof value === "string") return value || undefined;
@@ -172,6 +319,7 @@ function mapItemToJob(
   const isRemote =
     remoteSignal.includes("remote") ||
     item.remote === true ||
+    item.workFromHome === true ||
     /remote/i.test(asLocationString(item.location) ?? "");
 
   try {
@@ -180,7 +328,9 @@ function mapItemToJob(
       externalId,
       title,
       companyName: companyName || "Unknown",
-      location: asLocationString(item.location ?? item.locations ?? item.jobLocation),
+      location: asLocationString(
+        item.location ?? item.locations ?? item.jobLocation ?? item.cities,
+      ),
       remotePolicy: isRemote ? "remote" : remoteSignal || undefined,
       employmentType: String(
         item.employmentType ?? item.commitment ?? item.jobType ?? "",
@@ -188,6 +338,7 @@ function mapItemToJob(
       description: String(
         item.description ??
           item.descriptionText ??
+          item.descriptionMarkdown ??
           item.descriptionHtml ??
           item.content ??
           "",
@@ -254,7 +405,7 @@ export async function collectAtsBoardsViaApify(options: {
     "Starting Apify ATS collect",
   );
 
-  const { items, costUsd } = await runApifyActor({
+  const { items, costUsd: reported } = await runApifyActor({
     actorId,
     input,
     waitSecs: 240,
@@ -269,12 +420,17 @@ export async function collectAtsBoardsViaApify(options: {
     if (mapped) jobs.push(mapped);
   }
 
-  return { jobs, costUsd, actorId };
+  return {
+    jobs,
+    costUsd: resolveRunCostUsd(reported, "ats", jobs.length),
+    actorId,
+  };
 }
 
-/** Legacy per-query path (LinkedIn / custom actors). */
+/** Per-query path for LinkedIn / HelloWorld / Infostud (and future custom actors). */
 export async function collectViaApify(
   query: CollectorQuery,
+  params?: Pick<JobSearchParams, "remoteRequired" | "seniority">,
 ): Promise<{ jobs: RawCollectedJob[]; costUsd: number }> {
   const actorId = apifyActorIdForSource(query.source);
   if (!actorId) {
@@ -298,22 +454,17 @@ export async function collectViaApify(
     return { jobs: [], costUsd: 0 };
   }
 
-  const search = [query.title, ...(query.keywords ?? []).slice(0, 3)]
-    .filter(Boolean)
-    .join(" ");
+  const input = buildApifyInputForSource(query, params);
 
-  const { items, costUsd } = await runApifyActor({
+  logger.info(
+    { actorId, source: query.source, title: query.title, location: query.location },
+    "Starting Apify source collect",
+  );
+
+  const { items, costUsd: reported } = await runApifyActor({
     actorId,
-    input: {
-      search,
-      query: search,
-      title: query.title,
-      location: query.location,
-      maxItems: query.maxResults,
-      maxResults: query.maxResults,
-      postedWithinHours: query.postedWithinHours,
-      keywords: query.keywords ?? [],
-    },
+    input,
+    waitSecs: 240,
   });
 
   const jobs: RawCollectedJob[] = [];
@@ -323,5 +474,8 @@ export async function collectViaApify(
     if (mapped) jobs.push(mapped);
   }
 
-  return { jobs, costUsd };
+  return {
+    jobs,
+    costUsd: resolveRunCostUsd(reported, query.source, jobs.length),
+  };
 }

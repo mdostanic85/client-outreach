@@ -86,7 +86,9 @@ export async function createSession(userId: string) {
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    // Only force Secure on real HTTPS hosts (Vercel). Local `next start`
+    // uses NODE_ENV=production over http://127.0.0.1 and would drop the cookie.
+    secure: process.env.VERCEL === "1" || process.env.COOKIE_SECURE === "1",
     path: "/",
     maxAge: SESSION_DAYS * 24 * 60 * 60,
   });
@@ -104,7 +106,7 @@ export async function destroySession() {
   jar.set(SESSION_COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.VERCEL === "1" || process.env.COOKIE_SECURE === "1",
     path: "/",
     maxAge: 0,
   });

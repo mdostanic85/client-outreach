@@ -1,6 +1,7 @@
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { ensureDb } from "@/db/ensure";
 import { getSessionUser } from "@/modules/auth/session";
+import { getUsePortfolioInMatching } from "@/modules/jobs/queries";
 import { getOnboardingStatus } from "@/modules/onboarding/state";
 import {
   getApprovedProfile,
@@ -43,11 +44,14 @@ export default async function OnboardingPage() {
     sourceUrl: s.sourceUrl,
     ingestedAt: s.ingestedAt,
     textLength: s.rawText?.length ?? 0,
+    lastSyncedAt: s.lastSyncedAt ?? s.ingestedAt,
+    enabledForMatching: s.enabledForMatching !== 0,
   }));
   const draft = getLatestDraftProfile();
   const approved = getApprovedProfile();
   const draftSearch = getLatestDraftSearchProfile();
   const approvedSearch = getApprovedSearchProfile();
+  const usePortfolioInMatching = getUsePortfolioInMatching();
 
   return (
     <OnboardingWizard
@@ -57,6 +61,7 @@ export default async function OnboardingPage() {
       hasApprovedSearch={status.hasApprovedSearch}
       userName={user.name}
       sources={sources}
+      usePortfolioInMatching={usePortfolioInMatching}
       draftProfile={draft ? mapProfile(draft) : null}
       approvedProfile={approved ? mapProfile(approved) : null}
       draftSearch={

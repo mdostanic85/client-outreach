@@ -25,6 +25,18 @@ export const settings = sqliteTable("settings", {
    * Major title/location changes still require human-approved search profile versions.
    */
   adaptiveJobRanking: integer("adaptive_job_ranking").notNull().default(1),
+  /**
+   * Legacy flag kept in sync with matchingSourcesJson.portfolioProjects.
+   * Prefer matchingSourcesJson for new code.
+   */
+  usePortfolioInMatching: integer("use_portfolio_in_matching")
+    .notNull()
+    .default(1),
+  /**
+   * Which categories of professional knowledge feed job match scores.
+   * Never implies deletion — see MatchingSourcesConfig.
+   */
+  matchingSourcesJson: text("matching_sources_json").notNull().default("{}"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -342,6 +354,15 @@ export const profileSources = sqliteTable("profile_sources", {
   sourceUrl: text("source_url"),
   contentHash: text("content_hash").notNull(),
   ingestedAt: text("ingested_at").notNull(),
+  /** Last successful sync/import of this source. */
+  lastSyncedAt: text("last_synced_at"),
+  /**
+   * When 1, this source may contribute to match scores (also gated by
+   * matchingSourcesJson category toggles). Never deletes stored data.
+   */
+  enabledForMatching: integer("enabled_for_matching").notNull().default(1),
+  /** Soft-delete timestamp. Null = active. Hard file cleanup optional later. */
+  deletedAt: text("deleted_at"),
 });
 
 /** Versioned structured profile. Matching uses approved only. */

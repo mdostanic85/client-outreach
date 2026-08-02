@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { profileSources, structuredProfiles } from "@/db/schema";
 import {
@@ -28,7 +28,17 @@ function toView(row: StructuredProfileRow): StructuredProfileView {
   };
 }
 
+/** Active (non-deleted) sources only. */
 export function listProfileSources(): ProfileSourceRow[] {
+  return getDb()
+    .select()
+    .from(profileSources)
+    .where(isNull(profileSources.deletedAt))
+    .orderBy(desc(profileSources.ingestedAt))
+    .all();
+}
+
+export function listAllProfileSourcesIncludingDeleted(): ProfileSourceRow[] {
   return getDb()
     .select()
     .from(profileSources)

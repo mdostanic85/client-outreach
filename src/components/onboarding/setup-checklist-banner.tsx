@@ -69,7 +69,7 @@ export function SetupChecklistBanner({
                 strokeDashoffset={progressOffset}
               />
             </svg>
-            <span className="absolute inset-0 grid place-items-center text-[11px] font-semibold tabular-nums text-foreground">
+            <span className="absolute inset-0 grid place-items-center text-[14px] font-semibold tabular-nums text-foreground">
               {doneCount}/{items.length}
             </span>
           </div>
@@ -78,7 +78,7 @@ export function SetupChecklistBanner({
             <p className="font-display text-[14px] font-semibold text-[var(--card-foreground)]">
               Finish setup
             </p>
-            <p className="text-muted-foreground truncate text-[13px]">
+            <p className="text-muted-foreground truncate text-[15px]">
               {next ? `Next: ${next.label}` : "Almost done"}
             </p>
           </div>
@@ -133,14 +133,14 @@ export function SetupChecklistBanner({
                 <Link
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-3 px-5 py-2.5 text-[13px] transition-colors hover:bg-muted/40",
+                    "flex items-center gap-3 px-5 py-2.5 text-[15px] transition-colors hover:bg-muted/40",
                     item.done && "text-muted-foreground",
                     isNext && !item.done && "bg-primary/5",
                   )}
                 >
                   <span
                     className={cn(
-                      "grid size-5 shrink-0 place-items-center rounded-full border text-[11px]",
+                      "grid size-5 shrink-0 place-items-center rounded-full border text-[14px]",
                       item.done
                         ? "border-transparent bg-primary/15 text-primary"
                         : isNext
@@ -154,7 +154,7 @@ export function SetupChecklistBanner({
                     {item.label}
                   </span>
                   {isNext ? (
-                    <span className="text-primary text-[11px] font-medium">
+                    <span className="text-primary text-[14px] font-medium">
                       Up next
                     </span>
                   ) : null}

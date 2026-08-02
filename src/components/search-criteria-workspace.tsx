@@ -6,16 +6,18 @@ import { Check, ChevronDown, RefreshCw } from "lucide-react";
 import {
   approveSearchProfileAction,
   generateSearchProfileAction,
-  runJobPipelineAction,
   saveSearchProfileDraftAction,
 } from "@/app/actions";
 import { EmptyState } from "@/components/empty-state";
+import { InlineAlert } from "@/components/inline-alert";
 import {
+  PageHeader,
   PageShell,
   PanelBody,
-  SectionTitle,
+  PanelHeader,
   Surface,
 } from "@/components/page-shell";
+import { StickyFormActions } from "@/components/sticky-form-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +33,16 @@ function linesToList(text: string) {
     .split("\n")
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+const DEFAULT_POSTED_WITHIN_HOURS = 48;
+
+function hoursToDays(hours: number) {
+  return Math.max(1, Math.round(hours / 24));
+}
+
+function daysToHours(days: number) {
+  return Math.max(1, Math.round(days)) * 24;
 }
 
 export function SearchCriteriaWorkspace({
@@ -78,14 +90,16 @@ export function SearchCriteriaWorkspace({
   const [boards, setBoards] = useState(
     listToLines(source?.params.atsBoardUrls ?? []),
   );
-  const [postedWithin, setPostedWithin] = useState(
-    String(source?.params.postedWithinHours ?? 48),
+  const [postedWithinDays, setPostedWithinDays] = useState(
+    String(
+      hoursToDays(source?.params.postedWithinHours ?? DEFAULT_POSTED_WITHIN_HOURS),
+    ),
   );
   const [maxRaw, setMaxRaw] = useState(
-    String(source?.params.maxDailyRawJobs ?? 100),
+    String(source?.params.maxDailyRawJobs ?? 80),
   );
   const [maxApify, setMaxApify] = useState(
-    String(source?.params.maxDailyApifyUsd ?? 1.5),
+    String(source?.params.maxDailyApifyUsd ?? 0.5),
   );
 
   const formKey = `${draft?.id ?? "none"}-${draft?.version ?? 0}-${approved?.id ?? "none"}`;
@@ -99,9 +113,13 @@ export function SearchCriteriaWorkspace({
     setKeywords(listToLines(next?.searchKeywords ?? []));
     setExcludedKw(listToLines(next?.excludedKeywords ?? []));
     setBoards(listToLines(next?.atsBoardUrls ?? []));
-    setPostedWithin(String(next?.postedWithinHours ?? 48));
-    setMaxRaw(String(next?.maxDailyRawJobs ?? 100));
-    setMaxApify(String(next?.maxDailyApifyUsd ?? 1.5));
+    setPostedWithinDays(
+      String(
+        hoursToDays(next?.postedWithinHours ?? DEFAULT_POSTED_WITHIN_HOURS),
+      ),
+    );
+    setMaxRaw(String(next?.maxDailyRawJobs ?? 80));
+    setMaxApify(String(next?.maxDailyApifyUsd ?? 0.5));
   }
 
   // Onboarding: auto-generate once if we landed without a draft.
@@ -145,7 +163,9 @@ export function SearchCriteriaWorkspace({
       excludedTitles: linesToList(excluded),
       locations: linesToList(locations),
       employmentTypes: base?.employmentTypes ?? ["Full-time", "Contract"],
-      postedWithinHours: Number(postedWithin) || 48,
+      postedWithinHours: Number(postedWithinDays)
+        ? daysToHours(Number(postedWithinDays))
+        : DEFAULT_POSTED_WITHIN_HOURS,
       searchKeywords: linesToList(keywords),
       excludedKeywords: linesToList(excludedKw),
       requiredSkills: base?.requiredSkills ?? [],
@@ -163,10 +183,12 @@ export function SearchCriteriaWorkspace({
         "greenhouse",
         "lever",
         "ashby",
+        "linkedin",
+        "helloworld",
       ],
-      maxResultsPerQuery: base?.maxResultsPerQuery ?? 15,
-      maxDailyRawJobs: Number(maxRaw) || 100,
-      maxDailyApifyUsd: Number(maxApify) || 1.5,
+      maxResultsPerQuery: base?.maxResultsPerQuery ?? 12,
+      maxDailyRawJobs: Number(maxRaw) || 80,
+      maxDailyApifyUsd: Number(maxApify) || 0.5,
     };
   };
 
@@ -174,7 +196,7 @@ export function SearchCriteriaWorkspace({
     <div className="grid gap-5 md:grid-cols-2 md:gap-6">
       <label className="space-y-2 text-[14px]">
         <span className="font-medium">Target titles</span>
-        <p className="text-muted-foreground text-[12px]">One per line</p>
+        <p className="text-muted-foreground text-[14px]">One per line</p>
         <textarea
           className="bg-background min-h-32 w-full rounded-lg border px-3.5 py-2.5 text-[14px]"
           value={titles}
@@ -184,7 +206,7 @@ export function SearchCriteriaWorkspace({
       </label>
       <label className="space-y-2 text-[14px]">
         <span className="font-medium">Excluded titles</span>
-        <p className="text-muted-foreground text-[12px]">Skip these roles</p>
+        <p className="text-muted-foreground text-[14px]">Skip these roles</p>
         <textarea
           className="bg-background min-h-32 w-full rounded-lg border px-3.5 py-2.5 text-[14px]"
           value={excluded}
@@ -226,19 +248,22 @@ export function SearchCriteriaWorkspace({
       </label>
       <label className="space-y-2 text-[14px] md:col-span-2">
         <span className="font-medium">Career page URLs</span>
-        <p className="text-muted-foreground text-[12px]">One per line</p>
+        <p className="text-muted-foreground text-[14px]">One per line</p>
         <textarea
-          className="bg-background min-h-28 w-full rounded-lg border px-3.5 py-2.5 font-mono text-[13px]"
+          className="bg-background min-h-28 w-full rounded-lg border px-3.5 py-2.5 font-mono text-[15px]"
           value={boards}
           onChange={(e) => setBoards(e.target.value)}
           disabled={pending}
         />
       </label>
       <label className="space-y-2 text-[14px]">
-        <span className="font-medium">Posted within (hours)</span>
+        <span className="font-medium">Posted within (days)</span>
         <Input
-          value={postedWithin}
-          onChange={(e) => setPostedWithin(e.target.value)}
+          type="number"
+          min={1}
+          step={1}
+          value={postedWithinDays}
+          onChange={(e) => setPostedWithinDays(e.target.value)}
           disabled={pending}
         />
       </label>
@@ -268,12 +293,8 @@ export function SearchCriteriaWorkspace({
 
     return (
       <div className="space-y-5">
-        {error ? (
-          <p className="text-destructive text-[14px]">{error}</p>
-        ) : null}
-        {message ? (
-          <p className="text-muted-foreground text-[14px]">{message}</p>
-        ) : null}
+        {error ? <InlineAlert variant="error">{error}</InlineAlert> : null}
+        {message ? <InlineAlert variant="info">{message}</InlineAlert> : null}
 
         {!draft && !approved ? (
           <Surface>
@@ -309,19 +330,19 @@ export function SearchCriteriaWorkspace({
             <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4 sm:px-6">
               <div className="flex flex-wrap items-center gap-2">
                 {approved ? (
-                  <Badge className="h-7 px-2.5 text-[13px]">
+                  <Badge className="h-7 px-2.5 text-[15px]">
                     <Check className="size-3.5" aria-hidden />
                     Approved
                     {approved.version ? ` v${approved.version}` : ""}
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="h-7 px-2.5 text-[13px]">
+                  <Badge variant="outline" className="h-7 px-2.5 text-[15px]">
                     Review draft
                     {draft ? ` v${draft.version}` : ""}
                   </Badge>
                 )}
                 {draft && approved ? (
-                  <Badge variant="secondary" className="h-7 px-2.5 text-[13px]">
+                  <Badge variant="secondary" className="h-7 px-2.5 text-[15px]">
                     Editing new draft
                   </Badge>
                 ) : null}
@@ -410,7 +431,7 @@ export function SearchCriteriaWorkspace({
                   >
                     Save draft
                   </Button>
-                  <p className="text-muted-foreground text-[13px]">
+                  <p className="text-muted-foreground text-[15px]">
                     Then continue below when you’re ready.
                   </p>
                 </div>
@@ -430,32 +451,51 @@ export function SearchCriteriaWorkspace({
   const canApprove = Boolean(draft);
   const isApprovedOnly = Boolean(approved) && !draft;
 
-  return (
-    <PageShell className="gap-6 lg:gap-8">
-      <SectionTitle
-        title="Search criteria"
-        description="Drafted from your profile. Approve before finding jobs."
-        actions={
-          isApprovedOnly ? (
-            <Button
-              size="sm"
-              disabled={pending}
-              onClick={() =>
-                run(async () => runJobPipelineAction(), "Job search finished")
-              }
-            >
-              Find jobs
-            </Button>
-          ) : null
+  const headerActions =
+    !draft && !approved ? (
+      <Button
+        size="lg"
+        disabled={pending}
+        onClick={() =>
+          run(async () => generateSearchProfileAction(), "Draft generated")
         }
+      >
+        {pending ? "Generating…" : "Generate from profile"}
+      </Button>
+    ) : canApprove ? (
+      <Button
+        size="lg"
+        disabled={pending}
+        onClick={() =>
+          run(async () => {
+            await saveSearchProfileDraftAction(draft!.id, buildParams());
+            return approveSearchProfileAction(draft!.id);
+          }, "Search criteria approved")
+        }
+      >
+        Approve criteria
+      </Button>
+    ) : isApprovedOnly ? (
+      <Button
+        type="button"
+        variant="ghost"
+        size="lg"
+        onClick={() => router.push("/")}
+      >
+        Go to Today
+      </Button>
+    ) : null;
+
+  return (
+    <PageShell width="setup">
+      <PageHeader
+        title="Search criteria"
+        description="Drafted from your profile. Approve before finding jobs on Today."
+        actions={headerActions}
       />
 
-      {error ? (
-        <p className="text-destructive text-[14px]">{error}</p>
-      ) : null}
-      {message ? (
-        <p className="text-muted-foreground text-[14px]">{message}</p>
-      ) : null}
+      {error ? <InlineAlert variant="error">{error}</InlineAlert> : null}
+      {message ? <InlineAlert variant="info">{message}</InlineAlert> : null}
 
       {!draft && !approved ? (
         <Surface>
@@ -471,22 +511,22 @@ export function SearchCriteriaWorkspace({
         </Surface>
       ) : (
         <Surface>
-          <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4 sm:px-6">
+          <PanelHeader className="justify-between">
             <div className="flex flex-wrap items-center gap-2">
               {approved ? (
-                <Badge className="h-7 px-2.5 text-[13px]">
+                <Badge className="h-7 px-2.5 text-[15px]">
                   <Check className="size-3.5" aria-hidden />
                   Approved
                   {approved.version ? ` v${approved.version}` : ""}
                 </Badge>
               ) : (
-                <Badge variant="outline" className="h-7 px-2.5 text-[13px]">
+                <Badge variant="outline" className="h-7 px-2.5 text-[15px]">
                   Review draft
                   {draft ? ` v${draft.version}` : ""}
                 </Badge>
               )}
               {draft && approved ? (
-                <Badge variant="secondary" className="h-7 px-2.5 text-[13px]">
+                <Badge variant="secondary" className="h-7 px-2.5 text-[15px]">
                   Editing new draft
                 </Badge>
               ) : null}
@@ -507,9 +547,9 @@ export function SearchCriteriaWorkspace({
               <RefreshCw className="size-3.5" aria-hidden />
               Regenerate
             </Button>
-          </div>
+          </PanelHeader>
 
-          <PanelBody className="space-y-6 px-5 py-6 sm:px-6 sm:py-7">
+          <PanelBody className="space-y-6">
             {approved && !draft ? (
               <p className="text-muted-foreground text-[14px] leading-relaxed">
                 Titles: {approved.params.targetTitles.join(", ")} · Locations:{" "}
@@ -545,66 +585,58 @@ export function SearchCriteriaWorkspace({
               {showAdvanced ? advancedForm : null}
             </div>
 
-            {canApprove ? (
-              <div className="border-border flex flex-wrap items-center gap-3 border-t pt-5">
-                <Button
-                  size="lg"
-                  className="h-11 px-5 text-[15px]"
-                  disabled={pending}
-                  onClick={() =>
-                    run(async () => {
-                      await saveSearchProfileDraftAction(
-                        draft!.id,
-                        buildParams(),
-                      );
-                      return approveSearchProfileAction(draft!.id);
-                    }, "Search criteria approved")
-                  }
-                >
-                  Approve criteria
-                </Button>
+            {isApprovedOnly ? (
+              <div className="border-border flex flex-wrap items-center gap-3 border-t pt-6">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="lg"
-                  className="h-11 px-3 text-[14px]"
-                  disabled={pending}
-                  onClick={() =>
-                    run(async () => {
-                      return saveSearchProfileDraftAction(
-                        draft!.id,
-                        buildParams(),
-                        draft!.rationale,
-                      );
-                    }, "Draft saved")
-                  }
+                  onClick={() => router.push("/")}
                 >
-                  Save draft
+                  Go to Today
                 </Button>
-              </div>
-            ) : isApprovedOnly ? (
-              <div className="border-border flex flex-wrap items-center gap-3 border-t pt-5">
-                <Button
-                  size="lg"
-                  className="h-11 px-5 text-[15px]"
-                  disabled={pending}
-                  onClick={() =>
-                    run(
-                      async () => runJobPipelineAction(),
-                      "Job search finished",
-                    )
-                  }
-                >
-                  Find jobs now
-                </Button>
-                <p className="text-muted-foreground text-[13px]">
-                  Or regenerate above to revise criteria.
+                <p className="text-muted-foreground text-[15px]">
+                  Find jobs from Today — or regenerate above to revise criteria.
                 </p>
               </div>
             ) : null}
           </PanelBody>
         </Surface>
       )}
+
+      {canApprove ? (
+        <StickyFormActions message="Review titles and locations, then approve.">
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            disabled={pending}
+            onClick={() =>
+              run(async () => {
+                return saveSearchProfileDraftAction(
+                  draft!.id,
+                  buildParams(),
+                  draft!.rationale,
+                );
+              }, "Draft saved")
+            }
+          >
+            Save draft
+          </Button>
+          <Button
+            size="lg"
+            disabled={pending}
+            onClick={() =>
+              run(async () => {
+                await saveSearchProfileDraftAction(draft!.id, buildParams());
+                return approveSearchProfileAction(draft!.id);
+              }, "Search criteria approved")
+            }
+          >
+            Approve criteria
+          </Button>
+        </StickyFormActions>
+      ) : null}
     </PageShell>
   );
 }

@@ -845,12 +845,73 @@ export async function ingestManualNotesAction(
 
 export async function deleteProfileSourceAction(
   id: string,
+  options?: { confirmed?: boolean },
 ): Promise<ActionResult> {
   try {
     ensureDb();
-    const { deleteProfileSource } = await import("@/modules/profile/ingest");
-    deleteProfileSource(id);
+    if (!options?.confirmed) {
+      return {
+        ok: false,
+        error: "Confirm delete to remove this source connection.",
+      };
+    }
+    const { softDeleteProfileSource } = await import(
+      "@/modules/profile/ingest"
+    );
+    softDeleteProfileSource(id);
     revalidatePath("/profile");
+    revalidatePath("/onboarding");
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function setProfileSourceMatchingEnabledAction(
+  id: string,
+  enabled: boolean,
+): Promise<ActionResult> {
+  try {
+    ensureDb();
+    const { setProfileSourceMatchingEnabled } = await import(
+      "@/modules/profile/ingest"
+    );
+    setProfileSourceMatchingEnabled(id, enabled);
+    revalidatePath("/profile");
+    revalidatePath("/");
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function refreshProfileSourceAction(
+  id: string,
+): Promise<ActionResult<{ id: string; textLength: number }>> {
+  try {
+    ensureDb();
+    const { refreshProfileSource } = await import("@/modules/profile/ingest");
+    const result = await refreshProfileSource(id);
+    revalidatePath("/profile");
+    return { ok: true, data: result };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function setMatchingSourcesConfigAction(
+  patch: Partial<
+    import("@/modules/profile/matching-sources").MatchingSourcesConfig
+  >,
+): Promise<ActionResult> {
+  try {
+    ensureDb();
+    const { setMatchingSourcesConfig } = await import(
+      "@/modules/profile/matching-sources"
+    );
+    setMatchingSourcesConfig(patch);
+    revalidatePath("/profile");
+    revalidatePath("/");
     return { ok: true, data: undefined };
   } catch (err) {
     return fail(err);
@@ -890,6 +951,83 @@ export async function saveProfileDraftAction(
     revalidatePath("/profile");
     revalidatePath("/onboarding");
     return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function updateProfileFactAction(input: {
+  profileId: string;
+  field: string;
+  value: string;
+  index?: number;
+  projectTitle?: string;
+}): Promise<ActionResult<{ profileId: string }>> {
+  try {
+    ensureDb();
+    const { updateFact } = await import("@/modules/profile/facts");
+    const result = updateFact(input);
+    revalidatePath("/profile");
+    revalidatePath("/onboarding");
+    return { ok: true, data: result };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function removeProfileFactAction(input: {
+  profileId: string;
+  field: string;
+  index?: number;
+  value?: string;
+  projectTitle?: string;
+}): Promise<ActionResult<{ profileId: string }>> {
+  try {
+    ensureDb();
+    const { removeFact } = await import("@/modules/profile/facts");
+    const result = removeFact(input);
+    revalidatePath("/profile");
+    revalidatePath("/onboarding");
+    return { ok: true, data: result };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function addProfileFactAction(input: {
+  profileId: string;
+  field: string;
+  value: string;
+}): Promise<ActionResult<{ profileId: string }>> {
+  try {
+    ensureDb();
+    const { addFact } = await import("@/modules/profile/facts");
+    const result = addFact(input);
+    revalidatePath("/profile");
+    revalidatePath("/onboarding");
+    return { ok: true, data: result };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function applyProfileDiffDecisionsAction(input: {
+  draftId: string;
+  decisions: Record<
+    string,
+    import("@/modules/profile/diff").DiffDecision
+  >;
+  edits?: Record<string, string>;
+}): Promise<ActionResult<{ profileId: string }>> {
+  try {
+    ensureDb();
+    const { applyDiffDecisionsToDraft } = await import(
+      "@/modules/profile/facts"
+    );
+    const result = applyDiffDecisionsToDraft(input);
+    revalidatePath("/profile");
+    revalidatePath("/onboarding");
+    return { ok: true, data: result };
   } catch (err) {
     return fail(err);
   }
@@ -1027,6 +1165,7 @@ export async function interestedJobAction(jobId: string): Promise<ActionResult> 
     const { interestedJob } = await import("@/modules/jobs/queries");
     interestedJob(jobId);
     revalidatePath("/");
+    revalidatePath("/interested");
     revalidatePath(`/jobs/${jobId}`);
     return { ok: true, data: undefined };
   } catch (err) {
@@ -1043,6 +1182,7 @@ export async function rejectJobAction(
     const { rejectJob } = await import("@/modules/jobs/queries");
     rejectJob(jobId, reason);
     revalidatePath("/");
+    revalidatePath("/interested");
     return { ok: true, data: undefined };
   } catch (err) {
     return fail(err);
@@ -1057,6 +1197,7 @@ export async function saveJobForLaterAction(
     const { saveJobForLater } = await import("@/modules/jobs/queries");
     saveJobForLater(jobId);
     revalidatePath("/");
+    revalidatePath("/interested");
     return { ok: true, data: undefined };
   } catch (err) {
     return fail(err);
@@ -1071,6 +1212,7 @@ export async function markJobAppliedAction(
     const { markJobApplied } = await import("@/modules/jobs/queries");
     markJobApplied(jobId);
     revalidatePath("/");
+    revalidatePath("/interested");
     revalidatePath(`/jobs/${jobId}`);
     return { ok: true, data: undefined };
   } catch (err) {
@@ -1160,6 +1302,24 @@ export async function setAdaptiveJobRankingAction(
     const { setAdaptiveJobRanking } = await import("@/modules/jobs/queries");
     setAdaptiveJobRanking(enabled);
     revalidatePath("/learning");
+    revalidatePath("/");
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function setUsePortfolioInMatchingAction(
+  enabled: boolean,
+): Promise<ActionResult> {
+  try {
+    ensureDb();
+    const { setMatchingSourcesConfig } = await import(
+      "@/modules/profile/matching-sources"
+    );
+    // Matching preference only — never deletes sources or profile knowledge.
+    setMatchingSourcesConfig({ portfolioProjects: enabled });
+    revalidatePath("/profile");
     revalidatePath("/");
     return { ok: true, data: undefined };
   } catch (err) {

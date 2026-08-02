@@ -27,7 +27,7 @@ export function StatePill({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-lg px-2.5 py-1.5 text-[13px] font-medium",
+        "inline-flex items-center rounded-lg px-2.5 py-1.5 text-[15px] font-medium transition-colors duration-150 ease-[var(--ease-out-soft)]",
         STATE_TONE[state] ?? "bg-white/6 text-muted-foreground",
         className,
       )}
@@ -48,7 +48,7 @@ export function PolicyPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-lg px-2.5 py-1.5 text-[13px]",
+        "inline-flex items-center rounded-lg px-2.5 py-1.5 text-[15px]",
         blocked
           ? "bg-destructive/15 text-destructive"
           : "text-muted-foreground",
@@ -69,7 +69,7 @@ export function ScoreMark({
 }) {
   if (score == null) {
     return (
-      <span className={cn("tabular text-muted-foreground text-sm", className)}>
+      <span className={cn("tabular text-muted-foreground text-base", className)}>
         —
       </span>
     );
@@ -77,9 +77,10 @@ export function ScoreMark({
   return (
     <span
       className={cn(
-        "font-display tabular text-[var(--card-foreground)] text-[17px] font-semibold tracking-tight",
+        "font-display tabular text-[var(--card-foreground)] text-[24px] font-semibold tracking-tight",
         className,
       )}
+      aria-label={`Score ${score}`}
     >
       {score}
     </span>

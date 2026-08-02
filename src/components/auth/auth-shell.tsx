@@ -28,7 +28,7 @@ export function AuthShell({
       <div className="flex w-full flex-col px-6 py-8 sm:px-10 lg:w-[44%] lg:max-w-xl lg:px-14">
         <AuthBrand />
         <div className="flex flex-1 flex-col justify-center py-10">{children}</div>
-        <p className="text-muted-foreground text-[12px]">
+        <p className="text-muted-foreground text-[14px]">
           {noWidow(
             "Explained matches · private shortlist · you approve every move",
           )}

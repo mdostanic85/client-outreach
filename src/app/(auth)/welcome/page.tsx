@@ -38,7 +38,7 @@ export default function WelcomePage() {
       </header>
 
       <main className="relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center px-6 pb-20 text-center">
-        <p className="text-primary mb-5 text-[13px] font-medium tracking-[0.14em] uppercase">
+        <p className="text-primary mb-5 text-[15px] font-medium tracking-[0.14em] uppercase">
           Private job shortlist
         </p>
         <h1 className="font-display text-[clamp(2.1rem,5vw,3.25rem)] leading-[1.08] font-semibold tracking-tight text-[var(--card-foreground)]">
@@ -91,7 +91,7 @@ export default function WelcomePage() {
               <p className="font-display text-[15px] font-semibold text-[var(--card-foreground)]">
                 {item.title}
               </p>
-              <p className="text-muted-foreground mt-1.5 text-[13px] leading-snug">
+              <p className="text-muted-foreground mt-1.5 text-[15px] leading-snug">
                 {item.body}
               </p>
             </div>

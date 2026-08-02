@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LeadWorkspace } from "@/components/lead-workspace";
 import { PageShell } from "@/components/page-shell";
@@ -16,13 +15,7 @@ export default async function LeadPage({
   if (!detail) notFound();
 
   return (
-    <PageShell width="lead" className="gap-8">
-      <Link
-        href="/"
-        className="text-muted-foreground hover:text-foreground w-fit text-xs transition-colors"
-      >
-        ← Today
-      </Link>
+    <PageShell width="workspace">
       <LeadWorkspace detail={detail} />
     </PageShell>
   );

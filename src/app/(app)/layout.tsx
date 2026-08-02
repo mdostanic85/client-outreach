@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
+import { AppTopbar } from "@/components/app-topbar";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
 import { ensureDb } from "@/db/ensure";
 import { getBudgetStatus } from "@/lib/budgets";
 import { getNavCounts } from "@/lib/nav-counts";
@@ -23,23 +26,34 @@ export default async function AppLayout({
     redirect("/onboarding");
   }
 
-  const { leadsCount, queueCount } = getNavCounts();
+  const { leadsCount, queueCount, interestedCount } = getNavCounts();
   const budget = getBudgetStatus();
-  const budgetLabel = `AI $${budget.spentUsd.toFixed(0)} / $${budget.budgetUsd}${
-    budget.alerts.length ? ` · ${budget.alerts[0]}` : ""
-  }`;
 
   return (
-    <div className="flex min-h-svh">
-      <AppSidebar
-        leadsCount={leadsCount}
-        queueCount={queueCount}
-        budgetLabel={budgetLabel}
-        userEmail={user.email}
-      />
-      <div className="flex min-h-svh min-w-0 flex-1 flex-col overflow-x-hidden">
-        {children}
+    <TooltipProvider delay={200}>
+      <div className="flex min-h-svh">
+        <AppSidebar
+          leadsCount={leadsCount}
+          queueCount={queueCount}
+          interestedCount={interestedCount}
+        />
+        <div className="flex min-h-svh min-w-0 flex-1 flex-col overflow-x-hidden">
+          <AppTopbar
+            budget={{
+              spentUsd: budget.spentUsd,
+              budgetUsd: budget.budgetUsd,
+              hardStopped: budget.hardStopped,
+              alert: budget.alerts[0],
+            }}
+            userEmail={user.email}
+            leadsCount={leadsCount}
+            queueCount={queueCount}
+            interestedCount={interestedCount}
+          />
+          {children}
+        </div>
       </div>
-    </div>
+      <Toaster position="top-right" />
+    </TooltipProvider>
   );
 }

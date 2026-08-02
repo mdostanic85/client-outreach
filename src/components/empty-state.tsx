@@ -30,17 +30,17 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center gap-5 px-6 py-14 text-center sm:px-8 sm:py-16",
+        "animate-enter-scale flex flex-col items-center justify-center gap-5 px-6 py-14 text-center sm:px-8 sm:py-16",
         className,
       )}
     >
       <div
         aria-hidden
-        className="border-border bg-muted/40 text-muted-foreground grid size-14 place-items-center rounded-2xl border"
+        className="border-border bg-muted/40 text-muted-foreground empty-float grid size-14 place-items-center rounded-2xl border"
       >
         {icon ?? <Search className="size-6 opacity-70" strokeWidth={1.5} />}
       </div>
-      <div className="space-y-2">
+      <div className="animate-enter space-y-2" style={{ animationDelay: "60ms" }}>
         <p className="font-display text-[18px] font-semibold text-[var(--card-foreground)] sm:text-[20px]">
           {title}
         </p>
@@ -53,7 +53,11 @@ export function EmptyState({
           <Link
             id={actionId}
             href={actionHref}
-            className={buttonVariants({ size: "lg" })}
+            className={cn(
+              buttonVariants({ size: "lg" }),
+              "pressable animate-enter",
+            )}
+            style={{ animationDelay: "120ms" }}
           >
             {actionLabel}
           </Link>
@@ -63,6 +67,8 @@ export function EmptyState({
             size="lg"
             disabled={pending}
             onClick={onAction}
+            className="animate-enter"
+            style={{ animationDelay: "120ms" }}
           >
             {actionLabel}
           </Button>

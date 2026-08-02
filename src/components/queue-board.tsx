@@ -1,17 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { QueueControls } from "@/components/queue-controls";
 import { EmptyState } from "@/components/empty-state";
 import {
+  PageHeader,
   PageShell,
   PanelHeader,
-  SectionTitle,
   Surface,
 } from "@/components/page-shell";
+import { SegmentedControl } from "@/components/segmented-control";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { listOutboundBoard } from "@/modules/mail/queries";
 import { Inbox, Mail, Send, TriangleAlert } from "lucide-react";
@@ -55,62 +61,84 @@ export function QueueBoard({
   const paused = Boolean(status.health.pausedAt);
 
   return (
-    <PageShell className="gap-6 lg:gap-8">
-      <SectionTitle
+    <PageShell>
+      <PageHeader
         title="Queue"
-        description={`Max ${status.policy.maxNewPerDay}/day · ${status.sentToday} sent · ${status.remainingToday} left${status.policy.weekdaysOnly ? " · weekdays" : ""}`}
+        description="Review pending drafts and monitor scheduled mail."
         actions={<QueueControls paused={paused} />}
       />
 
-      <div className="bg-card border-border flex flex-wrap items-center gap-3 rounded-2xl border px-5 py-3.5 text-[14px] shadow-[var(--shadow-card)]">
+      <div className="bg-card border-border flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border px-5 py-3.5 text-[14px] shadow-[var(--shadow-card)]">
         <span
           className={cn(
             "size-2 rounded-full",
             paused
-              ? "bg-destructive"
+              ? "bg-destructive status-pulse"
               : status.credentialsConfigured
-                ? "bg-primary"
-                : "bg-warn",
+                ? "bg-primary status-pulse"
+                : "bg-warn status-pulse",
           )}
         />
-        <span className="font-medium text-[var(--card-foreground)]">
-          {paused
-            ? `Paused — ${status.health.pauseReason ?? "deliverability"}`
-            : status.credentialsConfigured
-              ? "Mailbox healthy"
-              : "Mailbox credentials missing"}
+        {paused ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <span className="cursor-help font-medium text-[var(--card-foreground)]">
+                  Paused — {status.health.pauseReason ?? "deliverability"}
+                </span>
+              }
+            />
+            <TooltipContent className="max-w-xs text-left leading-relaxed">
+              Sending is stopped. Resume only when the mailbox issue is fixed.
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <span className="font-medium text-[var(--card-foreground)]">
+            {status.credentialsConfigured
+              ? "Mailbox connected"
+              : "Mailbox not connected — add credentials in Admin."}
+          </span>
+        )}
+        <span className="text-muted-foreground hidden sm:inline" aria-hidden>
+          ·
         </span>
-        <span className="text-muted-foreground text-[13px]">
-          Keychain credentials
+        <span className="text-[var(--card-foreground)]">
+          Sent today:{" "}
+          <span className="tabular font-medium">{status.sentToday}</span>
         </span>
+        <span className="text-muted-foreground hidden sm:inline" aria-hidden>
+          ·
+        </span>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <span className="cursor-help text-[var(--card-foreground)]">
+                Remaining today:{" "}
+                <span className="tabular font-medium">
+                  {status.remainingToday}
+                </span>
+              </span>
+            }
+          />
+          <TooltipContent className="max-w-xs text-left leading-relaxed">
+            How many new outreach emails Optra will still send today under your
+            send limits.
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       <Surface>
         <PanelHeader className="gap-2">
-          <div
-            role="tablist"
-            aria-label="Queue status"
-            className="bg-muted/50 border-border inline-flex flex-wrap gap-1 rounded-xl border p-1"
-          >
-            {tabs.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                aria-selected={tab === t.id}
-                onClick={() => setTab(t.id)}
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors",
-                  tab === t.id
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {t.label}
-                <span className="tabular opacity-80">{t.count}</span>
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            ariaLabel="Queue status"
+            value={tab}
+            onChange={setTab}
+            options={tabs.map((t) => ({
+              id: t.id,
+              label: t.label,
+              count: t.count,
+            }))}
+          />
         </PanelHeader>
 
         {tab === "pending" ? (
@@ -124,9 +152,10 @@ export function QueueBoard({
             />
           ) : (
             <ul className="divide-border divide-y">
-              {board.pending.map((item) => (
+              {board.pending.map((item, index) => (
                 <QueueRow
                   key={item.draft.id}
+                  index={index}
                   href={`/leads/${item.lead?.id}`}
                   title={item.company?.name ?? "Lead"}
                   subtitle={`To: ${item.contact?.email ?? "—"}`}
@@ -151,9 +180,10 @@ export function QueueBoard({
             />
           ) : (
             <ul className="divide-border divide-y">
-              {board.scheduled.map((item) => (
+              {board.scheduled.map((item, index) => (
                 <QueueRow
                   key={item.approval.id}
+                  index={index}
                   href={`/leads/${item.lead?.id}`}
                   title={item.company?.name ?? "Lead"}
                   subtitle={`To: ${item.approval.recipientEmail}`}
@@ -178,9 +208,10 @@ export function QueueBoard({
             />
           ) : (
             <ul className="divide-border divide-y">
-              {board.sent.map((item) => (
+              {board.sent.map((item, index) => (
                 <QueueRow
                   key={item.draft.id}
+                  index={index}
                   href={`/leads/${item.lead?.id}`}
                   title={item.company?.name ?? "Lead"}
                   subtitle={`To: ${item.contact?.email ?? "—"}`}
@@ -218,13 +249,13 @@ export function QueueBoard({
                       ) : (
                         <span className="font-medium">Delivery event</span>
                       )}
-                      <p className="text-muted-foreground text-xs">
+                      <p className="text-muted-foreground text-sm">
                         {item.event.detail ?? item.event.leadId ?? "—"}
                       </p>
                     </div>
                     <Badge variant="destructive">{item.event.eventType}</Badge>
                   </div>
-                  <p className="text-muted-foreground tabular text-xs">
+                  <p className="text-muted-foreground tabular text-sm">
                     {item.event.occurredAt.slice(0, 16).replace("T", " ")}
                   </p>
                 </li>
@@ -237,7 +268,7 @@ export function QueueBoard({
       <div>
         <button
           type="button"
-          className="text-muted-foreground hover:text-foreground text-xs"
+          className="text-muted-foreground hover:text-foreground text-sm"
           onClick={() => setShowEvents((v) => !v)}
         >
           {showEvents ? "Hide delivery log" : "Show delivery log"}
@@ -261,7 +292,7 @@ export function QueueBoard({
                       </Badge>
                       {e.detail ?? e.leadId ?? "—"}
                     </span>
-                    <span className="text-muted-foreground tabular shrink-0 text-xs">
+                    <span className="text-muted-foreground tabular shrink-0 text-sm">
                       {e.occurredAt.slice(0, 16).replace("T", " ")}
                     </span>
                   </li>
@@ -284,6 +315,7 @@ function QueueRow({
   badge,
   preview,
   actionLabel,
+  index = 0,
 }: {
   href: string;
   title: string;
@@ -293,11 +325,16 @@ function QueueRow({
   badge: string;
   preview?: string | null;
   actionLabel?: string;
+  index?: number;
 }) {
   const [open, setOpen] = useState(false);
+  const stagger = Math.min(Math.max(index, 0), 10);
 
   return (
-    <li className="row-accent hover:bg-accent-wash/50 space-y-3 px-8 py-6 transition-colors">
+    <li
+      className="row-accent interactive-row stagger-item space-y-3 px-8 py-6"
+      style={{ "--stagger-index": stagger } as CSSProperties}
+    >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <Link
@@ -306,13 +343,13 @@ function QueueRow({
           >
             {title}
           </Link>
-          <p className="text-muted-foreground text-[13px]">{subtitle}</p>
+          <p className="text-muted-foreground text-[15px]">{subtitle}</p>
         </div>
         <Badge variant="outline">{badge}</Badge>
       </div>
       {subject ? <p className="text-[15px]">{subject}</p> : null}
       <div className="flex flex-wrap items-center gap-2">
-        <p className="text-muted-foreground tabular text-xs">{meta}</p>
+        <p className="text-muted-foreground tabular text-sm">{meta}</p>
         {preview ? (
           <Button size="lg" variant="ghost" onClick={() => setOpen((v) => !v)}>
             {open ? "Hide" : "Preview"}
@@ -328,7 +365,7 @@ function QueueRow({
         ) : null}
       </div>
       {open && preview ? (
-        <pre className="bg-muted/50 text-muted-foreground max-h-40 overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">
+        <pre className="animate-expand bg-muted/50 text-muted-foreground max-h-40 overflow-auto rounded-md p-3 text-sm whitespace-pre-wrap">
           {preview}
         </pre>
       ) : null}

@@ -142,7 +142,7 @@ export function PrivacyControls() {
       </div>
 
       {message ? (
-        <p className="bg-muted/50 break-all rounded-md p-3 text-xs">{message}</p>
+        <p className="bg-muted/50 break-all rounded-md p-3 text-sm">{message}</p>
       ) : null}
     </div>
   );

@@ -55,6 +55,7 @@ export function OnboardingWizard({
   hasApprovedSearch,
   userName,
   sources,
+  usePortfolioInMatching = true,
   draftProfile,
   approvedProfile,
   draftSearch,
@@ -67,6 +68,7 @@ export function OnboardingWizard({
   hasApprovedSearch: boolean;
   userName: string | null;
   sources: SourceView[];
+  usePortfolioInMatching?: boolean;
   draftProfile: ProfileView | null;
   approvedProfile: ProfileView | null;
   draftSearch: SearchView | null;
@@ -168,6 +170,7 @@ export function OnboardingWizard({
           <ProfileWorkspace
             variant="onboarding"
             sources={sources}
+            usePortfolioInMatching={usePortfolioInMatching}
             draft={draftProfile}
             approved={approvedProfile}
           />
@@ -216,7 +219,7 @@ export function OnboardingWizard({
           <div className="bg-primary/12 text-primary mb-8 grid size-16 place-items-center rounded-2xl sm:size-20">
             <Sparkles className="size-7 sm:size-8" aria-hidden />
           </div>
-          <p className="text-primary mb-3 text-[13px] font-medium tracking-[0.14em] uppercase">
+          <p className="text-primary mb-3 text-[15px] font-medium tracking-[0.14em] uppercase">
             Ready
           </p>
           <h1 className="font-display text-[clamp(2.25rem,5vw,3.25rem)] leading-[1.05] font-semibold tracking-tight text-[var(--card-foreground)]">
@@ -285,7 +288,7 @@ function ProgressStepper({ stepIndex }: { stepIndex: number }) {
               ) : null}
               <span
                 className={cn(
-                  "relative z-10 grid size-8 place-items-center rounded-full text-[13px] font-semibold transition-colors sm:size-10 sm:text-[15px]",
+                  "relative z-10 grid size-8 place-items-center rounded-full text-[15px] font-semibold transition-colors sm:size-10 sm:text-[15px]",
                   active &&
                     "bg-primary text-primary-foreground ring-primary/25 ring-4",
                   done && !active && "bg-primary text-primary-foreground",
@@ -302,7 +305,7 @@ function ProgressStepper({ stepIndex }: { stepIndex: number }) {
               </span>
               <span
                 className={cn(
-                  "mt-2.5 text-center text-[12px] font-medium sm:mt-3 sm:text-[14px]",
+                  "mt-2.5 text-center text-[14px] font-medium sm:mt-3 sm:text-[14px]",
                   active
                     ? "text-foreground"
                     : done
@@ -354,7 +357,7 @@ function WelcomeStep({
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center py-4 text-center sm:py-8">
-      <p className="text-primary mb-4 text-[13px] font-medium tracking-[0.14em] uppercase">
+      <p className="text-primary mb-4 text-[15px] font-medium tracking-[0.14em] uppercase">
         Setup · about 5 minutes
       </p>
       <h1 className="font-display max-w-3xl text-[clamp(2.1rem,5.5vw,3.4rem)] leading-[1.08] font-semibold tracking-tight text-[var(--card-foreground)]">
@@ -375,7 +378,7 @@ function WelcomeStep({
               <span className="bg-primary/12 text-primary grid size-11 place-items-center rounded-xl">
                 <item.icon className="size-5" aria-hidden />
               </span>
-              <span className="text-muted-foreground font-display text-[13px] font-semibold tracking-[0.08em] tabular-nums">
+              <span className="text-muted-foreground font-display text-[15px] font-semibold tracking-[0.08em] tabular-nums">
                 {item.n}
               </span>
             </div>

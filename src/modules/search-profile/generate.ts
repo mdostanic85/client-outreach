@@ -97,10 +97,19 @@ export function deriveSearchParamsFromProfile(): {
           "greenhouse",
           "lever",
           "ashby",
-          "infostud",
+          "linkedin",
           "helloworld",
+          "infostud",
         ]
-      : ["remotive", "arbeitnow", "greenhouse", "lever", "ashby"],
+      : [
+          "remotive",
+          "arbeitnow",
+          "greenhouse",
+          "lever",
+          "ashby",
+          "linkedin",
+          "helloworld",
+        ],
     atsBoardUrls: EMPTY_SEARCH_PARAMS.atsBoardUrls,
   });
 

@@ -16,7 +16,7 @@ function ItemList({ items }: { items: ChecklistItem[] }) {
           </span>
           <div className="min-w-0 flex-1">
             <p className="font-medium">{item.label}</p>
-            <p className="text-muted-foreground text-xs">
+            <p className="text-muted-foreground text-sm">
               {item.detail}
               {item.source === "manual" ? " · manual" : ""}
             </p>
@@ -82,7 +82,7 @@ export function ReadinessPanel({
             </label>
           ))}
           <textarea
-            className="border-input bg-background w-full rounded-md border px-3 py-2 text-xs"
+            className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
             rows={2}
             placeholder="Notes (unsupported claims %, review time, mailbox address…)"
             value={local.notes ?? ""}
@@ -104,7 +104,7 @@ export function ReadinessPanel({
           >
             Save ops checklist
           </Button>
-          {msg ? <p className="text-muted-foreground text-xs">{msg}</p> : null}
+          {msg ? <p className="text-muted-foreground text-sm">{msg}</p> : null}
         </div>
       </section>
       <section className="space-y-2">

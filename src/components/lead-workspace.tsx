@@ -23,16 +23,27 @@ import {
   suggestPatternsAction,
   suppressLeadAction,
 } from "@/app/actions";
-import { ScoreMark, StatePill } from "@/components/status-pill";
+import { InlineAlert } from "@/components/inline-alert";
+import {
+  PanelBody,
+  PanelHeader,
+  SectionTitle,
+  Surface,
+} from "@/components/page-shell";
+import { ScoreBadge } from "@/components/score-badge";
+import { StickyFormActions } from "@/components/sticky-form-actions";
+import { StatePill } from "@/components/status-pill";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -77,6 +88,22 @@ const STAGES: { id: Stage; label: string }[] = [
   { id: "approve", label: "Approve" },
   { id: "outcome", label: "Outcome" },
 ];
+
+const SCORE_DIMENSION_TOOLTIPS: Record<string, string> = {
+  needNow: "Evidence the company is hiring or actively needing help soon.",
+  fit: "How well your positioning matches this company's need.",
+  abilityToPay: "Signals they can afford help.",
+  accessibility: "How reachable the right contact looks.",
+  engagementMatch: "Alignment with how you prefer to engage.",
+};
+
+const SCORE_DIMENSION_LABELS: Record<string, string> = {
+  needNow: "Need now",
+  fit: "Fit",
+  abilityToPay: "Ability to pay",
+  accessibility: "Accessibility",
+  engagementMatch: "Engagement match",
+};
 
 export function LeadWorkspace({ detail }: { detail: Detail }) {
   const router = useRouter();
@@ -169,15 +196,20 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
 
   const stageIndex = STAGES.findIndex((s) => s.id === stage);
 
+  const draftDirty =
+    draft &&
+    draft.state !== "sent" &&
+    (subject !== draft.subject || body !== draft.bodyFinal);
+
   const ResearchPanel = ({ compact = false }: { compact?: boolean }) => (
-    <Card className={compact ? "lg:sticky lg:top-4" : undefined}>
-      <CardHeader>
-        <CardTitle>{compact ? "Company snapshot" : "Research"}</CardTitle>
-        <CardDescription>
-          Need-now evidence, fit, and uncertainty.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6 text-sm">
+    <Surface className={compact ? "lg:sticky lg:top-4" : undefined}>
+      <PanelHeader>
+        <SectionTitle
+          title={compact ? "Company snapshot" : "Research"}
+          description="Need-now evidence, fit, and uncertainty."
+        />
+      </PanelHeader>
+      <PanelBody className="text-sm">
         {!detail.brief ? (
           <p className="text-muted-foreground">No research yet.</p>
         ) : (
@@ -237,7 +269,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                             {e.pageTitle ?? e.url}
                           </a>
                         </p>
-                        <p className="text-muted-foreground line-clamp-3 text-xs">
+                        <p className="text-muted-foreground line-clamp-3 text-sm">
                           {e.excerpt}
                         </p>
                       </li>
@@ -248,7 +280,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
             ) : (
               <div>
                 <p className="mb-1 font-medium">Uncertainty</p>
-                <ul className="text-muted-foreground list-disc space-y-2 pl-5 text-xs">
+                <ul className="text-muted-foreground list-disc space-y-2 pl-5 text-sm">
                   {detail.brief.result.risksAndUnknowns.slice(0, 3).map((r) => (
                     <li key={r}>{r}</li>
                   ))}
@@ -257,27 +289,28 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
             )}
           </>
         )}
-      </CardContent>
-    </Card>
+      </PanelBody>
+    </Surface>
   );
 
   return (
     <div className="space-y-8">
-      {error ? (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
-      {info ? (
-        <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
-          {info}
-        </p>
-      ) : null}
+      {error ? <InlineAlert variant="error">{error}</InlineAlert> : null}
+      {info ? <InlineAlert variant="info">{info}</InlineAlert> : null}
 
-      <div className="border-border flex flex-wrap items-start justify-between gap-6 border-b pb-8">
-        <div className="min-w-0 space-y-3">
+      <header className="border-border flex flex-wrap items-start justify-between gap-6 border-b pb-8">
+        <div className="min-w-0 max-w-3xl space-y-4">
+          <nav className="text-muted-foreground text-[13px] font-medium tracking-wide">
+            <Link
+              href="/"
+              className="hover:text-foreground transition-colors"
+            >
+              Today · Companies
+            </Link>
+            <span> / {detail.company.name}</span>
+          </nav>
           <div className="flex flex-wrap items-center gap-4">
-            <h1 className="font-display text-[34px] leading-[1.15] font-semibold tracking-tight text-[var(--card-foreground)]">
+            <h1 className="font-display text-[34px] leading-[1.15] font-semibold tracking-tight text-balance text-[var(--card-foreground)]">
               {detail.company.name}
             </h1>
             <StatePill state={detail.lead.state} />
@@ -289,7 +322,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
             {" · "}
             research {detail.lead.researchStatus}
           </p>
-          <p className="text-muted-foreground text-[13px]">
+          <p className="text-muted-foreground text-[15px]">
             {labelPolicy(detail.policy.policy)}
             {detail.policy.code ? ` · ${detail.policy.code}` : ""}
             {detail.lead.recommendedContactRole
@@ -300,19 +333,13 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
               : ""}
           </p>
         </div>
-        <div className="bg-card border-border flex flex-col items-end rounded-[18px] border px-6 py-5 shadow-[var(--shadow-card)]">
-          <span className="text-muted-foreground text-[11px] font-semibold tracking-[0.08em] uppercase">
-            Score
-          </span>
-          <ScoreMark
-            score={detail.lead.score}
-            className="font-display text-[32px] font-semibold"
-          />
+        <div className="flex shrink-0 flex-wrap items-center gap-4 pt-1">
+          <ScoreBadge score={detail.lead.score} kind="fit" />
         </div>
-      </div>
+      </header>
 
       {breakdown ? (
-        <div className="text-muted-foreground flex flex-wrap gap-x-5 gap-y-1.5 text-[13px]">
+        <div className="text-muted-foreground flex flex-wrap gap-x-5 gap-y-1.5 text-[15px]">
           {(
             [
               "needNow",
@@ -322,10 +349,23 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
               "engagementMatch",
             ] as const
           ).map((k) => (
-            <span key={k} className="tabular">
-              <span className="text-[var(--card-foreground)]/70">{k}</span>{" "}
-              {breakdown[k] ?? "—"}
-            </span>
+            <Tooltip key={k}>
+              <TooltipTrigger
+                render={
+                  <span
+                    className="tabular cursor-help underline decoration-dotted underline-offset-4"
+                  />
+                }
+              >
+                <span className="text-[var(--card-foreground)]/70">
+                  {SCORE_DIMENSION_LABELS[k]}
+                </span>{" "}
+                {breakdown[k] ?? "—"}
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-left leading-relaxed">
+                {SCORE_DIMENSION_TOOLTIPS[k]}
+              </TooltipContent>
+            </Tooltip>
           ))}
         </div>
       ) : null}
@@ -353,7 +393,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                     : "text-muted-foreground/40",
               )}
             >
-              <span className="tabular text-muted-foreground mr-2 text-[12px]">
+              <span className="tabular text-muted-foreground mr-2 text-[14px]">
                 {i + 1}
               </span>
               {s.label}
@@ -366,14 +406,14 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
         <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
           <ResearchPanel />
           <aside className="space-y-6 lg:sticky lg:top-4 lg:self-start">
-            <Card>
-              <CardHeader>
-                <CardTitle>Decide</CardTitle>
-                <CardDescription>
-                  Accept unlocks contact confirmation and compose.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+            <Surface>
+              <PanelHeader>
+                <SectionTitle
+                  title="Decide"
+                  description="Accept unlocks contact confirmation and compose."
+                />
+              </PanelHeader>
+              <PanelBody>
                 {detail.lead.researchStatus === "pending" ||
                 detail.lead.researchStatus === "incomplete" ? (
                   <Button
@@ -440,10 +480,10 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                     Decision already made — continue to Contact.
                   </p>
                 )}
-              </CardContent>
-            </Card>
+              </PanelBody>
+            </Surface>
             {detail.signals[0] ? (
-              <p className="text-muted-foreground text-xs">
+              <p className="text-muted-foreground text-sm">
                 Signal: {detail.signals[0].title} ·{" "}
                 <a
                   className="underline"
@@ -462,72 +502,122 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
       {stage === "contact" ? (
         <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
           <ResearchPanel compact />
-          <Card>
-            <CardHeader>
-              <CardTitle>Confirm contact</CardTitle>
-              <CardDescription>
-                Role + email required before compose. Recommended:{" "}
-                {detail.lead.recommendedContactRole ?? "—"}.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
+          <Surface>
+            <PanelHeader>
+              <SectionTitle
+                title="Confirm contact"
+                description={`Role + email required before compose. Recommended: ${detail.lead.recommendedContactRole ?? "—"}.`}
+              />
+            </PanelHeader>
+            <PanelBody>
               {contactEditable ? (
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    disabled={pending || !detail.company.domain}
-                    variant="secondary"
-                    onClick={() =>
-                      run(async () => {
-                        const result = await harvestContactsAction(
-                          detail.lead.id,
-                        );
-                        if (result.ok) {
-                          setPeopleHints(result.data.people ?? []);
-                          setInfo(
-                            `Harvest: ${result.data.contactsCreated} new / ${result.data.emailsFound} emails found`,
-                          );
+                <details className="border-border rounded-xl border">
+                  <summary className="cursor-pointer px-4 py-3 text-[14px] font-medium select-none">
+                    Advanced
+                  </summary>
+                  <div className="border-border space-y-4 border-t px-4 pt-4 pb-4">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        disabled={pending || !detail.company.domain}
+                        variant="secondary"
+                        onClick={() =>
+                          run(async () => {
+                            const result = await harvestContactsAction(
+                              detail.lead.id,
+                            );
+                            if (result.ok) {
+                              setPeopleHints(result.data.people ?? []);
+                              setInfo(
+                                `Harvest: ${result.data.contactsCreated} new / ${result.data.emailsFound} emails found`,
+                              );
+                            }
+                            return result;
+                          })
                         }
-                        return result;
-                      })
-                    }
-                  >
-                    Harvest website contacts
-                  </Button>
-                  {detail.company.domain ? (
+                      >
+                        Harvest website contacts
+                      </Button>
+                      {detail.company.domain ? (
+                        <Button
+                          disabled={pending}
+                          variant="outline"
+                          onClick={() =>
+                            run(async () => {
+                              const result = await checkMxAction(
+                                detail.company.domain!,
+                              );
+                              if (result.ok) {
+                                setMxStatus(
+                                  result.data.ok
+                                    ? `MX ok: ${result.data.hosts.slice(0, 2).join(", ")}`
+                                    : `MX fail: ${result.data.error ?? "no records"}`,
+                                );
+                              }
+                              return result;
+                            })
+                          }
+                        >
+                          Check MX
+                        </Button>
+                      ) : null}
+                    </div>
+                    {mxStatus ? (
+                      <p className="text-muted-foreground text-sm">{mxStatus}</p>
+                    ) : null}
                     <Button
-                      disabled={pending}
+                      disabled={pending || !name || !detail.company.domain}
                       variant="outline"
                       onClick={() =>
                         run(async () => {
-                          const result = await checkMxAction(
-                            detail.company.domain!,
-                          );
+                          const result = await suggestPatternsAction({
+                            leadId: detail.lead.id,
+                            companyId: detail.company.id,
+                            fullName: name,
+                            domain: detail.company.domain!,
+                            role: role || undefined,
+                          });
                           if (result.ok) {
-                            setMxStatus(
-                              result.data.ok
-                                ? `MX ok: ${result.data.hosts.slice(0, 2).join(", ")}`
-                                : `MX fail: ${result.data.error ?? "no records"}`,
-                            );
+                            setPatternSuggestions(result.data.suggestions);
                           }
                           return result;
                         })
                       }
                     >
-                      Check MX
+                      Suggest patterns
                     </Button>
-                  ) : null}
-                </div>
+                    {patternSuggestions.length > 0 ? (
+                      <ul className="space-y-2 text-sm">
+                        <li className="text-muted-foreground">
+                          Patterns are unverified — confirm manually before send.
+                        </li>
+                        {patternSuggestions.map((s) => (
+                          <li key={s.email}>
+                            <button
+                              type="button"
+                              className="underline"
+                              onClick={() => {
+                                setEmail(s.email);
+                                setConfidence("pattern_unverified");
+                              }}
+                            >
+                              {s.email}
+                            </button>{" "}
+                            <span className="text-muted-foreground">
+                              ({s.pattern})
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                </details>
               ) : (
                 <p className="text-muted-foreground text-sm">
                   Accept the lead to enter a contact.
                 </p>
               )}
 
-              {mxStatus ? (
-                <p className="text-muted-foreground text-xs">{mxStatus}</p>
-              ) : null}
-
-              <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
                 {(
                   [
                     ["Team page", detail.lookupLinks.teamPage],
@@ -550,8 +640,8 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
 
               {peopleHints.length > 0 ? (
                 <div className="space-y-2">
-                  <p className="text-xs font-medium">People from team page</p>
-                  <ul className="text-muted-foreground space-y-2 text-xs">
+                  <p className="text-sm font-medium">People from team page</p>
+                  <ul className="text-muted-foreground space-y-2 text-sm">
                     {peopleHints.map((p) => (
                       <li key={`${p.name}-${p.role}`}>
                         <button
@@ -608,7 +698,6 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                         {c.confidence === "pattern_unverified" ? (
                           <Button
                             size="lg"
-                            variant="outline"
                             disabled={pending}
                             onClick={() =>
                               run(() =>
@@ -707,27 +796,6 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                     >
                       Save contact & continue
                     </Button>
-                    <Button
-                      disabled={pending || !name || !detail.company.domain}
-                      variant="outline"
-                      onClick={() =>
-                        run(async () => {
-                          const result = await suggestPatternsAction({
-                            leadId: detail.lead.id,
-                            companyId: detail.company.id,
-                            fullName: name,
-                            domain: detail.company.domain!,
-                            role: role || undefined,
-                          });
-                          if (result.ok) {
-                            setPatternSuggestions(result.data.suggestions);
-                          }
-                          return result;
-                        })
-                      }
-                    >
-                      Suggest patterns
-                    </Button>
                     {selectedContact?.email ? (
                       <Button
                         variant="secondary"
@@ -737,52 +805,28 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                       </Button>
                     ) : null}
                   </div>
-                  {patternSuggestions.length > 0 ? (
-                    <ul className="space-y-2 text-xs">
-                      <li className="text-muted-foreground">
-                        Patterns are unverified — confirm manually before send.
-                      </li>
-                      {patternSuggestions.map((s) => (
-                        <li key={s.email}>
-                          <button
-                            type="button"
-                            className="underline"
-                            onClick={() => {
-                              setEmail(s.email);
-                              setConfidence("pattern_unverified");
-                            }}
-                          >
-                            {s.email}
-                          </button>{" "}
-                          <span className="text-muted-foreground">
-                            ({s.pattern})
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
                 </div>
               ) : null}
-            </CardContent>
-          </Card>
+            </PanelBody>
+          </Surface>
         </div>
       ) : null}
 
       {stage === "compose" ? (
         <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
-          <Card>
-            <CardHeader>
-              <CardTitle>Compose outreach</CardTitle>
-              <CardDescription>
-                Edit subject and body, then review before queuing.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
+          <Surface>
+            <PanelHeader>
+              <SectionTitle
+                title="Compose outreach"
+                description="Edit subject and body, then review before queuing."
+              />
+            </PanelHeader>
+            <PanelBody>
               {(detail.lead.state === "accepted" ||
                 detail.lead.state === "draft_ready") &&
               selectedContact?.email &&
               !draft ? (
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-4">
                   <Button
                     disabled={pending}
                     onClick={() =>
@@ -805,25 +849,36 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                   >
                     Generate draft
                   </Button>
-                  <Button
-                    disabled={pending}
-                    variant="outline"
-                    onClick={() =>
-                      run(async () => {
-                        const result = await generateDraftAction(
-                          detail.lead.id,
-                          selectedContact.id,
-                          { requestCritique: true },
-                        );
-                        if (result.ok) {
-                          setQualityIssues(result.data.quality.issues);
+                  <details className="border-border rounded-xl border">
+                    <summary className="cursor-pointer px-4 py-3 text-[14px] font-medium select-none">
+                      Advanced
+                    </summary>
+                    <div className="border-border space-y-3 border-t px-4 pt-4 pb-4">
+                      <Button
+                        disabled={pending}
+                        variant="outline"
+                        onClick={() =>
+                          run(async () => {
+                            const result = await generateDraftAction(
+                              detail.lead.id,
+                              selectedContact.id,
+                              { requestCritique: true },
+                            );
+                            if (result.ok) {
+                              setQualityIssues(result.data.quality.issues);
+                            }
+                            return result;
+                          })
                         }
-                        return result;
-                      })
-                    }
-                  >
-                    Generate + critique
-                  </Button>
+                      >
+                        Generate + critique
+                      </Button>
+                      <p className="text-muted-foreground text-[13px]">
+                        Writes a draft, then runs an extra quality check (uses
+                        more AI budget).
+                      </p>
+                    </div>
+                  </details>
                 </div>
               ) : null}
 
@@ -873,7 +928,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
               ) : null}
 
               {qualityIssues.length > 0 ? (
-                <ul className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                <ul className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
                   {qualityIssues.map((i) => (
                     <li key={`${i.code}-${i.message}`}>
                       {i.code}: {i.message}
@@ -884,89 +939,102 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
 
               {draft ? (
                 <>
-                  <div className="flex flex-wrap gap-2 text-xs">
+                  <div className="flex flex-wrap gap-2 text-sm">
                     <Badge variant="outline">{draft.kind}</Badge>
                     <Badge variant="secondary">{draft.state}</Badge>
                   </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="subject">Subject</Label>
-                    <Input
-                      id="subject"
-                      value={subject || draft.subject}
-                      onChange={(e) => setSubject(e.target.value)}
-                      disabled={draft.state === "sent"}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="body">Body</Label>
-                    <Textarea
-                      id="body"
-                      className="min-h-56"
-                      value={body || draft.bodyFinal}
-                      onChange={(e) => setBody(e.target.value)}
-                      disabled={draft.state === "sent"}
-                    />
-                  </div>
+                  <Card>
+                    <CardContent className="space-y-6 pt-6">
+                      <div className="grid gap-2">
+                        <Label htmlFor="subject">Subject</Label>
+                        <Input
+                          id="subject"
+                          value={subject || draft.subject}
+                          onChange={(e) => setSubject(e.target.value)}
+                          disabled={draft.state === "sent"}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="body">Body</Label>
+                        <Textarea
+                          id="body"
+                          className="min-h-56"
+                          value={body || draft.bodyFinal}
+                          onChange={(e) => setBody(e.target.value)}
+                          disabled={draft.state === "sent"}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
                   {draft.state !== "sent" ? (
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        disabled={pending}
-                        variant="secondary"
-                        onClick={() =>
-                          run(() =>
-                            saveDraftAction(
-                              detail.lead.id,
-                              draft.id,
-                              body || draft.bodyFinal,
-                              subject || draft.subject,
-                            ),
-                          )
-                        }
-                      >
-                        Save edits
-                      </Button>
-                      <Button
-                        disabled={pending}
-                        variant="outline"
-                        onClick={() =>
-                          run(async () => {
-                            const saved = await saveDraftAction(
-                              detail.lead.id,
-                              draft.id,
-                              body || draft.bodyFinal,
-                              subject || draft.subject,
-                            );
-                            if (!saved.ok) return saved;
-                            const q = await inspectDraftQualityAction(
-                              detail.lead.id,
-                              draft.id,
-                            );
-                            if (q.ok) setQualityIssues(q.data.issues);
-                            return q;
-                          })
-                        }
-                      >
-                        Check quality
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={async () => {
-                          const text = `Subject: ${subject || draft.subject}\n\n${body || draft.bodyFinal}`;
-                          await navigator.clipboard.writeText(text);
-                        }}
-                      >
-                        Copy
-                      </Button>
-                      <Button
-                        disabled={pending || draft.state === "approved"}
-                        onClick={() => {
-                          setApproveMode(true);
-                          setStageOverride("approve");
-                        }}
-                      >
-                        Review for queue
-                      </Button>
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          disabled={pending}
+                          onClick={() =>
+                            run(() =>
+                              saveDraftAction(
+                                detail.lead.id,
+                                draft.id,
+                                body || draft.bodyFinal,
+                                subject || draft.subject,
+                              ),
+                            )
+                          }
+                        >
+                          Save edits
+                        </Button>
+                        <Button
+                          disabled={pending || draft.state === "approved"}
+                          variant="secondary"
+                          onClick={() => {
+                            setApproveMode(true);
+                            setStageOverride("approve");
+                          }}
+                        >
+                          Review for queue
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={async () => {
+                            const text = `Subject: ${subject || draft.subject}\n\n${body || draft.bodyFinal}`;
+                            await navigator.clipboard.writeText(text);
+                          }}
+                        >
+                          Copy
+                        </Button>
+                      </div>
+                      <details className="border-border rounded-xl border">
+                        <summary className="cursor-pointer px-4 py-3 text-[14px] font-medium select-none">
+                          Advanced
+                        </summary>
+                        <div className="border-border border-t px-4 pt-4 pb-4">
+                          <Button
+                            disabled={pending}
+                            variant="outline"
+                            onClick={() =>
+                              run(async () => {
+                                const saved = await saveDraftAction(
+                                  detail.lead.id,
+                                  draft.id,
+                                  body || draft.bodyFinal,
+                                  subject || draft.subject,
+                                );
+                                if (!saved.ok) return saved;
+                                const q = await inspectDraftQualityAction(
+                                  detail.lead.id,
+                                  draft.id,
+                                );
+                                if (q.ok) setQualityIssues(q.data.issues);
+                                return q;
+                              })
+                            }
+                          >
+                            Check quality
+                          </Button>
+                        </div>
+                      </details>
                     </div>
                   ) : (
                     <Badge>Sent</Badge>
@@ -979,15 +1047,15 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                     : "No draft yet — generate one above."}
                 </p>
               )}
-            </CardContent>
-          </Card>
+            </PanelBody>
+          </Surface>
 
           <aside className="space-y-6 lg:sticky lg:top-4 lg:self-start">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recipient</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
+            <Surface>
+              <PanelHeader>
+                <SectionTitle title="Recipient" />
+              </PanelHeader>
+              <PanelBody className="space-y-2 text-sm">
                 {selectedContact ? (
                   <>
                     <p className="font-medium">
@@ -1008,8 +1076,8 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                 >
                   Change contact
                 </Button>
-              </CardContent>
-            </Card>
+              </PanelBody>
+            </Surface>
             <ResearchPanel compact />
           </aside>
         </div>
@@ -1017,22 +1085,21 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
 
       {stage === "approve" && draft ? (
         <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
-          <Card>
-            <CardHeader>
-              <CardTitle>Approve to send queue</CardTitle>
-              <CardDescription>
-                Read-only preview. Approving adds this message to the outbound
-                queue — it does not send immediately.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
+          <Surface>
+            <PanelHeader>
+              <SectionTitle
+                title="Approve to send queue"
+                description="Read-only preview. Approving adds this message to the outbound queue — it does not send immediately."
+              />
+            </PanelHeader>
+            <PanelBody>
               <div className="rounded-lg border bg-muted/20 p-4 text-sm">
-                <p className="text-muted-foreground text-xs">To</p>
+                <p className="text-muted-foreground text-sm">To</p>
                 <p className="font-medium">
                   {selectedContact?.email ?? "—"}
                 </p>
                 <Separator className="my-3" />
-                <p className="text-muted-foreground text-xs">Subject</p>
+                <p className="text-muted-foreground text-sm">Subject</p>
                 <p className="font-medium">{subject || draft.subject}</p>
                 <Separator className="my-3" />
                 <pre className="whitespace-pre-wrap font-sans leading-relaxed">
@@ -1040,21 +1107,21 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                 </pre>
               </div>
               {detail.mail.approvals[0] ? (
-                <p className="text-muted-foreground text-xs">
+                <p className="text-muted-foreground text-sm">
                   Latest approval: {detail.mail.approvals[0].status}
                   {detail.mail.approvals[0].status === "invalidated"
                     ? " (edit invalidated hash — re-approve)"
                     : ""}
                 </p>
               ) : null}
-            </CardContent>
-          </Card>
+            </PanelBody>
+          </Surface>
           <aside className="space-y-6 lg:sticky lg:top-4 lg:self-start">
-            <Card>
-              <CardHeader>
-                <CardTitle>Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
+            <Surface>
+              <PanelHeader>
+                <SectionTitle title="Actions" />
+              </PanelHeader>
+              <PanelBody className="space-y-2">
                 <Button
                   className="w-full"
                   disabled={pending || draft.state === "approved"}
@@ -1097,16 +1164,23 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                 >
                   Open Gmail
                 </a>
-                <Button
-                  className="w-full"
-                  disabled={pending}
-                  variant="outline"
-                  onClick={() =>
-                    run(() => markSentAction(detail.lead.id, draft.id))
-                  }
-                >
-                  Mark sent (manual)
-                </Button>
+                <details className="border-border rounded-xl border">
+                  <summary className="cursor-pointer px-4 py-3 text-[14px] font-medium select-none">
+                    Advanced
+                  </summary>
+                  <div className="border-border space-y-2 border-t px-4 pt-4 pb-4">
+                    <Button
+                      className="w-full"
+                      disabled={pending}
+                      variant="outline"
+                      onClick={() =>
+                        run(() => markSentAction(detail.lead.id, draft.id))
+                      }
+                    >
+                      Mark sent (manual)
+                    </Button>
+                  </div>
+                </details>
                 {draft.state === "approved" ? (
                   <Link
                     href="/queue"
@@ -1115,15 +1189,15 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                     Open send queue →
                   </Link>
                 ) : null}
-              </CardContent>
-            </Card>
+              </PanelBody>
+            </Surface>
           </aside>
         </div>
       ) : null}
 
       {stage === "approve" && !draft ? (
-        <Card>
-          <CardContent className="py-10 text-center">
+        <Surface>
+          <PanelBody className="py-10 text-center">
             <p className="text-muted-foreground text-sm">
               No draft to approve yet.
             </p>
@@ -1134,113 +1208,124 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
             >
               Go to compose
             </Button>
-          </CardContent>
-        </Card>
+          </PanelBody>
+        </Surface>
       ) : null}
 
       {stage === "outcome" ? (
         <div className="grid gap-8 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Tracking</CardTitle>
-              <CardDescription>
-                Outcomes, follow-ups, and suppression.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-wrap items-end gap-2">
-              <Button
-                disabled={pending}
-                variant="secondary"
-                onClick={() => run(() => markRepliedAction(detail.lead.id))}
-              >
-                Mark replied
-              </Button>
-              <Button
-                disabled={pending}
-                variant="outline"
-                onClick={() =>
-                  run(() =>
-                    setLeadStateAction(detail.lead.id, "in_conversation"),
-                  )
-                }
-              >
-                In conversation
-              </Button>
-              <Button
-                disabled={pending}
-                variant="outline"
-                onClick={() =>
-                  run(() => setLeadStateAction(detail.lead.id, "closed_won"))
-                }
-              >
-                Closed won
-              </Button>
-              <Button
-                disabled={pending}
-                variant="outline"
-                onClick={() =>
-                  run(() => setLeadStateAction(detail.lead.id, "closed_lost"))
-                }
-              >
-                Closed lost
-              </Button>
-              <div className="grid gap-2">
-                <Label htmlFor="followup">Follow-up date</Label>
-                <Input
-                  id="followup"
-                  type="date"
-                  value={followUp}
-                  onChange={(e) => setFollowUp(e.target.value)}
-                />
-              </div>
-              <Button
-                disabled={pending || !followUp}
-                variant="secondary"
-                onClick={() =>
-                  run(() =>
-                    setFollowUpAction(
-                      detail.lead.id,
-                      new Date(followUp).toISOString(),
-                    ),
-                  )
-                }
-              >
-                Set follow-up
-              </Button>
-              <Button
-                disabled={pending}
-                variant="destructive"
-                onClick={() =>
-                  run(() =>
-                    suppressLeadAction(detail.lead.id, "manual_suppression"),
-                  )
-                }
-              >
-                Suppress company
-              </Button>
-              {(detail.lead.state === "sent" ||
-                detail.lead.state === "follow_up_due") &&
-              selectedContact?.email ? (
+          <Surface>
+            <PanelHeader>
+              <SectionTitle
+                title="Tracking"
+                description="Outcomes, follow-ups, and suppression."
+              />
+            </PanelHeader>
+            <PanelBody>
+              <div className="flex flex-wrap items-end gap-2">
                 <Button
-                  variant="outline"
-                  onClick={() => setStageOverride("compose")}
+                  disabled={pending}
+                  onClick={() => run(() => markRepliedAction(detail.lead.id))}
                 >
-                  Write follow-up
+                  Mark replied
                 </Button>
-              ) : null}
-            </CardContent>
-          </Card>
+                <Button
+                  disabled={pending}
+                  variant="outline"
+                  onClick={() =>
+                    run(() =>
+                      setLeadStateAction(detail.lead.id, "in_conversation"),
+                    )
+                  }
+                >
+                  In conversation
+                </Button>
+                <Button
+                  disabled={pending}
+                  variant="outline"
+                  onClick={() =>
+                    run(() => setLeadStateAction(detail.lead.id, "closed_won"))
+                  }
+                >
+                  Closed won
+                </Button>
+                <Button
+                  disabled={pending}
+                  variant="outline"
+                  onClick={() =>
+                    run(() => setLeadStateAction(detail.lead.id, "closed_lost"))
+                  }
+                >
+                  Closed lost
+                </Button>
+                <div className="grid gap-2">
+                  <Label htmlFor="followup">Follow-up date</Label>
+                  <Input
+                    id="followup"
+                    type="date"
+                    value={followUp}
+                    onChange={(e) => setFollowUp(e.target.value)}
+                  />
+                </div>
+                <Button
+                  disabled={pending || !followUp}
+                  variant="secondary"
+                  onClick={() =>
+                    run(() =>
+                      setFollowUpAction(
+                        detail.lead.id,
+                        new Date(followUp).toISOString(),
+                      ),
+                    )
+                  }
+                >
+                  Set follow-up
+                </Button>
+                {(detail.lead.state === "sent" ||
+                  detail.lead.state === "follow_up_due") &&
+                selectedContact?.email ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => setStageOverride("compose")}
+                  >
+                    Write follow-up
+                  </Button>
+                ) : null}
+              </div>
+              <details className="border-border rounded-xl border">
+                <summary className="cursor-pointer px-4 py-3 text-[14px] font-medium select-none">
+                  Advanced
+                </summary>
+                <div className="border-border border-t px-4 pt-4 pb-4">
+                  <Button
+                    disabled={pending}
+                    variant="destructive"
+                    onClick={() =>
+                      run(() =>
+                        suppressLeadAction(detail.lead.id, "manual_suppression"),
+                      )
+                    }
+                  >
+                    Suppress company
+                  </Button>
+                  <p className="text-muted-foreground mt-2 text-[13px]">
+                    Never suggest this company again.
+                  </p>
+                </div>
+              </details>
+            </PanelBody>
+          </Surface>
 
           {detail.mail.messages.length > 0 ||
           detail.mail.followUps.length > 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Mailbox thread</CardTitle>
-                <CardDescription>
-                  Synced replies and scheduled follow-ups.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6 text-sm">
+            <Surface>
+              <PanelHeader>
+                <SectionTitle
+                  title="Mailbox thread"
+                  description="Synced replies and scheduled follow-ups."
+                />
+              </PanelHeader>
+              <PanelBody className="text-sm">
                 {detail.mail.messages.map((m) => (
                   <div key={m.id} className="rounded-md border px-3 py-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -1248,18 +1333,18 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                       {m.classification ? (
                         <Badge variant="secondary">{m.classification}</Badge>
                       ) : null}
-                      <span className="text-muted-foreground text-xs">
+                      <span className="text-muted-foreground text-sm">
                         {m.createdAt.slice(0, 16).replace("T", " ")}
                       </span>
                     </div>
                     <p className="mt-1 font-medium">{m.subject}</p>
-                    <p className="text-muted-foreground line-clamp-3 text-xs">
+                    <p className="text-muted-foreground line-clamp-3 text-sm">
                       {m.bodyText}
                     </p>
                   </div>
                 ))}
                 {detail.mail.followUps.length > 0 ? (
-                  <ul className="text-muted-foreground space-y-2 text-xs">
+                  <ul className="text-muted-foreground space-y-2 text-sm">
                     {detail.mail.followUps.map((f) => (
                       <li key={f.id}>
                         Follow-up #{f.sequence}: {f.state} · due{" "}
@@ -1268,16 +1353,69 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                     ))}
                   </ul>
                 ) : null}
-              </CardContent>
-            </Card>
+              </PanelBody>
+            </Surface>
           ) : (
-            <Card>
-              <CardContent className="text-muted-foreground py-10 text-center text-sm">
+            <Surface>
+              <PanelBody className="text-muted-foreground py-10 text-center text-sm">
                 No mailbox activity yet.
-              </CardContent>
-            </Card>
+              </PanelBody>
+            </Surface>
           )}
         </div>
+      ) : null}
+
+      {draft &&
+      draftDirty &&
+      (stage === "compose" || stage === "approve") &&
+      draft.state !== "sent" ? (
+        <StickyFormActions message="You have unsaved draft changes.">
+          <Button
+            disabled={pending}
+            variant="secondary"
+            onClick={() =>
+              run(() =>
+                saveDraftAction(
+                  detail.lead.id,
+                  draft.id,
+                  body || draft.bodyFinal,
+                  subject || draft.subject,
+                ),
+              )
+            }
+          >
+            Save edits
+          </Button>
+          {stage === "compose" ? (
+            <Button
+              disabled={pending || draft.state === "approved"}
+              onClick={() => {
+                setApproveMode(true);
+                setStageOverride("approve");
+              }}
+            >
+              Review for queue
+            </Button>
+          ) : (
+            <Button
+              disabled={pending || draft.state === "approved"}
+              onClick={() =>
+                run(async () => {
+                  const saved = await saveDraftAction(
+                    detail.lead.id,
+                    draft.id,
+                    body || draft.bodyFinal,
+                    subject || draft.subject,
+                  );
+                  if (!saved.ok) return saved;
+                  return approveDraftAction(detail.lead.id, draft.id);
+                })
+              }
+            >
+              Approve to queue
+            </Button>
+          )}
+        </StickyFormActions>
       ) : null}
     </div>
   );

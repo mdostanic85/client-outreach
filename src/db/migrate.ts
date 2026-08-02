@@ -272,7 +272,10 @@ CREATE TABLE IF NOT EXISTS profile_sources (
   file_path TEXT,
   source_url TEXT,
   content_hash TEXT NOT NULL,
-  ingested_at TEXT NOT NULL
+  ingested_at TEXT NOT NULL,
+  last_synced_at TEXT,
+  enabled_for_matching INTEGER NOT NULL DEFAULT 1,
+  deleted_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS structured_profiles (
@@ -481,6 +484,76 @@ export function runMigrations() {
     "adaptive_job_ranking",
     "adaptive_job_ranking INTEGER NOT NULL DEFAULT 1",
   );
+  addColumnIfMissing(
+    "settings",
+    "use_portfolio_in_matching",
+    "use_portfolio_in_matching INTEGER NOT NULL DEFAULT 1",
+  );
+  addColumnIfMissing(
+    "settings",
+    "matching_sources_json",
+    "matching_sources_json TEXT NOT NULL DEFAULT '{}'",
+  );
+  addColumnIfMissing(
+    "profile_sources",
+    "last_synced_at",
+    "last_synced_at TEXT",
+  );
+  addColumnIfMissing(
+    "profile_sources",
+    "enabled_for_matching",
+    "enabled_for_matching INTEGER NOT NULL DEFAULT 1",
+  );
+  addColumnIfMissing(
+    "profile_sources",
+    "deleted_at",
+    "deleted_at TEXT",
+  );
+
+  // Backfill last_synced_at from ingested_at when null.
+  try {
+    sqlite.exec(
+      `UPDATE profile_sources SET last_synced_at = ingested_at WHERE last_synced_at IS NULL AND deleted_at IS NULL`,
+    );
+  } catch {
+    /* ignore */
+  }
+
+  // Seed matching_sources_json from legacy use_portfolio_in_matching when empty.
+  try {
+    const rows = sqlite
+      .prepare(
+        `SELECT id, use_portfolio_in_matching, matching_sources_json FROM settings`,
+      )
+      .all() as Array<{
+      id: string;
+      use_portfolio_in_matching: number;
+      matching_sources_json: string;
+    }>;
+    for (const row of rows) {
+      const raw = row.matching_sources_json?.trim();
+      if (raw && raw !== "{}") continue;
+      const portfolioProjects = row.use_portfolio_in_matching !== 0;
+      sqlite
+        .prepare(
+          `UPDATE settings SET matching_sources_json = ? WHERE id = ?`,
+        )
+        .run(
+          JSON.stringify({
+            portfolioProjects,
+            linkedin: true,
+            cv: true,
+            manual: true,
+            github: true,
+            jobPreferences: true,
+            activitySignals: true,
+          }),
+          row.id,
+        );
+    }
+  } catch {
+    /* ignore */
+  }
   addColumnIfMissing(
     "job_search_profiles",
     "parent_version",

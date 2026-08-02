@@ -77,10 +77,9 @@ export async function collectRemotive(
     return titleTokens.some((tok) => t.includes(tok));
   });
 
-  const slice = (matched.length ? matched : data.jobs ?? []).slice(
-    0,
-    query.maxResults,
-  );
+  // No silent fallback to the entire Remotive board — that floods the
+  // pipeline with unrelated roles (data labeling, support, etc.).
+  const slice = matched.slice(0, query.maxResults);
 
   return slice.map((job) =>
     RawCollectedJobSchema.parse({

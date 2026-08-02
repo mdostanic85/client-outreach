@@ -7,6 +7,10 @@ import { collectJobsForProfile } from "@/modules/collectors/run";
 import { filterRawJobs } from "@/modules/jobs/filters";
 import { persistCollectedJobs } from "@/modules/jobs/persist";
 import {
+  progressFor,
+  type JobSearchProgressCallback,
+} from "@/modules/jobs/progress";
+import {
   evaluateJobsBatch,
   publishDailyJobList,
   requireMatchingProfileJson,
@@ -23,6 +27,8 @@ export type JobPipelineStats = {
   evaluated?: number;
   recommended?: number;
   published?: number;
+  publishedStrong?: number;
+  publishedWorthALook?: number;
   apifyCostUsd?: number;
 };
 
@@ -30,31 +36,63 @@ export type JobPipelineStats = {
  * Full job collection → filter → evaluate → publish pipeline.
  * Requires approved search profile + approved structured profile.
  */
-export async function runJobDiscoveryPipeline(): Promise<JobPipelineStats> {
+export async function runJobDiscoveryPipeline(options?: {
+  onProgress?: JobSearchProgressCallback;
+}): Promise<JobPipelineStats> {
+  const report = options?.onProgress;
+
   const active = getActiveSearchParams();
   if (!active) {
     logger.info("No approved job search profile — skipping job pipeline");
+    await report?.(
+      progressFor("collect", 100, "Approve search criteria first"),
+    );
     return { skipped: "no_search_profile" };
   }
 
-  let profile: { profileJson: string; version: number };
+  let profile: {
+    profileJson: string;
+    version: number;
+    usePortfolioInMatching: boolean;
+  };
   try {
     profile = requireMatchingProfileJson();
   } catch {
+    await report?.(
+      progressFor("collect", 100, "Approve your profile first"),
+    );
     return { skipped: "no_structured_profile" };
   }
 
   if (getBudgetStatus().hardStopped) {
+    await report?.(
+      progressFor("collect", 100, "Monthly AI budget reached"),
+    );
     return { skipped: "budget" };
   }
 
   const collected = await collectJobsForProfile({
     params: active.params,
     searchProfileVersion: active.version,
+    onProgress: report,
   });
 
+  await report?.(
+    progressFor(
+      "filter",
+      58,
+      `Filtering ${collected.raw.length} openings…`,
+    ),
+  );
   const filtered = filterRawJobs(collected.raw, active.params);
   const persisted = persistCollectedJobs(filtered.kept, active.version);
+  await report?.(
+    progressFor(
+      "filter",
+      62,
+      `Kept ${filtered.kept.length} · dropped ${filtered.dropped.length}`,
+    ),
+  );
 
   const db = getDb();
   const toEvaluate = db
@@ -76,8 +114,13 @@ export async function runJobDiscoveryPipeline(): Promise<JobPipelineStats> {
     searchProfileVersion: active.version,
     searchParams: active.params,
     profileJson: profile.profileJson,
+    usePortfolioInMatching: profile.usePortfolioInMatching,
+    onProgress: report,
   });
 
+  await report?.(
+    progressFor("publish", 95, "Building today’s shortlist…"),
+  );
   const setting = db.select().from(settings).all()[0];
   const limit = setting?.dailyJobCount ?? 20;
   const published = publishDailyJobList(limit);
@@ -91,8 +134,20 @@ export async function runJobDiscoveryPipeline(): Promise<JobPipelineStats> {
     evaluated: evalResult.evaluated,
     recommended: evalResult.recommended,
     published: published.published,
+    publishedStrong: published.strong,
+    publishedWorthALook: published.worthALook,
     apifyCostUsd: collected.apifyCostUsd,
   };
+
+  await report?.(
+    progressFor(
+      "publish",
+      100,
+      published.published > 0
+        ? `${published.strong} strong · ${published.worthALook} worth a look`
+        : "No matches to show this run",
+    ),
+  );
 
   logger.info(stats, "job discovery pipeline complete");
   return stats;

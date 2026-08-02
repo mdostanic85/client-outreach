@@ -17,6 +17,14 @@ export const RelevantProjectSchema = z.object({
   outcomes: z.array(z.string()).default([]),
   tools: z.array(z.string()).default([]),
   sourcePointers: z.array(z.string()).default([]),
+  /**
+   * portfolio_project = case-study evidence (gated by matching toggle).
+   * general = work history / product work that stays in the Professional Profile
+   * and can still inform matching when portfolio projects are disabled.
+   */
+  evidenceKind: z
+    .enum(["portfolio_project", "general"])
+    .default("portfolio_project"),
 });
 
 export const COMPENSATION_CURRENCIES = [
@@ -134,6 +142,25 @@ export const StructuredProfileSchema = z.object({
   languages: z.array(z.string()).default([]),
   /** Grounding notes from the model — not user-facing claims. */
   groundingNotes: z.array(z.string()).default([]),
+  /**
+   * Field → human source labels (e.g. currentRole: ["LinkedIn", "Portfolio"]).
+   * Used for attribution in the Professional Profile UI; matching may consult it later.
+   */
+  fieldSources: z.record(z.string(), z.array(z.string())).default({}),
+  /** Free-form professional summary / biography when extracted. */
+  professionalSummary: z.string().optional(),
+  /** Education entries (plain strings for MVP). */
+  education: z.array(z.string()).default([]),
+  /** Certifications. */
+  certifications: z.array(z.string()).default([]),
+  /** Notable clients. */
+  notableClients: z.array(z.string()).default([]),
+  /** Achievements / highlights. */
+  achievements: z.array(z.string()).default([]),
+  /** Working style notes. */
+  workingStyle: z.string().optional(),
+  /** Domain expertise tags. */
+  domainExpertise: z.array(z.string()).default([]),
 });
 
 export type StructuredProfile = z.infer<typeof StructuredProfileSchema>;
@@ -170,6 +197,12 @@ export const EMPTY_STRUCTURED_PROFILE: StructuredProfile = {
   rolesAboveLevel: [],
   languages: [],
   groundingNotes: [],
+  fieldSources: {},
+  education: [],
+  certifications: [],
+  notableClients: [],
+  achievements: [],
+  domainExpertise: [],
 };
 
 export function parseStructuredProfile(json: string): StructuredProfile {

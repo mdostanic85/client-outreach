@@ -1,6 +1,6 @@
 import { ensureDb } from "@/db/ensure";
-import { approvals, drafts, leads } from "@/db/schema";
-import { inArray } from "drizzle-orm";
+import { approvals, drafts, jobs, leads } from "@/db/schema";
+import { and, eq, inArray } from "drizzle-orm";
 
 export function getNavCounts() {
   const db = ensureDb();
@@ -22,8 +22,17 @@ export function getNavCounts() {
     .all()
     .filter((a) => a.status === "approved" && !a.consumedAt).length;
 
+  const interestedCount = db
+    .select()
+    .from(jobs)
+    .where(
+      and(eq(jobs.status, "active"), eq(jobs.triageState, "interested")),
+    )
+    .all().length;
+
   return {
     leadsCount,
     queueCount: pendingDrafts + approvedWaiting,
+    interestedCount,
   };
 }

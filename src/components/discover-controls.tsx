@@ -45,7 +45,7 @@ export function DiscoverControls() {
 
       <div>
         <p className="mb-1 text-sm font-medium">Company URL</p>
-        <p className="text-muted-foreground mb-3 text-xs">
+        <p className="text-muted-foreground mb-3 text-sm">
           Highest-precision source — paste a site and research immediately.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">

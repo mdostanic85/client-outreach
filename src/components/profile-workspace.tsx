@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { Check, ChevronDown, FileText, FolderGit2, Link2, X } from "lucide-react";
 import {
   approveProfileAction,
@@ -14,6 +14,7 @@ import {
   ingestPortfolioUrlAction,
   ingestTextSourceAction,
   saveProfileDraftAction,
+  setUsePortfolioInMatchingAction,
 } from "@/app/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,9 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { FileDropzone } from "@/components/file-dropzone";
+import { InlineAlert } from "@/components/inline-alert";
 import { PanelBody, Surface } from "@/components/page-shell";
+import { StickyFormActions } from "@/components/sticky-form-actions";
 import type { StructuredProfile } from "@/modules/profile/schemas";
 import {
   COMPENSATION_CURRENCIES,
@@ -40,6 +43,8 @@ type SourceView = {
   sourceUrl: string | null;
   ingestedAt: string;
   textLength: number;
+  lastSyncedAt?: string | null;
+  enabledForMatching?: boolean;
 };
 
 type ProfileView = {
@@ -65,12 +70,59 @@ const SOURCE_LABELS: Record<string, string> = {
 
 type ReviewTab = "essentials" | "skills" | "preferences" | "advanced";
 
-const REVIEW_TABS: Array<{ id: ReviewTab; label: string }> = [
-  { id: "essentials", label: "Essentials" },
-  { id: "skills", label: "Skills" },
-  { id: "preferences", label: "Job prefs" },
-  { id: "advanced", label: "More" },
+const REVIEW_TABS: Array<{
+  id: ReviewTab;
+  label: string;
+  description: string;
+}> = [
+  {
+    id: "essentials",
+    label: "Essentials",
+    description: "Who you are and what roles you’re targeting.",
+  },
+  {
+    id: "skills",
+    label: "Skills",
+    description: "Strengths, industries, and tools used for matching.",
+  },
+  {
+    id: "preferences",
+    label: "Job prefs",
+    description: "Pay, employment type, and roles to skip.",
+  },
+  {
+    id: "advanced",
+    label: "More",
+    description: "Project details for deeper match context.",
+  },
 ];
+
+/** Section block inside a profile tab — AutoSend / Apollo card grouping. */
+function ProfileSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="border-border bg-muted/20 space-y-4 rounded-2xl border px-4 py-4 sm:px-5 sm:py-5">
+      <header className="space-y-1">
+        <h3 className="font-display text-[16px] font-semibold tracking-tight text-[var(--card-foreground)]">
+          {title}
+        </h3>
+        {description ? (
+          <p className="text-muted-foreground text-[14px] leading-relaxed">
+            {description}
+          </p>
+        ) : null}
+      </header>
+      {children}
+    </section>
+  );
+}
 
 function linesToList(value: string): string[] {
   return value
@@ -97,11 +149,11 @@ function Field({
   return (
     <div className={cn("space-y-2", className)}>
       <div className="space-y-1">
-        <Label className="text-muted-foreground text-[13px] font-medium sm:text-[14px]">
+        <Label className="text-muted-foreground text-[15px] font-medium sm:text-[14px]">
           {label}
         </Label>
         {hint ? (
-          <p className="text-muted-foreground/80 text-[12px] leading-snug sm:text-[13px]">
+          <p className="text-muted-foreground/80 text-[14px] leading-snug sm:text-[15px]">
             {hint}
           </p>
         ) : null}
@@ -183,7 +235,7 @@ function CompensationField({
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="space-y-1.5 sm:min-w-[12rem]">
-            <span className="text-muted-foreground text-[12px] font-medium">
+            <span className="text-muted-foreground text-[14px] font-medium">
               Currency
             </span>
             <div
@@ -201,7 +253,7 @@ function CompensationField({
                     aria-pressed={active}
                     onClick={() => onChange({ ...value, currency: code })}
                     className={cn(
-                      "h-9 min-w-[2.75rem] rounded-lg px-2.5 text-[13px] font-semibold tabular-nums transition-colors",
+                      "h-9 min-w-[2.75rem] rounded-lg px-2.5 text-[15px] font-semibold tabular-nums transition-colors",
                       active
                         ? "bg-background text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground",
@@ -216,7 +268,7 @@ function CompensationField({
 
           <div className="grid flex-1 grid-cols-[1fr_auto_1fr] items-end gap-2 sm:gap-3">
             <div className="space-y-1.5">
-              <span className="text-muted-foreground text-[12px] font-medium">
+              <span className="text-muted-foreground text-[14px] font-medium">
                 From
               </span>
               <Input
@@ -234,7 +286,7 @@ function CompensationField({
               –
             </span>
             <div className="space-y-1.5">
-              <span className="text-muted-foreground text-[12px] font-medium">
+              <span className="text-muted-foreground text-[14px] font-medium">
                 To
               </span>
               <Input
@@ -247,18 +299,18 @@ function CompensationField({
             </div>
           </div>
 
-          <span className="text-muted-foreground pb-3 text-[13px] font-medium sm:min-w-[4.5rem]">
+          <span className="text-muted-foreground pb-3 text-[15px] font-medium sm:min-w-[4.5rem]">
             {period}
           </span>
         </div>
 
         {summary ? (
-          <p className="text-muted-foreground text-[13px]">
+          <p className="text-muted-foreground text-[15px]">
             Saved as{" "}
             <span className="text-foreground font-medium">{summary}</span>
           </p>
         ) : (
-          <p className="text-muted-foreground text-[13px]">
+          <p className="text-muted-foreground text-[15px]">
             Optional — leave blank if you prefer not to set a range yet.
           </p>
         )}
@@ -377,7 +429,7 @@ function ChipListField({
         {items.map((item, i) => (
           <span
             key={`${item}-${i}`}
-            className="bg-secondary text-secondary-foreground inline-flex max-w-full items-center gap-1 rounded-md px-2 py-0.5 text-[12px] font-medium"
+            className="bg-secondary text-secondary-foreground inline-flex max-w-full items-center gap-1 rounded-md px-2 py-0.5 text-[14px] font-medium"
           >
             <span className="truncate">{item}</span>
             {!disabled ? (
@@ -396,7 +448,7 @@ function ChipListField({
           value={draft}
           disabled={disabled}
           placeholder={items.length === 0 ? placeholder : "Add…"}
-          className="placeholder:text-muted-foreground min-w-[120px] flex-1 bg-transparent py-0.5 text-[13px] outline-none"
+          className="placeholder:text-muted-foreground min-w-[120px] flex-1 bg-transparent py-0.5 text-[15px] outline-none"
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === ",") {
@@ -446,13 +498,19 @@ export function ProfileWorkspace({
   sources,
   draft,
   approved,
+  usePortfolioInMatching = true,
   variant = "page",
+  children,
 }: {
   sources: SourceView[];
   draft: ProfileView | null;
   approved: ProfileView | null;
+  /** When true, portfolio-sourced projects feed job match scoring. */
+  usePortfolioInMatching?: boolean;
   /** Phased UX for onboarding wizard. */
   variant?: "page" | "onboarding";
+  /** Extra setup sections (e.g. Matching) — rendered above sticky approve. */
+  children?: React.ReactNode;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -471,6 +529,14 @@ export function ProfileWorkspace({
   );
   const [reviewTab, setReviewTab] = useState<ReviewTab>("essentials");
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [portfolioInMatching, setPortfolioInMatching] = useState(
+    usePortfolioInMatching,
+  );
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPortfolioInMatching(usePortfolioInMatching);
+  }, [usePortfolioInMatching]);
 
   const active = draft ?? approved;
   const canEdit = Boolean(draft) && !pending;
@@ -594,6 +660,7 @@ export function ProfileWorkspace({
       throw new Error("Years experience must be a number");
     }
     return {
+      ...editable,
       currentRole: currentRole.trim() || undefined,
       seniority: seniority.trim() || undefined,
       yearsExperience: years,
@@ -619,6 +686,14 @@ export function ProfileWorkspace({
       rolesAboveLevel: linesToList(rolesAboveLevel),
       languages: linesToList(languages),
       groundingNotes: editable.groundingNotes ?? [],
+      fieldSources: editable.fieldSources ?? {},
+      education: editable.education ?? [],
+      certifications: editable.certifications ?? [],
+      notableClients: editable.notableClients ?? [],
+      achievements: editable.achievements ?? [],
+      domainExpertise: editable.domainExpertise ?? [],
+      professionalSummary: editable.professionalSummary,
+      workingStyle: editable.workingStyle,
     };
   }
 
@@ -704,64 +779,98 @@ export function ProfileWorkspace({
     );
 
   const essentialsFields = (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <Field label="Current role">
-        <Input
-          value={currentRole}
-          onChange={(e) => setCurrentRole(e.target.value)}
-          disabled={!canEdit}
-          placeholder="e.g. Senior Product Designer"
-        />
-      </Field>
-      <Field label="Seniority">
-        <Input
-          value={seniority}
-          onChange={(e) => setSeniority(e.target.value)}
-          disabled={!canEdit}
-          placeholder="e.g. Senior"
-        />
-      </Field>
-      <Field label="Years experience">
-        <Input
-          value={yearsExperience}
-          onChange={(e) => setYearsExperience(e.target.value)}
-          disabled={!canEdit}
-          inputMode="numeric"
-        />
-      </Field>
-      <Field label="Availability">
-        <Input
-          value={availability}
-          onChange={(e) => setAvailability(e.target.value)}
-          disabled={!canEdit}
-        />
-      </Field>
-      {tags("Target roles", targetRoles, setTargetRoles, "Role + Enter")}
-      {tags(
-        "Locations",
-        preferredLocations,
-        setPreferredLocations,
-        "City / Remote + Enter",
-      )}
+    <div className="space-y-4">
+      <ProfileSection
+        title="Role"
+        description="How you present yourself in matching and outreach."
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Current role">
+            <Input
+              value={currentRole}
+              onChange={(e) => setCurrentRole(e.target.value)}
+              disabled={!canEdit}
+              placeholder="e.g. Senior Product Designer"
+            />
+          </Field>
+          <Field label="Seniority">
+            <Input
+              value={seniority}
+              onChange={(e) => setSeniority(e.target.value)}
+              disabled={!canEdit}
+              placeholder="e.g. Senior"
+            />
+          </Field>
+          <Field label="Years experience">
+            <Input
+              value={yearsExperience}
+              onChange={(e) => setYearsExperience(e.target.value)}
+              disabled={!canEdit}
+              inputMode="numeric"
+            />
+          </Field>
+          <Field label="Availability">
+            <Input
+              value={availability}
+              onChange={(e) => setAvailability(e.target.value)}
+              disabled={!canEdit}
+            />
+          </Field>
+        </div>
+      </ProfileSection>
+      <ProfileSection
+        title="Targets"
+        description="Roles and places you want Optra to prioritize."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          {tags("Target roles", targetRoles, setTargetRoles, "Role + Enter")}
+          {tags(
+            "Locations",
+            preferredLocations,
+            setPreferredLocations,
+            "City / Remote + Enter",
+          )}
+        </div>
+      </ProfileSection>
     </div>
   );
 
   const skillsFields = (
-    <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
-      {tags("Strongest skills", strongestSkills, setStrongestSkills)}
-      {tags(
-        "Strengths",
-        strengthsAndDifferentiators,
-        setStrengthsAndDifferentiators,
-      )}
-      {tags("Industries", industries, setIndustries)}
-      {tags("Product types", productTypes, setProductTypes)}
-      {tags("Design tools", designTools, setDesignTools)}
-      {tags("Technical tools", technicalTools, setTechnicalTools)}
-      <Field
-        label="Leadership"
-        hint="Optional. Team size, management, or mentoring — in your words."
-        className="sm:col-span-2"
+    <div className="space-y-4">
+      <ProfileSection
+        title="Strengths"
+        description="What you’re strongest at — used heavily in scoring."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          {tags("Strongest skills", strongestSkills, setStrongestSkills)}
+          {tags(
+            "Differentiators",
+            strengthsAndDifferentiators,
+            setStrengthsAndDifferentiators,
+          )}
+        </div>
+      </ProfileSection>
+      <ProfileSection
+        title="Domain"
+        description="Industries and product contexts you’ve worked in."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          {tags("Industries", industries, setIndustries)}
+          {tags("Product types", productTypes, setProductTypes)}
+        </div>
+      </ProfileSection>
+      <ProfileSection
+        title="Tools"
+        description="Design and technical stack that should show up in fits."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          {tags("Design tools", designTools, setDesignTools)}
+          {tags("Technical tools", technicalTools, setTechnicalTools)}
+        </div>
+      </ProfileSection>
+      <ProfileSection
+        title="Leadership"
+        description="Optional. Team size, management, or mentoring — in your words."
       >
         <Textarea
           value={leadershipExperience}
@@ -771,52 +880,78 @@ export function ProfileWorkspace({
           placeholder="e.g. Led a team of 4 product designers across 2 product lines"
           className="min-h-[5.5rem] text-[14px]"
         />
-      </Field>
+      </ProfileSection>
     </div>
   );
 
   const preferencesFields = (
-    <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
-      <CompensationField
-        value={compensation}
-        onChange={setCompensation}
-        disabled={!canEdit}
-      />
-      <EmploymentTypeField
-        value={preferredEmploymentTypes}
-        onChange={setPreferredEmploymentTypes}
-        disabled={!canEdit}
-      />
-      {tags("Time zones", timeZones, setTimeZones)}
-      {tags("Languages", languages, setLanguages)}
-      {tags("Roles that are too junior", rolesBelowLevel, setRolesBelowLevel)}
-      {tags("Roles that are too senior", rolesAboveLevel, setRolesAboveLevel)}
+    <div className="space-y-4">
+      <ProfileSection
+        title="Compensation & type"
+        description="Hard filters for pay and employment style."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CompensationField
+            value={compensation}
+            onChange={setCompensation}
+            disabled={!canEdit}
+          />
+          <EmploymentTypeField
+            value={preferredEmploymentTypes}
+            onChange={setPreferredEmploymentTypes}
+            disabled={!canEdit}
+          />
+        </div>
+      </ProfileSection>
+      <ProfileSection
+        title="Logistics"
+        description="Where and how you prefer to work."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          {tags("Time zones", timeZones, setTimeZones)}
+          {tags("Languages", languages, setLanguages)}
+        </div>
+      </ProfileSection>
+      <ProfileSection
+        title="Role filters"
+        description="Titles that are clearly too junior or too senior for you."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          {tags(
+            "Roles that are too junior",
+            rolesBelowLevel,
+            setRolesBelowLevel,
+          )}
+          {tags(
+            "Roles that are too senior",
+            rolesAboveLevel,
+            setRolesAboveLevel,
+          )}
+        </div>
+      </ProfileSection>
     </div>
   );
 
   const advancedFields = (
-    <Field label="Projects (advanced JSON)">
-      <Textarea
-        value={projectsJson}
-        onChange={(e) => setProjectsJson(e.target.value)}
-        disabled={!canEdit}
-        rows={isOnboarding ? 6 : 8}
-        className="font-mono text-[13px]"
-      />
-    </Field>
+    <div className="space-y-4">
+      <ProfileSection
+        title="Projects"
+        description="Structured project data (JSON). Used for deeper portfolio-aware matching when enabled."
+      >
+        <Field label="Projects JSON">
+          <Textarea
+            value={projectsJson}
+            onChange={(e) => setProjectsJson(e.target.value)}
+            disabled={!canEdit}
+            rows={isOnboarding ? 6 : 10}
+            className="font-mono text-[15px]"
+          />
+        </Field>
+      </ProfileSection>
+    </div>
   );
 
   function renderReviewFields() {
-    if (!isOnboarding) {
-      return (
-        <div className="space-y-5">
-          {essentialsFields}
-          {skillsFields}
-          {preferencesFields}
-          {advancedFields}
-        </div>
-      );
-    }
     switch (reviewTab) {
       case "essentials":
         return essentialsFields;
@@ -829,37 +964,113 @@ export function ProfileWorkspace({
     }
   }
 
+  const activeTabMeta =
+    REVIEW_TABS.find((t) => t.id === reviewTab) ?? REVIEW_TABS[0]!;
+
+  function renderTabChrome(actions?: React.ReactNode) {
+    return (
+      <div className="border-border space-y-3 border-b px-8 py-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <nav
+            aria-label="Profile sections"
+            className="bg-muted/50 flex flex-wrap gap-1 rounded-xl p-1"
+          >
+            {REVIEW_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setReviewTab(tab.id)}
+                className={cn(
+                  "rounded-lg px-3.5 py-2 text-[15px] font-medium transition-colors",
+                  reviewTab === tab.id
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+          {actions}
+        </div>
+        <p className="text-muted-foreground text-[14px] leading-relaxed">
+          {activeTabMeta.description}
+        </p>
+      </div>
+    );
+  }
+
   const sourceList = sources.length > 0 ? (
     <ul className="divide-border divide-y">
       {sources.map((s) => (
-        <li
-          key={s.id}
-          className="flex items-center justify-between gap-3 py-2"
-        >
-          <div className="min-w-0">
-            <p className="truncate text-[13px] font-medium">
-              {SOURCE_LABELS[s.type] ?? s.type}
-              {s.label ? (
-                <span className="text-muted-foreground font-normal">
-                  {" "}
-                  · {s.label}
-                </span>
-              ) : null}
-            </p>
-            <p className="text-muted-foreground text-[11px]">
-              {s.textLength.toLocaleString()} chars
-              {s.sourceUrl ? ` · ${s.sourceUrl}` : ""}
-            </p>
+        <li key={s.id} className="space-y-2 py-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-[15px] font-medium">
+                {SOURCE_LABELS[s.type] ?? s.type}
+                {s.label ? (
+                  <span className="text-muted-foreground font-normal">
+                    {" "}
+                    · {s.label}
+                  </span>
+                ) : null}
+              </p>
+              <p className="text-muted-foreground text-[14px]">
+                {s.textLength.toLocaleString()} chars
+                {s.sourceUrl ? ` · ${s.sourceUrl}` : ""}
+                {s.lastSyncedAt
+                  ? ` · synced ${new Date(s.lastSyncedAt).toLocaleDateString()}`
+                  : ""}
+              </p>
+            </div>
+            {confirmDeleteId === s.id ? null : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={pending}
+                onClick={() => setConfirmDeleteId(s.id)}
+              >
+                Remove source
+              </Button>
+            )}
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={pending}
-            onClick={() => run("Removed", () => deleteProfileSourceAction(s.id))}
-          >
-            Remove
-          </Button>
+          {confirmDeleteId === s.id ? (
+            <div className="border-destructive/30 bg-destructive/5 space-y-2 rounded-xl border px-3 py-3">
+              <p className="text-destructive text-[13px] leading-relaxed">
+                Remove this connected source? Extracted Professional Profile
+                facts stay until you edit or regenerate a draft. This does not
+                change matching toggles for other sources.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  disabled={pending}
+                  onClick={() =>
+                    run("Source removed", async () => {
+                      const result = await deleteProfileSourceAction(s.id, {
+                        confirmed: true,
+                      });
+                      setConfirmDeleteId(null);
+                      return result;
+                    })
+                  }
+                >
+                  Confirm remove
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setConfirmDeleteId(null)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </li>
       ))}
     </ul>
@@ -869,7 +1080,7 @@ export function ProfileWorkspace({
     <div className="space-y-4">
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Label className="text-[13px]">Files</Label>
+          <Label className="text-[15px]">Files</Label>
           <div className="flex gap-1">
             {(
               [
@@ -905,15 +1116,29 @@ export function ProfileWorkspace({
           onFile={(file) => ingestFile(file, fileKind)}
         />
         {fileKind === "linkedin_text" ? (
-          <p className="text-muted-foreground text-[12px]">
-            <button
-              type="button"
-              className="underline underline-offset-2"
-              onClick={() => setShowLinkedinPaste((v) => !v)}
-            >
-              {showLinkedinPaste ? "Hide paste" : "Or paste text instead"}
-            </button>
-          </p>
+          <div className="space-y-2">
+            <ol className="text-muted-foreground list-decimal space-y-1 pl-5 text-[14px] leading-relaxed">
+              <li>Open your LinkedIn profile</li>
+              <li>
+                Choose <span className="text-foreground font-medium">Resources</span>{" "}
+                or <span className="text-foreground font-medium">More</span>
+              </li>
+              <li>
+                Select{" "}
+                <span className="text-foreground font-medium">Save to PDF</span>
+              </li>
+              <li>Upload the PDF here (Optra does not connect to LinkedIn)</li>
+            </ol>
+            <p className="text-muted-foreground text-[14px]">
+              <button
+                type="button"
+                className="underline underline-offset-2"
+                onClick={() => setShowLinkedinPaste((v) => !v)}
+              >
+                {showLinkedinPaste ? "Hide paste" : "Or paste text instead"}
+              </button>
+            </p>
+          </div>
         ) : null}
         {showLinkedinPaste && fileKind === "linkedin_text" ? (
           <div className="space-y-2">
@@ -956,7 +1181,7 @@ export function ProfileWorkspace({
       <Separator />
 
       <div className="space-y-2">
-        <Label htmlFor="portfolio-url" className="text-[13px]">
+        <Label htmlFor="portfolio-url" className="text-[15px]">
           Website
         </Label>
         <div className="flex flex-wrap gap-2">
@@ -984,13 +1209,54 @@ export function ProfileWorkspace({
             Fetch
           </Button>
         </div>
+        <label className="flex cursor-pointer items-start gap-2.5 text-[14px] leading-snug">
+          <input
+            type="checkbox"
+            className="border-input bg-background text-foreground mt-0.5 size-4 shrink-0 rounded"
+            checked={portfolioInMatching}
+            disabled={pending}
+            title="Include portfolio project evidence in job match scores. Turning this off never deletes your portfolio or Professional Profile."
+            onChange={(e) => {
+              const next = e.target.checked;
+              const prev = portfolioInMatching;
+              setPortfolioInMatching(next);
+              setError(null);
+              setMessage(null);
+              startTransition(async () => {
+                const result = await setUsePortfolioInMatchingAction(next);
+                if (!result.ok) {
+                  setPortfolioInMatching(prev);
+                  setError(result.error ?? "Something went wrong");
+                  return;
+                }
+                setMessage(
+                  next
+                    ? "Portfolio projects included in match scores. Nothing was re-imported."
+                    : "Portfolio projects excluded from match scores. Your portfolio and Professional Profile were not deleted.",
+                );
+                router.refresh();
+              });
+            }}
+          />
+          <span>
+            <span className="font-medium text-[var(--card-foreground)]">
+              Use portfolio projects for job matching
+            </span>
+            <span className="text-muted-foreground mt-0.5 block text-[13px]">
+              Include skills, responsibilities, industries, and experience
+              demonstrated in your portfolio projects when calculating job match
+              scores. Turning this off will not delete your portfolio or
+              professional profile.
+            </span>
+          </span>
+        </label>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="github-profile" className="text-[13px]">
+        <Label htmlFor="github-profile" className="text-[15px]">
           GitHub
         </Label>
-        <p className="text-muted-foreground text-[12px] leading-snug">
+        <p className="text-muted-foreground text-[14px] leading-snug">
           We pull public repos, descriptions, and README excerpts — then draft
           projects for your profile.
         </p>
@@ -1030,7 +1296,7 @@ export function ProfileWorkspace({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="about-you" className="text-[13px]">
+        <Label htmlFor="about-you" className="text-[15px]">
           About you
         </Label>
         <Textarea
@@ -1133,7 +1399,7 @@ export function ProfileWorkspace({
 
             {sourceList ? (
               <div className="border-border space-y-3 border-t pt-5">
-                <p className="text-muted-foreground text-[13px] font-medium tracking-wide uppercase">
+                <p className="text-muted-foreground text-[15px] font-medium tracking-wide uppercase">
                   Sources · {sources.length}
                 </p>
                 {sourceList}
@@ -1188,17 +1454,17 @@ export function ProfileWorkspace({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             {approved ? (
-              <Badge className="h-7 px-2.5 text-[13px]">
+              <Badge className="h-7 px-2.5 text-[15px]">
                 <Check className="size-3.5" aria-hidden />
                 Approved v{approved.version}
               </Badge>
             ) : (
-              <Badge variant="outline" className="h-7 px-2.5 text-[13px]">
+              <Badge variant="outline" className="h-7 px-2.5 text-[15px]">
                 Review draft
               </Badge>
             )}
             {draft ? (
-              <Badge variant="secondary" className="h-7 px-2.5 text-[13px]">
+              <Badge variant="secondary" className="h-7 px-2.5 text-[15px]">
                 Draft v{draft.version}
               </Badge>
             ) : null}
@@ -1230,28 +1496,8 @@ export function ProfileWorkspace({
           </Surface>
         ) : (
           <Surface>
-            <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4 sm:px-6">
-              <nav
-                aria-label="Profile sections"
-                className="bg-muted/50 flex flex-wrap gap-1 rounded-xl p-1"
-              >
-                {REVIEW_TABS.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setReviewTab(tab.id)}
-                    className={cn(
-                      "rounded-lg px-3.5 py-2 text-[13px] font-medium transition-colors sm:text-[14px]",
-                      reviewTab === tab.id
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </nav>
-              {draft ? (
+            {renderTabChrome(
+              draft ? (
                 <div className="flex flex-wrap gap-2.5">
                   <Button
                     type="button"
@@ -1291,8 +1537,8 @@ export function ProfileWorkspace({
                 <p className="text-muted-foreground text-[14px]">
                   Extract again to edit.
                 </p>
-              )}
-            </div>
+              ),
+            )}
             <PanelBody className="space-y-5 px-5 py-6 sm:px-6 sm:py-7">
               {!draft && approved ? (
                 <div className="border-border bg-muted/30 rounded-xl border px-4 py-3 text-[14px]">
@@ -1307,7 +1553,7 @@ export function ProfileWorkspace({
                 </div>
               ) : null}
               {renderReviewFields()}
-              {draft && reviewTab !== "essentials" ? null : draft ? (
+              {draft && reviewTab === "essentials" ? (
                 <p className="text-muted-foreground text-[14px] leading-relaxed">
                   Essentials are enough to continue. Other tabs are optional
                   polish.
@@ -1324,26 +1570,28 @@ export function ProfileWorkspace({
   const pageSourcesOpen = sourcesOpen || !active;
 
   return (
-    <div className="space-y-5">
-      {error ? (
-        <p className="text-destructive text-[14px]">{error}</p>
-      ) : null}
-      {message ? (
-        <p className="text-muted-foreground text-[14px]">{message}</p>
+    <div className="space-y-8">
+      {error ? <InlineAlert variant="error">{error}</InlineAlert> : null}
+      {message ? <InlineAlert variant="info">{message}</InlineAlert> : null}
+      {draft ? (
+        <InlineAlert variant="info">
+          Review this draft before approving. Approving saves it for job
+          matching — matching toggles never delete what you approve.
+        </InlineAlert>
       ) : null}
 
       <Surface>
         <button
           type="button"
-          className="border-border flex w-full items-center justify-between gap-3 border-b px-5 py-3.5 text-left sm:px-6"
+          className="border-border flex w-full items-center justify-between gap-3 border-b px-8 py-6 text-left"
           onClick={() => setSourcesOpen((v) => !v)}
           aria-expanded={pageSourcesOpen}
         >
-          <div>
-            <p className="text-[14px] font-semibold text-[var(--card-foreground)]">
+          <div className="space-y-1">
+            <p className="font-display text-[16px] font-semibold tracking-tight text-[var(--card-foreground)]">
               Sources
             </p>
-            <p className="text-muted-foreground text-[13px]">
+            <p className="text-muted-foreground text-[15px]">
               {sources.length > 0
                 ? `${sources.length} added · CV, LinkedIn, portfolio, notes`
                 : "Add a CV or LinkedIn to draft your profile"}
@@ -1358,7 +1606,7 @@ export function ProfileWorkspace({
           />
         </button>
         {pageSourcesOpen ? (
-          <PanelBody className="space-y-6 px-5 py-5 sm:px-6">
+          <PanelBody className="space-y-6">
             {moreSourcesPanel}
             {sourceList ? (
               <>
@@ -1370,7 +1618,6 @@ export function ProfileWorkspace({
               <Button
                 type="button"
                 size="lg"
-                className="h-10 px-4 text-[14px]"
                 disabled={pending || sources.length === 0}
                 onClick={() =>
                   run("Profile drafted", () => extractProfileAction())
@@ -1379,7 +1626,7 @@ export function ProfileWorkspace({
                 {active ? "Re-draft from sources" : "Draft profile from sources"}
               </Button>
               {sources.length === 0 ? (
-                <p className="text-muted-foreground text-[13px]">
+                <p className="text-muted-foreground text-[15px]">
                   Add at least one source first.
                 </p>
               ) : null}
@@ -1390,7 +1637,7 @@ export function ProfileWorkspace({
 
       {!active ? (
         <Surface>
-          <div className="flex flex-col items-center justify-center gap-5 px-6 py-14 text-center sm:px-8 sm:py-16">
+          <div className="flex flex-col items-center justify-center gap-5 px-8 py-16 text-center">
             <div
               aria-hidden
               className="border-border bg-muted/40 text-muted-foreground grid size-14 place-items-center rounded-2xl border"
@@ -1398,10 +1645,10 @@ export function ProfileWorkspace({
               <FileText className="size-6 opacity-70" strokeWidth={1.5} />
             </div>
             <div className="space-y-2">
-              <p className="font-display text-[18px] font-semibold sm:text-[20px]">
+              <p className="font-display text-[20px] font-semibold">
                 No profile draft yet
               </p>
-              <p className="text-muted-foreground mx-auto max-w-sm text-[14px] leading-relaxed sm:text-[15px]">
+              <p className="text-muted-foreground mx-auto max-w-sm text-[15px] leading-relaxed">
                 Add a source above, then draft a profile to review essentials,
                 skills, and job prefs.
               </p>
@@ -1424,54 +1671,11 @@ export function ProfileWorkspace({
         </Surface>
       ) : (
         <Surface>
-          <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4 sm:px-6">
-            <nav
-              aria-label="Profile sections"
-              className="bg-muted/50 flex flex-wrap gap-1 rounded-xl p-1"
-            >
-              {REVIEW_TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setReviewTab(tab.id)}
-                  className={cn(
-                    "rounded-lg px-3.5 py-2 text-[13px] font-medium transition-colors sm:text-[14px]",
-                    reviewTab === tab.id
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
-            {draft ? (
-              <div className="flex flex-wrap gap-2.5">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="lg"
-                  className="h-10 px-4 text-[14px]"
-                  disabled={pending}
-                  onClick={saveDraft}
-                >
-                  Save
-                </Button>
-                <Button
-                  type="button"
-                  size="lg"
-                  className="h-10 px-4 text-[14px]"
-                  disabled={pending}
-                  onClick={approveDraft}
-                >
-                  Approve
-                </Button>
-              </div>
-            ) : approved ? (
+          {renderTabChrome(
+            !draft && approved ? (
               <Button
                 type="button"
                 size="lg"
-                className="h-10 px-4 text-[14px]"
                 disabled={pending}
                 onClick={() =>
                   run("Ready to edit", () =>
@@ -1481,9 +1685,9 @@ export function ProfileWorkspace({
               >
                 Edit profile
               </Button>
-            ) : null}
-          </div>
-          <PanelBody className="space-y-5 px-5 py-6 sm:px-6 sm:py-7">
+            ) : null,
+          )}
+          <PanelBody className="space-y-6">
             {!draft && approved ? (
               <div className="border-border bg-muted/30 rounded-xl border px-4 py-3 text-[14px]">
                 <p className="text-foreground font-medium">
@@ -1499,6 +1703,25 @@ export function ProfileWorkspace({
           </PanelBody>
         </Surface>
       )}
+
+      {children}
+
+      {draft ? (
+        <StickyFormActions message="Save anytime — approve when the draft looks right.">
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            disabled={pending}
+            onClick={saveDraft}
+          >
+            Save draft
+          </Button>
+          <Button type="button" size="lg" disabled={pending} onClick={approveDraft}>
+            Approve profile
+          </Button>
+        </StickyFormActions>
+      ) : null}
     </div>
   );
 }

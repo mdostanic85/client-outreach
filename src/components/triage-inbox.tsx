@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { Building2, ChevronDown, ExternalLink } from "lucide-react";
 import {
   acceptLeadAction,
@@ -12,12 +12,16 @@ import {
 } from "@/app/actions";
 import { DiscoverControls } from "@/components/discover-controls";
 import { EmptyState } from "@/components/empty-state";
+import { InlineAlert } from "@/components/inline-alert";
+import { Stagger, StaggerItem } from "@/components/motion";
 import {
   PageHeader,
   PageShell,
-  SectionTitle,
   Surface,
 } from "@/components/page-shell";
+import { ScoreBadge } from "@/components/score-badge";
+import { SearchProgressModal } from "@/components/search-progress-modal";
+import { SegmentedControl } from "@/components/segmented-control";
 import { PolicyPill, StatePill } from "@/components/status-pill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,29 +47,6 @@ export type TriageRow = {
 
 type Filter = "all" | "new" | "saved";
 
-function FitScore({ score }: { score: number | null }) {
-  if (score == null) {
-    return (
-      <span className="text-muted-foreground tabular text-[13px]">—</span>
-    );
-  }
-  const strong = score >= 70;
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-semibold tabular-nums",
-        strong
-          ? "bg-primary/15 text-primary"
-          : "bg-muted text-muted-foreground",
-      )}
-      title="Fit score"
-    >
-      <span className="text-[10px] font-medium uppercase opacity-70">Fit</span>
-      {Number.isInteger(score) ? score : score.toFixed(1)}
-    </span>
-  );
-}
-
 export function TriageInbox({
   rows,
   embedded = false,
@@ -76,12 +57,41 @@ export function TriageInbox({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [searching, setSearching] = useState(false);
+  const cancelledRef = useRef(false);
   const [filter, setFilter] = useState<Filter>("all");
   const [error, setError] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [showDiscover, setShowDiscover] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const findCompanies = () => {
+    setError(null);
+    cancelledRef.current = false;
+    setSearching(true);
+    startTransition(async () => {
+      try {
+        const result = await runDailyPipelineAction();
+        if (cancelledRef.current) return;
+        if (!result.ok) setError(result.error ?? "Failed");
+        else router.refresh();
+      } catch (err) {
+        if (cancelledRef.current) return;
+        setError(
+          err instanceof Error ? err.message : "Company search failed",
+        );
+      } finally {
+        if (!cancelledRef.current) setSearching(false);
+      }
+    });
+  };
+
+  const cancelSearch = () => {
+    cancelledRef.current = true;
+    setSearching(false);
+    setError(null);
+  };
 
   const filtered = useMemo(() => {
     if (filter === "saved") {
@@ -117,32 +127,23 @@ export function TriageInbox({
     });
   };
 
-  const filters: { id: Filter; label: string; count: number }[] = [
-    { id: "all", label: "All", count: counts.all },
-    { id: "new", label: "To review", count: counts.new },
-    { id: "saved", label: "Saved", count: counts.saved },
-  ];
+  const hasRows = rows.length > 0;
+  const findLabel = pending || searching ? "Finding…" : hasRows ? "Refresh companies" : "Find companies";
 
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2">
-      {rows.length > 0 ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={pending}
-          onClick={() =>
-            run(async () => {
-              const result = await runDailyPipelineAction();
-              return result;
-            })
-          }
-        >
-          Refresh
-        </Button>
-      ) : null}
+      <Button
+        id="today-primary-action"
+        size="lg"
+        variant={hasRows ? "outline" : "default"}
+        disabled={pending || searching}
+        onClick={findCompanies}
+      >
+        {findLabel}
+      </Button>
       <Button
         variant="outline"
-        size="sm"
+        size="lg"
         onClick={() => setShowDiscover((v) => !v)}
       >
         {showDiscover ? "Hide" : "Add company"}
@@ -152,19 +153,17 @@ export function TriageInbox({
 
   const body = (
     <>
-      {embedded ? (
-        <SectionTitle
-          title="Today · Clients"
-          description="Accept to write outreach, save for later, or skip."
-          actions={headerActions}
-        />
-      ) : (
-        <PageHeader
-          title="Today · Clients"
-          description="Accept to write outreach, save for later, or skip."
-          actions={headerActions}
-        />
-      )}
+      <SearchProgressModal
+        open={searching}
+        mode="companies"
+        onCancel={cancelSearch}
+      />
+
+      <PageHeader
+        title="Today · Companies"
+        description="Companies to research and email. Accept one to draft outreach — separate from job matches."
+        actions={headerActions}
+      />
 
       {showDiscover ? (
         <Surface className="px-5 py-5 sm:px-6">
@@ -172,11 +171,7 @@ export function TriageInbox({
         </Surface>
       ) : null}
 
-      {error ? (
-        <p className="border-destructive/30 bg-destructive/10 text-destructive rounded-xl border px-4 py-3 text-[14px]">
-          {error}
-        </p>
-      ) : null}
+      {error ? <InlineAlert variant="error">{error}</InlineAlert> : null}
 
       {rows.length === 0 ? (
         <Surface>
@@ -184,17 +179,12 @@ export function TriageInbox({
             title="No companies yet"
             description="Find companies to fill this inbox, or add a company URL."
             actionId="today-primary-action"
-            actionLabel={pending ? "Finding…" : "Find companies"}
-            pending={pending}
+            actionLabel={searching ? "Finding…" : "Find companies"}
+            pending={pending || searching}
             icon={
               <Building2 className="size-6 opacity-70" strokeWidth={1.5} />
             }
-            onAction={() =>
-              run(async () => {
-                const result = await runDailyPipelineAction();
-                return result;
-              })
-            }
+            onAction={findCompanies}
           />
           <div className="border-border border-t px-5 py-4 sm:px-6">
             <DiscoverControls />
@@ -203,30 +193,17 @@ export function TriageInbox({
       ) : (
         <Surface>
           <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 sm:px-5">
-            <div
-              role="tablist"
-              aria-label="Client filters"
-              className="bg-muted/50 border-border inline-flex rounded-xl border p-1"
-            >
-              {filters.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={filter === t.id}
-                  onClick={() => setFilter(t.id)}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors",
-                    filter === t.id
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {t.label}
-                  <span className="tabular opacity-80">{t.count}</span>
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              ariaLabel="Client filters"
+              value={filter}
+              onChange={setFilter}
+              size="sm"
+              options={[
+                { id: "all", label: "All", count: counts.all },
+                { id: "new", label: "To review", count: counts.new },
+                { id: "saved", label: "Saved", count: counts.saved },
+              ]}
+            />
           </div>
 
           {filtered.length === 0 ? (
@@ -238,8 +215,8 @@ export function TriageInbox({
               onAction={() => setFilter("all")}
             />
           ) : (
-            <ul className="divide-border divide-y">
-              {filtered.map((row) => {
+            <Stagger as="ul" className="divide-border divide-y">
+              {filtered.map((row, index) => {
                 const open = expandedId === row.leadId;
                 const summary = row.topNeed ?? row.oneLiner;
                 const meta = [row.domain, row.country]
@@ -247,43 +224,48 @@ export function TriageInbox({
                   .join(" · ");
 
                 return (
-                  <li
+                  <StaggerItem
                     key={row.leadId}
-                    className="hover:bg-accent-wash/40 transition-colors"
+                    as="li"
+                    index={index}
+                    className="interactive-row"
                   >
                     <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:gap-4 sm:px-5 sm:py-4">
                       <div className="min-w-0 flex-1 space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Link
-                            href={`/leads/${row.leadId}`}
-                            className="text-[15px] font-semibold text-[var(--card-foreground)] hover:text-primary"
-                          >
-                            {row.companyName}
-                          </Link>
-                          <FitScore score={row.score} />
-                          <StatePill
-                            state={row.state}
-                            className="px-2 py-0.5 text-[11px]"
-                          />
-                          {row.policy !== "draft_allowed" &&
-                          row.policy !== "unknown" ? (
-                            <PolicyPill
-                              policy={row.policy}
-                              className="px-2 py-0.5 text-[11px]"
-                            />
-                          ) : null}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 space-y-1.5">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Link
+                                href={`/leads/${row.leadId}`}
+                                className="text-[17px] font-semibold text-[var(--card-foreground)] hover:text-primary"
+                              >
+                                {row.companyName}
+                              </Link>
+                              <StatePill
+                                state={row.state}
+                                className="px-2 py-0.5 text-[14px]"
+                              />
+                              {row.policy !== "draft_allowed" &&
+                              row.policy !== "unknown" ? (
+                                <PolicyPill
+                                  policy={row.policy}
+                                  className="px-2 py-0.5 text-[14px]"
+                                />
+                              ) : null}
+                            </div>
+                            {meta ? (
+                              <p className="text-muted-foreground text-[15px]">
+                                {meta}
+                              </p>
+                            ) : null}
+                          </div>
+                          <ScoreBadge score={row.score} kind="fit" />
                         </div>
-
-                        {meta ? (
-                          <p className="text-muted-foreground text-[13px]">
-                            {meta}
-                          </p>
-                        ) : null}
 
                         {summary ? (
                           <p
                             className={cn(
-                              "text-muted-foreground text-[14px] leading-relaxed",
+                              "text-muted-foreground text-[15px] leading-relaxed",
                               !open && "line-clamp-2",
                             )}
                           >
@@ -292,7 +274,7 @@ export function TriageInbox({
                         ) : null}
 
                         {open ? (
-                          <div className="border-border/60 space-y-2 border-t pt-3 text-[13px]">
+                          <div className="animate-expand border-border/60 space-y-2 border-t pt-3 text-[15px]">
                             {row.whyFit ? (
                               <p>
                                 <span className="text-foreground font-medium">
@@ -321,7 +303,7 @@ export function TriageInbox({
                             ) : null}
                             <Link
                               href={`/leads/${row.leadId}`}
-                              className="text-primary inline-flex text-[13px] font-medium underline-offset-2 hover:underline"
+                              className="text-primary inline-flex text-[15px] font-medium underline-offset-2 hover:underline"
                             >
                               Open company →
                             </Link>
@@ -408,7 +390,7 @@ export function TriageInbox({
                         </div>
                         <button
                           type="button"
-                          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-[12px] font-medium"
+                          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-[14px] font-medium"
                           onClick={() =>
                             setExpandedId(open ? null : row.leadId)
                           }
@@ -416,7 +398,7 @@ export function TriageInbox({
                           {open ? "Less" : "Details"}
                           <ChevronDown
                             className={cn(
-                              "size-3.5 transition-transform",
+                              "size-3.5 transition-transform duration-200 ease-[var(--ease-out-soft)]",
                               open && "rotate-180",
                             )}
                             aria-hidden
@@ -424,10 +406,10 @@ export function TriageInbox({
                         </button>
                       </div>
                     </div>
-                  </li>
+                  </StaggerItem>
                 );
               })}
-            </ul>
+            </Stagger>
           )}
         </Surface>
       )}
@@ -438,5 +420,5 @@ export function TriageInbox({
     return <div className="space-y-5">{body}</div>;
   }
 
-  return <PageShell className="gap-6 lg:gap-8">{body}</PageShell>;
+  return <PageShell>{body}</PageShell>;
 }
