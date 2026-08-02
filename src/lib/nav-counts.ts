@@ -2,33 +2,29 @@ import { ensureDb } from "@/db/ensure";
 import { approvals, drafts, jobs, leads } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 
-export function getNavCounts() {
-  const db = ensureDb();
-  const leadsCount = db
+export async function getNavCounts() {
+  const db = await ensureDb();
+  const leadsCount = (await db
     .select()
     .from(leads)
-    .where(inArray(leads.state, ["suggested", "researched", "saved_for_later"]))
-    .all().length;
+    .where(inArray(leads.state, ["suggested", "researched", "saved_for_later"]))).length;
 
-  const pendingDrafts = db
+  const pendingDrafts = (await db
     .select()
     .from(drafts)
-    .where(inArray(drafts.state, ["draft"]))
-    .all().length;
+    .where(inArray(drafts.state, ["draft"]))).length;
 
-  const approvedWaiting = db
+  const approvedWaiting = (await db
     .select()
-    .from(approvals)
-    .all()
+    .from(approvals))
     .filter((a) => a.status === "approved" && !a.consumedAt).length;
 
-  const interestedCount = db
+  const interestedCount = (await db
     .select()
     .from(jobs)
     .where(
       and(eq(jobs.status, "active"), eq(jobs.triageState, "interested")),
-    )
-    .all().length;
+    )).length;
 
   return {
     leadsCount,

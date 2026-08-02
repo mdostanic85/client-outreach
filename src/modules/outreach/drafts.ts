@@ -78,7 +78,7 @@ export async function generateDraft(
 }> {
   const kind: DraftKind = options?.kind ?? "initial";
   const db = getDb();
-  const lead = db.select().from(leads).where(eq(leads.id, leadId)).get();
+  const lead = (await db.select().from(leads).where(eq(leads.id, leadId)).limit(1))[0];
   if (!lead) throw new Error("Lead not found");
 
   const allowedStates =
@@ -102,42 +102,39 @@ export async function generateDraft(
     throw new Error("A usable outreach angle is required before drafting");
   }
 
-  const contact = db.select().from(contacts).where(eq(contacts.id, contactId)).get();
+  const contact = (await db.select().from(contacts).where(eq(contacts.id, contactId)).limit(1))[0];
   if (!contact) throw new Error("Contact not found");
   if (!contact.email) throw new Error("Contact needs an email before drafting");
 
-  const company = db
+  const company = (await db
     .select()
     .from(companies)
-    .where(eq(companies.id, lead.companyId))
-    .get();
+    .where(eq(companies.id, lead.companyId)).limit(1))[0];
   if (!company) throw new Error("Company not found");
 
-  const jurisdiction = canGenerateDraft(company.country);
+  const jurisdiction = await canGenerateDraft(company.country);
   if (!jurisdiction.allowed) {
     throw new Error(jurisdiction.reason ?? "Jurisdiction policy blocks draft");
   }
 
-  const brief = db
+  const brief = (await db
     .select()
     .from(researchBriefs)
     .where(eq(researchBriefs.companyId, lead.companyId))
-    .orderBy(desc(researchBriefs.createdAt))
-    .all()[0];
+    .orderBy(desc(researchBriefs.createdAt)).limit(1))[0];
   if (!brief) throw new Error("Research brief required before drafting");
 
   const research = JSON.parse(brief.resultJson) as ResearchAndScore;
   const evidence = JSON.parse(brief.evidenceJson) as EvidenceItem[];
-  const setting = db.select().from(settings).all()[0];
+  const setting = (await db.select().from(settings).limit(1))[0];
 
   const previous =
     kind !== "initial"
-      ? db
+      ? (await db
           .select()
           .from(drafts)
           .where(eq(drafts.leadId, leadId))
-          .orderBy(desc(drafts.createdAt))
-          .all()
+          .orderBy(desc(drafts.createdAt)))
           .find((d) => d.kind === "initial" || d.state === "sent")
       : null;
 
@@ -180,7 +177,7 @@ export async function generateDraft(
   const user = JSON.stringify(payload, null, 2);
   let written = await callWriter({ system, user });
 
-  const policy = resolveCountryPolicy(company.country);
+  const policy = await resolveCountryPolicy(company.country);
   const requireOptOut =
     effectivePolicy(policy.policy) === "manual_review_required";
 
@@ -241,7 +238,7 @@ export async function generateDraft(
   const now = nowIso();
   const draftId = newId("draft");
 
-  db.insert(drafts)
+  await db.insert(drafts)
     .values({
       id: draftId,
       leadId,
@@ -255,17 +252,15 @@ export async function generateDraft(
       state: "draft",
       createdAt: now,
       updatedAt: now,
-    })
-    .run();
+    });
 
   if (kind === "initial") {
-    db.update(leads)
+    await db.update(leads)
       .set({ state: "draft_ready", updatedAt: now })
-      .where(eq(leads.id, leadId))
-      .run();
+      .where(eq(leads.id, leadId));
   }
 
-  db.insert(activities)
+  await db.insert(activities)
     .values({
       id: newId("act"),
       leadId,
@@ -277,38 +272,36 @@ export async function generateDraft(
         critiqueScore: critique?.score ?? null,
       }),
       occurredAt: now,
-    })
-    .run();
+    });
 
   logger.info({ leadId, draftId, kind, qualityOk: quality.ok }, "Draft generated");
   return { draftId, quality, critique };
 }
 
-export function updateDraft(draftId: string, bodyFinal: string, subject?: string) {
+export async function updateDraft(draftId: string, bodyFinal: string, subject?: string) {
   const db = getDb();
-  const draft = db.select().from(drafts).where(eq(drafts.id, draftId)).get();
+  const draft = (await db.select().from(drafts).where(eq(drafts.id, draftId)).limit(1))[0];
   if (!draft) throw new Error("Draft not found");
 
   const nextSubject = subject ?? draft.subject;
   const changed =
     nextSubject !== draft.subject || bodyFinal !== draft.bodyFinal;
 
-  db.update(drafts)
+  await db.update(drafts)
     .set({
       bodyFinal,
       subject: nextSubject,
       state: draft.state === "approved" && changed ? "draft" : draft.state,
       updatedAt: nowIso(),
     })
-    .where(eq(drafts.id, draftId))
-    .run();
+    .where(eq(drafts.id, draftId));
 
   if (changed) {
     const ratio = editRatio(
       `${draft.subject}\n${draft.bodyFinal}`,
       `${nextSubject}\n${bodyFinal}`,
     );
-    db.insert(draftEdits)
+    await db.insert(draftEdits)
       .values({
         id: newId("ded"),
         draftId,
@@ -319,23 +312,21 @@ export function updateDraft(draftId: string, bodyFinal: string, subject?: string
         bodyAfter: bodyFinal,
         editRatio: ratio,
         createdAt: nowIso(),
-      })
-      .run();
-    invalidateApprovalsForDraft(draftId);
+      });
+    await invalidateApprovalsForDraft(draftId);
   }
 }
 
-export function markDraftSent(draftId: string) {
+export async function markDraftSent(draftId: string) {
   const db = getDb();
-  const draft = db.select().from(drafts).where(eq(drafts.id, draftId)).get();
+  const draft = (await db.select().from(drafts).where(eq(drafts.id, draftId)).limit(1))[0];
   if (!draft) throw new Error("Draft not found");
 
   if (draft.contactId) {
-    const contact = db
+    const contact = (await db
       .select()
       .from(contacts)
-      .where(eq(contacts.id, draft.contactId))
-      .get();
+      .where(eq(contacts.id, draft.contactId)).limit(1))[0];
     if (
       contact?.confidence === "pattern_unverified" ||
       contact?.confidence === "unknown"
@@ -347,58 +338,53 @@ export function markDraftSent(draftId: string) {
   }
 
   const now = nowIso();
-  db.update(drafts)
+  await db.update(drafts)
     .set({ state: "sent", updatedAt: now })
-    .where(eq(drafts.id, draftId))
-    .run();
+    .where(eq(drafts.id, draftId));
 
-  db.update(leads)
+  await db.update(leads)
     .set({ state: "sent", updatedAt: now })
-    .where(eq(leads.id, draft.leadId))
-    .run();
+    .where(eq(leads.id, draft.leadId));
 
-  db.insert(activities)
+  await db.insert(activities)
     .values({
       id: newId("act"),
       leadId: draft.leadId,
       type: "marked_sent",
       metadataJson: JSON.stringify({ draftId }),
       occurredAt: now,
-    })
-    .run();
+    });
 }
 
 /** Run quality checks on current draft body without regenerating. */
-export function inspectDraftQuality(draftId: string) {
+export async function inspectDraftQuality(draftId: string) {
   const db = getDb();
-  const draft = db.select().from(drafts).where(eq(drafts.id, draftId)).get();
+  const draft = (await db.select().from(drafts).where(eq(drafts.id, draftId)).limit(1))[0];
   if (!draft) throw new Error("Draft not found");
 
-  const lead = db.select().from(leads).where(eq(leads.id, draft.leadId)).get();
+  const lead = (await db.select().from(leads).where(eq(leads.id, draft.leadId)).limit(1))[0];
   if (!lead) throw new Error("Lead not found");
 
-  const company = db
+  const company = (await db
     .select()
     .from(companies)
-    .where(eq(companies.id, lead.companyId))
-    .get();
+    .where(eq(companies.id, lead.companyId)).limit(1))[0];
 
   const contact = draft.contactId
-    ? db.select().from(contacts).where(eq(contacts.id, draft.contactId)).get()
+    ? (await db.select().from(contacts).where(eq(contacts.id, draft.contactId)).limit(1))[0]
     : null;
 
-  const brief = db
+  const brief = (await db
     .select()
     .from(researchBriefs)
     .where(eq(researchBriefs.companyId, lead.companyId))
-    .orderBy(desc(researchBriefs.createdAt))
-    .all()[0];
+    .orderBy(desc(researchBriefs.createdAt)).limit(1))[0];
 
   const evidence = brief
     ? (JSON.parse(brief.evidenceJson) as EvidenceItem[])
     : [];
 
-  const policy = resolveCountryPolicy(company?.country);
+  const policy = await resolveCountryPolicy(company?.country);
   const requireOptOut =
     effectivePolicy(policy.policy) === "manual_review_required";
 

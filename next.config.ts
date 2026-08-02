@@ -7,9 +7,8 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname),
   },
-  // Local-only MVP: never expose on all interfaces
   serverExternalPackages: [
-    "better-sqlite3",
+    "@neondatabase/serverless",
     "pino",
     "pino-pretty",
     "jsdom",

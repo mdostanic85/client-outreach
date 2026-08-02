@@ -58,13 +58,12 @@ function findLinkedPath(
  * Reuse stored page when URL + prompt + model match and content hash unchanged
  * (we skip re-fetch if a successful page for that URL exists within refresh window).
  */
-function findCachedPage(companyId: string, url: string, modelId: string) {
+async function findCachedPage(companyId: string, url: string, modelId: string) {
   const db = getDb();
-  const rows = db
+  const rows = await db
     .select()
     .from(sourcePages)
-    .where(and(eq(sourcePages.companyId, companyId), eq(sourcePages.url, url)))
-    .all();
+    .where(and(eq(sourcePages.companyId, companyId), eq(sourcePages.url, url)));
 
   return rows.find(
     (r) =>
@@ -81,7 +80,7 @@ async function fetchAndStore(
   kind: string,
   modelId: string,
 ): Promise<(RetrievedPage & { kind: string; pageId: string }) | null> {
-  const cached = findCachedPage(companyId, url, modelId);
+  const cached = await findCachedPage(companyId, url, modelId);
   if (cached) {
     logger.info({ url, companyId }, "Using cached source page");
     return {
@@ -105,7 +104,7 @@ async function fetchAndStore(
   // Also keep raw HTML temporarily for link discovery — re-fetch stores text only.
   // For about/careers discovery we probe known paths + homepage links via second fetch of homepage.
   const pageId = newId("page");
-  getDb()
+  await getDb()
     .insert(sourcePages)
     .values({
       id: pageId,
@@ -122,8 +121,7 @@ async function fetchAndStore(
       error: page.error,
       promptVersion: RESEARCH_PROMPT_VERSION,
       modelId,
-    })
-    .run();
+    });
 
   return { ...page, kind, pageId };
 }

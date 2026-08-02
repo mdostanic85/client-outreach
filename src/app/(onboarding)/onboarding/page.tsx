@@ -16,7 +16,7 @@ import {
 export const dynamic = "force-dynamic";
 
 function mapProfile(
-  row: NonNullable<ReturnType<typeof getApprovedProfile>>,
+  row: NonNullable<Awaited<ReturnType<typeof getApprovedProfile>>>,
 ) {
   return {
     id: row.id,
@@ -32,12 +32,12 @@ function mapProfile(
 }
 
 export default async function OnboardingPage() {
-  ensureDb();
+  await ensureDb();
   const user = await getSessionUser();
   if (!user) return null;
 
-  const status = getOnboardingStatus(user.id);
-  const sources = listProfileSources().map((s) => ({
+  const status = await getOnboardingStatus(user.id);
+  const sources = (await listProfileSources()).map((s) => ({
     id: s.id,
     type: s.type,
     label: s.label,
@@ -47,11 +47,11 @@ export default async function OnboardingPage() {
     lastSyncedAt: s.lastSyncedAt ?? s.ingestedAt,
     enabledForMatching: s.enabledForMatching !== 0,
   }));
-  const draft = getLatestDraftProfile();
-  const approved = getApprovedProfile();
-  const draftSearch = getLatestDraftSearchProfile();
-  const approvedSearch = getApprovedSearchProfile();
-  const usePortfolioInMatching = getUsePortfolioInMatching();
+  const draft = await getLatestDraftProfile();
+  const approved = await getApprovedProfile();
+  const draftSearch = await getLatestDraftSearchProfile();
+  const approvedSearch = await getApprovedSearchProfile();
+  const usePortfolioInMatching = await getUsePortfolioInMatching();
 
   return (
     <OnboardingWizard

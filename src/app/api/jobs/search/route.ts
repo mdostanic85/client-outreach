@@ -26,7 +26,7 @@ export async function POST() {
     });
   }
 
-  ensureDb();
+  await ensureDb();
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({

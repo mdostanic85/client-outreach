@@ -18,50 +18,47 @@ import { buildLookupLinks } from "@/modules/contacts/lookup";
 import { getLeadMailDetail } from "@/modules/mail/queries";
 import type { EvidenceItem, ResearchAndScore } from "@/modules/research/schemas";
 
-export function listLeads() {
-  const db = ensureDb();
-  return db
+export async function listLeads() {
+  const db = await ensureDb();
+  return await db
     .select({
       lead: leads,
       company: companies,
     })
     .from(leads)
     .innerJoin(companies, eq(leads.companyId, companies.id))
-    .orderBy(desc(leads.updatedAt))
-    .all();
+    .orderBy(desc(leads.updatedAt));
 }
 
 /** Daily ranked review list: suggested / researched, highest score first. */
-export function listDailyLeads(limit = 15) {
-  const db = ensureDb();
-  const rows = db
+export async function listDailyLeads(limit = 15) {
+  const db = await ensureDb();
+  const rows = (await db
     .select({
       lead: leads,
       company: companies,
     })
     .from(leads)
     .innerJoin(companies, eq(leads.companyId, companies.id))
-    .where(inArray(leads.state, ["suggested", "researched", "saved_for_later"]))
-    .all()
+    .where(inArray(leads.state, ["suggested", "researched", "saved_for_later"])))
     .sort((a, b) => (b.lead.score ?? 0) - (a.lead.score ?? 0))
     .slice(0, limit);
 
-  return rows.map(({ lead, company }) => {
-    const brief = db
+  return Promise.all(
+    rows.map(async ({ lead, company }) => {
+    const brief = (await db
       .select()
       .from(researchBriefs)
       .where(eq(researchBriefs.companyId, company.id))
-      .orderBy(desc(researchBriefs.createdAt))
-      .all()[0];
+      .orderBy(desc(researchBriefs.createdAt)).limit(1))[0];
 
     const result = brief
       ? (JSON.parse(brief.resultJson) as ResearchAndScore)
       : null;
-    const companySignals = db
+    const companySignals = await db
       .select()
       .from(signals)
-      .where(eq(signals.companyId, company.id))
-      .all();
+      .where(eq(signals.companyId, company.id));
 
     const need =
       result?.currentNeedSignals?.sort((a, b) => {
@@ -70,7 +67,7 @@ export function listDailyLeads(limit = 15) {
       })[0]?.claim ?? null;
 
     const fit = result?.fitReasons?.[0]?.reason ?? null;
-    const policy = resolveCountryPolicy(company.country);
+    const policy = await resolveCountryPolicy(company.country);
 
     return {
       lead,
@@ -87,64 +84,58 @@ export function listDailyLeads(limit = 15) {
       policy,
       hasBrief: Boolean(brief && result),
     };
-  });
+  }),
+  );
 }
 
-export function getLeadDetail(leadId: string) {
-  const db = ensureDb();
-  const row = db
+export async function getLeadDetail(leadId: string) {
+  const db = await ensureDb();
+  const row = (await db
     .select({
       lead: leads,
       company: companies,
     })
     .from(leads)
     .innerJoin(companies, eq(leads.companyId, companies.id))
-    .where(eq(leads.id, leadId))
-    .get();
+    .where(eq(leads.id, leadId)).limit(1))[0];
 
   if (!row) return null;
 
-  const companySignals = db
+  const companySignals = await db
     .select()
     .from(signals)
-    .where(eq(signals.companyId, row.company.id))
-    .all();
+    .where(eq(signals.companyId, row.company.id));
 
-  const pages = db
+  const pages = await db
     .select()
     .from(sourcePages)
-    .where(eq(sourcePages.companyId, row.company.id))
-    .all();
+    .where(eq(sourcePages.companyId, row.company.id));
 
-  const briefRow = db
+  const briefRow = (await db
     .select()
     .from(researchBriefs)
     .where(eq(researchBriefs.companyId, row.company.id))
-    .orderBy(desc(researchBriefs.createdAt))
-    .all()[0];
+    .orderBy(desc(researchBriefs.createdAt)).limit(1))[0];
 
-  const companyContacts = db
+  const companyContacts = await db
     .select()
     .from(contacts)
-    .where(eq(contacts.companyId, row.company.id))
-    .all();
+    .where(eq(contacts.companyId, row.company.id));
 
-  const leadDrafts = db
+  const leadDrafts = await db
     .select()
     .from(drafts)
     .where(eq(drafts.leadId, leadId))
-    .orderBy(desc(drafts.createdAt))
-    .all();
+    .orderBy(desc(drafts.createdAt));
 
-  const usage = db
+  const usage = await db
     .select()
     .from(apiUsage)
     .orderBy(desc(apiUsage.occurredAt))
-    .limit(20)
-    .all();
+    .limit(20);
 
-  const policy = resolveCountryPolicy(row.company.country);
-  const mail = getLeadMailDetail(leadId);
+  const policy = await resolveCountryPolicy(row.company.country);
+  const mail = await getLeadMailDetail(leadId);
   const lookupLinks = buildLookupLinks({
     companyName: row.company.name,
     domain: row.company.domain,
@@ -170,33 +161,30 @@ export function getLeadDetail(leadId: string) {
   };
 }
 
-export function getAdminOverview() {
-  const db = ensureDb();
-  const latestRun = db
+export async function getAdminOverview() {
+  const db = await ensureDb();
+  const latestRun = (await db
     .select()
     .from(syncRuns)
     .orderBy(desc(syncRuns.startedAt))
-    .limit(1)
-    .all()[0];
+    .limit(1))[0];
 
-  const stateCounts = db
+  const stateCounts = await db
     .select({
       state: leads.state,
       count: sql<number>`count(*)`,
     })
     .from(leads)
-    .groupBy(leads.state)
-    .all();
+    .groupBy(leads.state);
 
-  const rejectReasons = db
+  const rejectReasons = (await db
     .select({
       reason: leads.rejectReason,
       count: sql<number>`count(*)`,
     })
     .from(leads)
     .where(eq(leads.state, "rejected"))
-    .groupBy(leads.rejectReason)
-    .all()
+    .groupBy(leads.rejectReason))
     .sort((a, b) => Number(b.count) - Number(a.count))
     .slice(0, 10);
 
@@ -204,7 +192,7 @@ export function getAdminOverview() {
   monthStart.setUTCDate(1);
   monthStart.setUTCHours(0, 0, 0, 0);
 
-  const usageByTask = db
+  const usageByTask = await db
     .select({
       task: apiUsage.task,
       provider: apiUsage.provider,
@@ -214,18 +202,16 @@ export function getAdminOverview() {
     })
     .from(apiUsage)
     .where(gte(apiUsage.occurredAt, monthStart.toISOString()))
-    .groupBy(apiUsage.task, apiUsage.provider)
-    .all();
+    .groupBy(apiUsage.task, apiUsage.provider);
 
-  const setting = db.select().from(settings).all()[0];
-  const budget = getBudgetStatus();
+  const setting = (await db.select().from(settings).limit(1))[0];
+  const budget = await getBudgetStatus();
 
   const triageFailed = stateCounts.find((s) => s.state === "triage_failed")?.count ?? 0;
-  const incomplete = db
+  const incomplete = (await db
     .select({ count: sql<number>`count(*)` })
     .from(leads)
-    .where(eq(leads.researchStatus, "incomplete"))
-    .get()?.count ?? 0;
+    .where(eq(leads.researchStatus, "incomplete")).limit(1))[0]?.count ?? 0;
 
   return {
     latestRun,
@@ -248,7 +234,7 @@ export function getAdminOverview() {
   };
 }
 
-export function getSettingsRow() {
-  const db = ensureDb();
-  return db.select().from(settings).all()[0] ?? null;
+export async function getSettingsRow() {
+  const db = await ensureDb();
+  return (await db.select().from(settings).limit(1))[0] ?? null;
 }

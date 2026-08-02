@@ -20,8 +20,8 @@ export {
   type MatchingSourcesConfig,
 } from "./matching-sources-core";
 
-export function getMatchingSourcesConfig(): MatchingSourcesConfig {
-  const row = getDb().select().from(settings).all()[0];
+export async function getMatchingSourcesConfig(): Promise<MatchingSourcesConfig> {
+  const row = (await getDb().select().from(settings).limit(1))[0];
   return parseMatchingSourcesConfig(
     row?.matchingSourcesJson,
     row?.usePortfolioInMatching,
@@ -32,56 +32,55 @@ export function getMatchingSourcesConfig(): MatchingSourcesConfig {
  * Combine category toggles with per-source enabledForMatching flags.
  * Loads sources from the DB when not provided.
  */
-export function resolveMatchingSourcesForScoring(
-  config: MatchingSourcesConfig = getMatchingSourcesConfig(),
+export async function resolveMatchingSourcesForScoring(
+  config?: MatchingSourcesConfig,
   sources?: Array<{ type: string; enabledForMatching: number | boolean }>,
-): MatchingSourcesConfig {
+): Promise<MatchingSourcesConfig> {
+  const resolvedConfig = config ?? (await getMatchingSourcesConfig());
   const list =
     sources ??
-    getDb()
+    (await getDb()
       .select()
       .from(profileSources)
-      .where(isNull(profileSources.deletedAt))
-      .all()
+      .where(isNull(profileSources.deletedAt)))
       .map((s) => ({
         type: s.type,
         enabledForMatching: s.enabledForMatching,
       }));
 
-  return resolveMatchingSourcesForScoringCore(config, list);
+  return resolveMatchingSourcesForScoringCore(resolvedConfig, list);
 }
 
-export function setMatchingSourcesConfig(
+export async function setMatchingSourcesConfig(
   patch: Partial<MatchingSourcesConfig>,
-): MatchingSourcesConfig {
+): Promise<MatchingSourcesConfig> {
   const db = getDb();
-  const row = db.select().from(settings).all()[0];
+  const row = (await db.select().from(settings).limit(1))[0];
   if (!row) throw new Error("Settings missing");
 
   const next = MatchingSourcesConfigSchema.parse({
-    ...getMatchingSourcesConfig(),
+    ...(await getMatchingSourcesConfig()),
     ...patch,
   });
 
-  db.update(settings)
+  await db.update(settings)
     .set({
       matchingSourcesJson: JSON.stringify(next),
       // Keep legacy column in sync for older readers / ops.
       usePortfolioInMatching: next.portfolioProjects ? 1 : 0,
       updatedAt: nowIso(),
     })
-    .where(eq(settings.id, row.id))
-    .run();
+    .where(eq(settings.id, row.id));
 
   return next;
 }
 
 /** @deprecated Prefer getMatchingSourcesConfig().portfolioProjects */
-export function getUsePortfolioInMatching(): boolean {
-  return getMatchingSourcesConfig().portfolioProjects;
+export async function getUsePortfolioInMatching(): Promise<boolean> {
+  return (await getMatchingSourcesConfig()).portfolioProjects;
 }
 
 /** @deprecated Prefer setMatchingSourcesConfig({ portfolioProjects }) */
-export function setUsePortfolioInMatching(enabled: boolean) {
-  setMatchingSourcesConfig({ portfolioProjects: enabled });
+export async function setUsePortfolioInMatching(enabled: boolean) {
+  await setMatchingSourcesConfig({ portfolioProjects: enabled });
 }

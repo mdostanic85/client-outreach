@@ -210,7 +210,7 @@ export async function evaluateJobsBatch(options: {
   const db = getDb();
   let evaluated = 0;
   let recommended = 0;
-  const matchingConfig = getMatchingSourcesConfig();
+  const matchingConfig = await getMatchingSourcesConfig();
   if (options.usePortfolioInMatching != null) {
     matchingConfig.portfolioProjects = options.usePortfolioInMatching;
   }
@@ -229,7 +229,7 @@ export async function evaluateJobsBatch(options: {
   );
 
   for (const jobId of options.jobIds) {
-    const existing = db
+    const existing = (await db
       .select()
       .from(jobMatches)
       .where(
@@ -238,8 +238,7 @@ export async function evaluateJobsBatch(options: {
           eq(jobMatches.profileVersion, options.profileVersion),
           eq(jobMatches.promptVersion, promptVersion),
         ),
-      )
-      .get();
+      ).limit(1))[0];
     if (existing) {
       evaluated++;
       if (existing.recommend) recommended++;
@@ -254,7 +253,7 @@ export async function evaluateJobsBatch(options: {
       continue;
     }
 
-    const jobRow = db.select().from(jobs).where(eq(jobs.id, jobId)).get();
+    const jobRow = (await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1))[0];
     if (!jobRow) {
       done++;
       continue;
@@ -275,7 +274,7 @@ export async function evaluateJobsBatch(options: {
         options.searchParams,
       );
 
-      db.insert(jobMatches)
+      await db.insert(jobMatches)
         .values({
           id: newId("jmatch"),
           jobId,
@@ -292,8 +291,7 @@ export async function evaluateJobsBatch(options: {
           promptVersion,
           costUsd,
           createdAt: nowIso(),
-        })
-        .run();
+        });
 
       evaluated++;
       if (result.recommend && result.eligibility !== "ineligible") recommended++;
@@ -337,19 +335,18 @@ export type RankedJob = {
  * Rank survivors for daily publish.
  * Strong band keeps a hard quality floor; worth-a-look is a separate secondary band.
  */
-export function rankJobsForPublish(options: {
+export async function rankJobsForPublish(options: {
   minScore?: number;
   maxScoreExclusive?: number;
   limit: number;
-}): RankedJob[] {
+}): Promise<RankedJob[]> {
   const minScore = options.minScore ?? STRONG_MATCH_MIN;
   const maxScoreExclusive = options.maxScoreExclusive;
   const db = getDb();
-  const active = db
+  const active = (await db
     .select()
     .from(jobs)
-    .where(eq(jobs.status, "active"))
-    .all()
+    .where(eq(jobs.status, "active")))
     .filter(
       (j) =>
         j.triageState === "discovered" ||
@@ -366,11 +363,10 @@ export function rankJobsForPublish(options: {
     ) {
       continue;
     }
-    const match = db
+    const match = (await db
       .select()
       .from(jobMatches)
-      .where(eq(jobMatches.jobId, job.id))
-      .all()
+      .where(eq(jobMatches.jobId, job.id)))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
     if (!match) continue;
     if (!match.recommend) continue;
@@ -413,48 +409,48 @@ export function rankJobsForPublish(options: {
   return ranked.slice(0, options.limit);
 }
 
-function markJobsPublished(ranked: RankedJob[]): string[] {
+async function markJobsPublished(ranked: RankedJob[]): Promise<string[]> {
   const db = getDb();
   const now = nowIso();
   const jobIds: string[] = [];
 
   for (const row of ranked) {
-    db.update(jobs)
+    const existing = (
+      await db.select().from(jobs).where(eq(jobs.id, row.jobId)).limit(1)
+    )[0];
+    await db
+      .update(jobs)
       .set({
         publishedAt: now,
         triageState:
-          db.select().from(jobs).where(eq(jobs.id, row.jobId)).get()
-            ?.triageState === "saved"
-            ? "saved"
-            : "published",
+          existing?.triageState === "saved" ? "saved" : "published",
         updatedAt: now,
       })
-      .where(eq(jobs.id, row.jobId))
-      .run();
+      .where(eq(jobs.id, row.jobId));
     jobIds.push(row.jobId);
   }
 
   return jobIds;
 }
 
-export function publishDailyJobList(limit: number): {
+export async function publishDailyJobList(limit: number): Promise<{
   published: number;
   strong: number;
   worthALook: number;
   jobIds: string[];
-} {
-  const strong = rankJobsForPublish({
+}> {
+  const strong = await rankJobsForPublish({
     minScore: STRONG_MATCH_MIN,
     limit,
   });
-  const worthALook = rankJobsForPublish({
+  const worthALook = await rankJobsForPublish({
     minScore: WORTH_A_LOOK_MIN,
     maxScoreExclusive: STRONG_MATCH_MIN,
     limit: WORTH_A_LOOK_LIMIT,
   });
 
-  const strongIds = markJobsPublished(strong);
-  const worthIds = markJobsPublished(worthALook);
+  const strongIds = await markJobsPublished(strong);
+  const worthIds = await markJobsPublished(worthALook);
   const jobIds = [...strongIds, ...worthIds];
 
   return {
@@ -466,18 +462,18 @@ export function publishDailyJobList(limit: number): {
 }
 
 /** Helper used by pipeline when profile must exist. */
-export function requireMatchingProfileJson(): {
+export async function requireMatchingProfileJson(): Promise<{
   profileJson: string;
   version: number;
   usePortfolioInMatching: boolean;
   matchingConfig: MatchingSourcesConfig;
-} {
-  const approved = getApprovedProfile();
+}> {
+  const approved = await getApprovedProfile();
   if (!approved) {
     throw new Error("No approved structured profile for job matching");
   }
-  const matchingConfig = resolveMatchingSourcesForScoring(
-    getMatchingSourcesConfig(),
+  const matchingConfig = await resolveMatchingSourcesForScoring(
+    await getMatchingSourcesConfig(),
   );
   return {
     profileJson: JSON.stringify(

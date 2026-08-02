@@ -38,10 +38,9 @@ const StyleProposalSchema = z.object({
 export async function proposeStyleUpdate(force = false) {
   assertGatesOrPreview(force);
   const db = getDb();
-  const edits = db
+  const edits = (await db
     .select()
-    .from(draftEdits)
-    .all()
+    .from(draftEdits))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, 25);
 
@@ -49,7 +48,7 @@ export async function proposeStyleUpdate(force = false) {
     throw new Error("No draft edits to learn from");
   }
 
-  const setting = db.select().from(settings).all()[0];
+  const setting = (await db.select().from(settings).limit(1))[0];
   const model = resolveModel("styleProposal");
   const system =
     "You propose style-profile updates from draft edit diffs. " +
@@ -80,7 +79,7 @@ export async function proposeStyleUpdate(force = false) {
   const parsed = StyleProposalSchema.parse(parseJsonLoose(completion.text));
   const id = newId("prop");
   const now = nowIso();
-  db.insert(learningProposals)
+  await db.insert(learningProposals)
     .values({
       id,
       kind: "style_update",
@@ -91,18 +90,17 @@ export async function proposeStyleUpdate(force = false) {
       model,
       createdAt: now,
       decidedAt: null,
-    })
-    .run();
+    });
 
   logger.info({ id }, "Style proposal created (pending approval)");
   return id;
 }
 
-export function proposeScoringWeights(force = false) {
+export async function proposeScoringWeights(force = false) {
   assertGatesOrPreview(force);
   const db = getDb();
   // Deterministic heuristic proposal from accept/reject patterns — no auto-apply
-  const { rows } = buildSourcePerformance();
+  const { rows } = await buildSourcePerformance();
   const top = rows.filter((r) => r.leads >= 3).slice(0, 5);
   const weights = {
     needNow: 0.3,
@@ -121,7 +119,7 @@ export function proposeScoringWeights(force = false) {
 
   const id = newId("prop");
   const now = nowIso();
-  db.insert(learningProposals)
+  await db.insert(learningProposals)
     .values({
       id,
       kind: "scoring_weights",
@@ -133,16 +131,15 @@ export function proposeScoringWeights(force = false) {
       model: null,
       createdAt: now,
       decidedAt: null,
-    })
-    .run();
+    });
   return id;
 }
 
 export async function generateMarketReport(force = false) {
   assertGatesOrPreview(force);
   const db = getDb();
-  const { rows } = buildSourcePerformance();
-  const setting = db.select().from(settings).all()[0];
+  const { rows } = await buildSourcePerformance();
+  const setting = (await db.select().from(settings).limit(1))[0];
   const model = resolveModel("marketReport");
 
   const system =
@@ -171,7 +168,7 @@ export async function generateMarketReport(force = false) {
     .parse(parseJsonLoose(completion.text));
 
   const id = newId("rep");
-  db.insert(learningReports)
+  await db.insert(learningReports)
     .values({
       id,
       kind: "market_demand",
@@ -180,17 +177,16 @@ export async function generateMarketReport(force = false) {
       dataJson: JSON.stringify({ rows }),
       model,
       createdAt: nowIso(),
-    })
-    .run();
+    });
   return id;
 }
 
 export async function generatePositioningRecs(force = false) {
   assertGatesOrPreview(force);
   const db = getDb();
-  const setting = db.select().from(settings).all()[0];
-  const edits = db.select().from(draftEdits).all().slice(0, 15);
-  const { rows } = buildSourcePerformance();
+  const setting = (await db.select().from(settings).limit(1))[0];
+  const edits = (await db.select().from(draftEdits)).slice(0, 15);
+  const { rows } = await buildSourcePerformance();
   const model = resolveModel("positioningRecs");
 
   const system =
@@ -223,7 +219,7 @@ export async function generatePositioningRecs(force = false) {
     .parse(parseJsonLoose(completion.text));
 
   const id = newId("rep");
-  db.insert(learningReports)
+  await db.insert(learningReports)
     .values({
       id,
       kind: "positioning",
@@ -234,18 +230,16 @@ export async function generatePositioningRecs(force = false) {
       }),
       model,
       createdAt: nowIso(),
-    })
-    .run();
+    });
   return id;
 }
 
-export function applyProposal(proposalId: string) {
+export async function applyProposal(proposalId: string) {
   const db = getDb();
-  const proposal = db
+  const proposal = (await db
     .select()
     .from(learningProposals)
-    .where(eq(learningProposals.id, proposalId))
-    .get();
+    .where(eq(learningProposals.id, proposalId)).limit(1))[0];
   if (!proposal) throw new Error("Proposal not found");
   if (proposal.status !== "pending") {
     throw new Error(`Proposal status is ${proposal.status}`);
@@ -260,7 +254,7 @@ export function applyProposal(proposalId: string) {
       preferredLength?: string;
       ctaPatternsAdd?: string[];
     };
-    const setting = db.select().from(settings).all()[0];
+    const setting = (await db.select().from(settings).limit(1))[0];
     if (!setting) throw new Error("Settings missing");
     const style = JSON.parse(setting.styleProfileJson || "{}") as Record<
       string,
@@ -286,25 +280,22 @@ export function applyProposal(proposalId: string) {
         ...patch.ctaPatternsAdd,
       ];
     }
-    db.update(settings)
+    await db.update(settings)
       .set({ styleProfileJson: JSON.stringify(style), updatedAt: now })
-      .where(eq(settings.id, setting.id))
-      .run();
+      .where(eq(settings.id, setting.id));
   } else if (proposal.kind === "scoring_weights") {
-    const existing = db.select().from(settingsScoring).all()[0];
+    const existing = (await db.select().from(settingsScoring).limit(1))[0];
     if (existing) {
-      db.update(settingsScoring)
+      await db.update(settingsScoring)
         .set({ weightsJson: proposal.proposalJson, updatedAt: now })
-        .where(eq(settingsScoring.id, existing.id))
-        .run();
+        .where(eq(settingsScoring.id, existing.id));
     } else {
-      db.insert(settingsScoring)
+      await db.insert(settingsScoring)
         .values({
           id: newId("scw"),
           weightsJson: proposal.proposalJson,
           updatedAt: now,
-        })
-        .run();
+        });
     }
   } else if (proposal.kind === "search_strategy") {
     const payload = JSON.parse(proposal.proposalJson) as {
@@ -313,36 +304,33 @@ export function applyProposal(proposalId: string) {
     if (!payload.draftSearchProfileId) {
       throw new Error("search_strategy proposal missing draftSearchProfileId");
     }
-    approveSearchProfile(payload.draftSearchProfileId);
+    await approveSearchProfile(payload.draftSearchProfileId);
   } else {
     throw new Error(`Unknown proposal kind: ${proposal.kind}`);
   }
 
-  db.update(learningProposals)
+  await db.update(learningProposals)
     .set({ status: "applied", decidedAt: now })
-    .where(eq(learningProposals.id, proposalId))
-    .run();
+    .where(eq(learningProposals.id, proposalId));
 }
 
-export function rejectProposal(proposalId: string) {
+export async function rejectProposal(proposalId: string) {
   const db = getDb();
-  const proposal = db
+  const proposal = (await db
     .select()
     .from(learningProposals)
-    .where(eq(learningProposals.id, proposalId))
-    .get();
+    .where(eq(learningProposals.id, proposalId)).limit(1))[0];
   if (!proposal) throw new Error("Proposal not found");
   if (proposal.status !== "pending") {
     throw new Error(`Proposal status is ${proposal.status}`);
   }
-  db.update(learningProposals)
+  await db.update(learningProposals)
     .set({ status: "rejected", decidedAt: nowIso() })
-    .where(eq(learningProposals.id, proposalId))
-    .run();
+    .where(eq(learningProposals.id, proposalId));
 }
 
-export function saveSourcePerformanceReport() {
-  const { rows, generatedAt } = buildSourcePerformance();
+export async function saveSourcePerformanceReport() {
+  const { rows, generatedAt } = await buildSourcePerformance();
   const id = newId("rep");
   const lines = [
     `# Source performance`,
@@ -356,7 +344,7 @@ export function saveSourcePerformanceReport() {
         `| ${r.source} | ${r.signals} | ${r.leads} | ${r.accepted} | ${r.sent} | ${r.replied} | ${(r.acceptRate * 100).toFixed(0)}% | ${(r.replyRate * 100).toFixed(0)}% |`,
     ),
   ];
-  getDb()
+  await getDb()
     .insert(learningReports)
     .values({
       id,
@@ -366,7 +354,6 @@ export function saveSourcePerformanceReport() {
       dataJson: JSON.stringify({ rows }),
       model: null,
       createdAt: generatedAt,
-    })
-    .run();
+    });
   return id;
 }

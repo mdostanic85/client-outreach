@@ -108,19 +108,17 @@ function buildSegment(
     .slice(0, 8);
 }
 
-export function computeStrategyCohort(strategyVersion: number): StrategyCohort {
+export async function computeStrategyCohort(strategyVersion: number): Promise<StrategyCohort> {
   const db = getDb();
-  const profile = db
+  const profile = (await db
     .select()
     .from(jobSearchProfiles)
-    .where(eq(jobSearchProfiles.version, strategyVersion))
-    .all()
+    .where(eq(jobSearchProfiles.version, strategyVersion)))
     .sort((a, b) => (b.approvedAt ?? b.createdAt).localeCompare(a.approvedAt ?? a.createdAt))[0];
 
-  const cohortJobs = db
+  const cohortJobs = (await db
     .select()
-    .from(jobs)
-    .all()
+    .from(jobs))
     .filter((j) => j.searchProfileVersion === strategyVersion);
 
   const triageLikedN = cohortJobs.filter((j) =>
@@ -150,36 +148,38 @@ export function computeStrategyCohort(strategyVersion: number): StrategyCohort {
     })
     .filter((d): d is number => d != null);
 
-  const companyName = (companyId: string | null) => {
+  const companyName = async (companyId: string | null) => {
     if (!companyId) return "Unknown";
     return (
-      db.select().from(companies).where(eq(companies.id, companyId)).get()
+      (await db.select().from(companies).where(eq(companies.id, companyId)).limit(1))[0]
         ?.name ?? "Unknown"
     );
   };
 
-  const segmentRows = applied.map((j) => {
-    const respondedFlag = [
-      "recruiter_response",
-      "interview",
-      "offer",
-      "accepted",
-    ].includes(j.outcome);
-    const interviewedFlag = ["interview", "offer", "accepted"].includes(
-      j.outcome,
-    );
-    return {
-      titleKey: j.title.toLowerCase().trim(),
-      titleLabel: j.title,
-      locKey: (j.location ?? j.remotePolicy ?? "unknown").toLowerCase(),
-      locLabel: j.location ?? j.remotePolicy ?? "Unknown",
-      companyKey: j.companyId ?? j.title,
-      companyLabel: companyName(j.companyId),
-      applied: true,
-      responded: respondedFlag,
-      interviewed: interviewedFlag,
-    };
-  });
+  const segmentRows = await Promise.all(
+    applied.map(async (j) => {
+      const respondedFlag = [
+        "recruiter_response",
+        "interview",
+        "offer",
+        "accepted",
+      ].includes(j.outcome);
+      const interviewedFlag = ["interview", "offer", "accepted"].includes(
+        j.outcome,
+      );
+      return {
+        titleKey: j.title.toLowerCase().trim(),
+        titleLabel: j.title,
+        locKey: (j.location ?? j.remotePolicy ?? "unknown").toLowerCase(),
+        locLabel: j.location ?? j.remotePolicy ?? "Unknown",
+        companyKey: j.companyId ?? j.title,
+        companyLabel: await companyName(j.companyId),
+        applied: true,
+        responded: respondedFlag,
+        interviewed: interviewedFlag,
+      };
+    }),
+  );
 
   const applicationsN = applied.length;
   const interviewsN = interviewed.length;
@@ -235,13 +235,12 @@ export function computeStrategyCohort(strategyVersion: number): StrategyCohort {
   };
 }
 
-export function persistStrategyCohort(cohort: StrategyCohort) {
+export async function persistStrategyCohort(cohort: StrategyCohort) {
   const db = getDb();
-  const existing = db
+  const existing = (await db
     .select()
     .from(strategyCohortMetrics)
-    .where(eq(strategyCohortMetrics.strategyVersion, cohort.strategyVersion))
-    .get();
+    .where(eq(strategyCohortMetrics.strategyVersion, cohort.strategyVersion)).limit(1))[0];
 
   const values = {
     applicationsN: cohort.applicationsN,
@@ -260,43 +259,42 @@ export function persistStrategyCohort(cohort: StrategyCohort) {
   };
 
   if (existing) {
-    db.update(strategyCohortMetrics)
+    await db.update(strategyCohortMetrics)
       .set(values)
-      .where(eq(strategyCohortMetrics.id, existing.id))
-      .run();
+      .where(eq(strategyCohortMetrics.id, existing.id));
     return existing.id;
   }
 
   const id = newId("scm");
-  db.insert(strategyCohortMetrics)
-    .values({ id, strategyVersion: cohort.strategyVersion, ...values })
-    .run();
+  await db.insert(strategyCohortMetrics)
+    .values({ id, strategyVersion: cohort.strategyVersion, ...values });
   return id;
 }
 
-export function listStrategyVersions(): StrategyCohort[] {
+export async function listStrategyVersions(): Promise<StrategyCohort[]> {
   const db = getDb();
-  const profiles = db
+  const profiles = await db
     .select()
     .from(jobSearchProfiles)
-    .orderBy(desc(jobSearchProfiles.version))
-    .all();
+    .orderBy(desc(jobSearchProfiles.version));
 
   const versions = [...new Set(profiles.map((p) => p.version))];
   // Also include versions that only appear on jobs
-  for (const j of db.select().from(jobs).all()) {
+  for (const j of await db.select().from(jobs)) {
     if (j.searchProfileVersion != null) versions.push(j.searchProfileVersion);
   }
   const unique = [...new Set(versions)].sort((a, b) => b - a);
-  return unique.map((v) => {
-    const cohort = computeStrategyCohort(v);
-    persistStrategyCohort(cohort);
-    return cohort;
-  });
+  return Promise.all(
+    unique.map(async (v) => {
+      const cohort = await computeStrategyCohort(v);
+      await persistStrategyCohort(cohort);
+      return cohort;
+    }),
+  );
 }
 
-export function aggregateAllStrategyMetrics() {
-  return listStrategyVersions();
+export async function aggregateAllStrategyMetrics() {
+  return await listStrategyVersions();
 }
 
 /** Deterministic insight bullets grounded only on cohort numbers. */

@@ -8,19 +8,19 @@ import {
   type RawCollectedJob,
 } from "@/modules/collectors/types";
 
-export function persistCollectedJob(
+export async function persistCollectedJob(
   job: RawCollectedJob,
   searchProfileVersion: number,
-): { jobId: string; created: boolean } {
+): Promise<{
+ jobId: string; created: boolean }> {
   const db = getDb();
-  const existing = db
+  const existing = (await db
     .select()
     .from(jobs)
-    .where(and(eq(jobs.source, job.source), eq(jobs.externalId, job.externalId)))
-    .get();
+    .where(and(eq(jobs.source, job.source), eq(jobs.externalId, job.externalId))).limit(1))[0];
 
   if (existing) {
-    db.update(jobs)
+    await db.update(jobs)
       .set({
         description: job.description || existing.description,
         location: job.location ?? existing.location,
@@ -31,30 +31,27 @@ export function persistCollectedJob(
         updatedAt: nowIso(),
         status: "active",
       })
-      .where(eq(jobs.id, existing.id))
-      .run();
+      .where(eq(jobs.id, existing.id));
     return { jobId: existing.id, created: false };
   }
 
   const normalized = normalizeCompanyName(job.companyName);
-  let company = db
+  let company = (await db
     .select()
     .from(companies)
-    .where(eq(companies.normalizedName, normalized))
-    .get();
+    .where(eq(companies.normalizedName, normalized)).limit(1))[0];
 
   if (!company && job.companyDomain) {
-    company = db
+    company = (await db
       .select()
       .from(companies)
-      .where(eq(companies.domain, job.companyDomain))
-      .get();
+      .where(eq(companies.domain, job.companyDomain)).limit(1))[0];
   }
 
   const now = nowIso();
   if (!company) {
     const companyId = newId("co");
-    db.insert(companies)
+    await db.insert(companies)
       .values({
         id: companyId,
         name: job.companyName,
@@ -65,21 +62,19 @@ export function persistCollectedJob(
         status: "new",
         firstSeenAt: now,
         lastSeenAt: now,
-      })
-      .run();
-    company = db.select().from(companies).where(eq(companies.id, companyId)).get()!;
+      });
+    company = (await db.select().from(companies).where(eq(companies.id, companyId)).limit(1))[0]!;
   } else {
-    db.update(companies)
+    await db.update(companies)
       .set({
         lastSeenAt: now,
         domain: company.domain ?? job.companyDomain ?? null,
       })
-      .where(eq(companies.id, company.id))
-      .run();
+      .where(eq(companies.id, company.id));
   }
 
   const jobId = newId("job");
-  db.insert(jobs)
+  await db.insert(jobs)
     .values({
       id: jobId,
       companyId: company.id,
@@ -103,21 +98,20 @@ export function persistCollectedJob(
       }),
       createdAt: now,
       updatedAt: now,
-    })
-    .run();
+    });
 
   return { jobId, created: true };
 }
 
-export function persistCollectedJobs(
+export async function persistCollectedJobs(
   list: RawCollectedJob[],
   searchProfileVersion: number,
-): { created: number; updated: number; jobIds: string[] } {
+): Promise<{ created: number; updated: number; jobIds: string[] }> {
   let created = 0;
   let updated = 0;
   const jobIds: string[] = [];
   for (const job of list) {
-    const result = persistCollectedJob(job, searchProfileVersion);
+    const result = await persistCollectedJob(job, searchProfileVersion);
     jobIds.push(result.jobId);
     if (result.created) created++;
     else updated++;

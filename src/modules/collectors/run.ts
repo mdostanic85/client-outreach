@@ -144,7 +144,7 @@ async function runOneQuery(
 ): Promise<{ jobs: RawCollectedJob[]; costUsd: number }> {
   const runId = newId("crun");
   const db = getDb();
-  db.insert(collectorRuns)
+  await db.insert(collectorRuns)
     .values({
       id: runId,
       searchProfileVersion,
@@ -152,8 +152,7 @@ async function runOneQuery(
       queryJson: JSON.stringify(query),
       startedAt: nowIso(),
       status: "running",
-    })
-    .run();
+    });
 
   try {
     let jobs: RawCollectedJob[] = [];
@@ -172,27 +171,25 @@ async function runOneQuery(
       costUsd = result.costUsd;
     }
 
-    db.update(collectorRuns)
+    await db.update(collectorRuns)
       .set({
         finishedAt: nowIso(),
         resultCount: jobs.length,
         costUsd,
         status: "ok",
       })
-      .where(eq(collectorRuns.id, runId))
-      .run();
+      .where(eq(collectorRuns.id, runId));
 
     return { jobs, costUsd };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    db.update(collectorRuns)
+    await db.update(collectorRuns)
       .set({
         finishedAt: nowIso(),
         status: "error",
         error: message.slice(0, 500),
       })
-      .where(eq(collectorRuns.id, runId))
-      .run();
+      .where(eq(collectorRuns.id, runId));
     logger.warn({ err, query }, "collector query failed");
     return { jobs: [], costUsd: 0 };
   }
@@ -322,7 +319,7 @@ export async function collectJobsForProfile(options: {
 
       const runId = newId("crun");
       const db = getDb();
-      db.insert(collectorRuns)
+      await db.insert(collectorRuns)
         .values({
           id: runId,
           searchProfileVersion: options.searchProfileVersion,
@@ -334,8 +331,7 @@ export async function collectJobsForProfile(options: {
           }),
           startedAt: nowIso(),
           status: "running",
-        })
-        .run();
+        });
 
       try {
         const result = await collectAtsBoardsViaApify({
@@ -346,26 +342,24 @@ export async function collectJobsForProfile(options: {
         apifyCostUsd += result.costUsd;
         pushJobs(result.jobs);
 
-        db.update(collectorRuns)
+        await db.update(collectorRuns)
           .set({
             finishedAt: nowIso(),
             resultCount: result.jobs.length,
             costUsd: result.costUsd,
             status: "ok",
           })
-          .where(eq(collectorRuns.id, runId))
-          .run();
+          .where(eq(collectorRuns.id, runId));
         await markCollect(`${atsDetail} · ${result.jobs.length} found`);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        db.update(collectorRuns)
+        await db.update(collectorRuns)
           .set({
             finishedAt: nowIso(),
             status: "error",
             error: message.slice(0, 500),
           })
-          .where(eq(collectorRuns.id, runId))
-          .run();
+          .where(eq(collectorRuns.id, runId));
         logger.warn({ err, title }, "Apify ATS collect failed");
         await markCollect(`${atsDetail} · failed`);
       }

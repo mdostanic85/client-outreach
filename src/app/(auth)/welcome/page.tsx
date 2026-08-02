@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
  * First screen: explain the product before auth.
  * Pattern: Contra value prop + Canny/Pin Get Started + Log in (Mobbin).
  */
-export default function WelcomePage() {
-  ensureDb();
-  const hasUsers = countUsers() > 0;
+export default async function WelcomePage() {
+  await ensureDb();
+  const hasUsers = await countUsers() > 0;
 
   return (
     <div className="relative flex min-h-svh flex-col overflow-hidden">

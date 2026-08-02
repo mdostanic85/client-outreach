@@ -29,73 +29,66 @@ function toView(row: StructuredProfileRow): StructuredProfileView {
 }
 
 /** Active (non-deleted) sources only. */
-export function listProfileSources(): ProfileSourceRow[] {
-  return getDb()
+export async function listProfileSources(): Promise<ProfileSourceRow[]> {
+  return await getDb()
     .select()
     .from(profileSources)
     .where(isNull(profileSources.deletedAt))
-    .orderBy(desc(profileSources.ingestedAt))
-    .all();
+    .orderBy(desc(profileSources.ingestedAt));
 }
 
-export function listAllProfileSourcesIncludingDeleted(): ProfileSourceRow[] {
-  return getDb()
+export async function listAllProfileSourcesIncludingDeleted(): Promise<ProfileSourceRow[]> {
+  return await getDb()
     .select()
     .from(profileSources)
-    .orderBy(desc(profileSources.ingestedAt))
-    .all();
+    .orderBy(desc(profileSources.ingestedAt));
 }
 
-export function getProfileSource(id: string): ProfileSourceRow | undefined {
-  return getDb()
+export async function getProfileSource(id: string): Promise<ProfileSourceRow | undefined> {
+  return (await getDb()
     .select()
     .from(profileSources)
-    .where(eq(profileSources.id, id))
-    .get();
+    .where(eq(profileSources.id, id)).limit(1))[0];
 }
 
-export function getLatestDraftProfile(): StructuredProfileView | null {
-  const row = getDb()
+export async function getLatestDraftProfile(): Promise<StructuredProfileView | null> {
+  const row = (await getDb()
     .select()
     .from(structuredProfiles)
     .where(eq(structuredProfiles.status, "draft"))
-    .orderBy(desc(structuredProfiles.version))
-    .get();
+    .orderBy(desc(structuredProfiles.version)).limit(1))[0];
   return row ? toView(row) : null;
 }
 
-export function getApprovedProfile(): StructuredProfileView | null {
-  const row = getDb()
+export async function getApprovedProfile(): Promise<StructuredProfileView | null> {
+  const row = (await getDb()
     .select()
     .from(structuredProfiles)
     .where(eq(structuredProfiles.status, "approved"))
-    .orderBy(desc(structuredProfiles.approvedAt), desc(structuredProfiles.version))
-    .get();
+    .orderBy(desc(structuredProfiles.approvedAt), desc(structuredProfiles.version)).limit(1))[0];
   return row ? toView(row) : null;
 }
 
-export function getStructuredProfileById(
+export async function getStructuredProfileById(
   id: string,
-): StructuredProfileView | null {
-  const row = getDb()
+): Promise<StructuredProfileView | null> {
+  const row = (await getDb()
     .select()
     .from(structuredProfiles)
-    .where(eq(structuredProfiles.id, id))
-    .get();
+    .where(eq(structuredProfiles.id, id)).limit(1))[0];
   return row ? toView(row) : null;
 }
 
-export function listStructuredProfiles(limit = 20): StructuredProfileView[] {
-  return getDb()
+export async function listStructuredProfiles(limit = 20): Promise<StructuredProfileView[]> {
+  return (await getDb()
     .select()
     .from(structuredProfiles)
     .orderBy(desc(structuredProfiles.version))
-    .limit(limit)
-    .all()
+    .limit(limit))
     .map(toView);
 }
 
 /** Profile used for matching — approved only. */
-export function getMatchingProfile(): StructuredProfile | null {
-  return getApprovedProfile()?.profile ?? null;
+export async function getMatchingProfile(): Promise<StructuredProfile | null> {
+  return (await getApprovedProfile())?.profile ?? null;
 }

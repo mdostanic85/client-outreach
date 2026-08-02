@@ -13,14 +13,14 @@ export default async function OnboardingLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  ensureDb();
+  await ensureDb();
   const user = await getSessionUser();
   if (!user) {
-    redirect(countUsers() === 0 ? "/welcome" : "/login");
+    redirect((await countUsers()) === 0 ? "/welcome" : "/login");
   }
 
   // Only leave once the wizard marks complete — don't auto-skip the Done step.
-  if (getUserOnboardingCompletedAt(user.id)) {
+  if (await getUserOnboardingCompletedAt(user.id)) {
     redirect("/");
   }
 

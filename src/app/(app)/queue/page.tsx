@@ -8,11 +8,11 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default function QueuePage() {
-  ensureDb();
-  const board = listOutboundBoard();
-  const status = getMailboxStatus();
-  const events = listRecentDeliveryEvents(20);
+export default async function QueuePage() {
+  await ensureDb();
+  const board = await listOutboundBoard();
+  const status = await getMailboxStatus();
+  const events = await listRecentDeliveryEvents(20);
 
   return <QueueBoard board={board} status={status} events={events} />;
 }

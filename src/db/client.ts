@@ -1,59 +1,43 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import fs from "node:fs";
-import path from "node:path";
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-http";
+import { loadLocalEnv } from "@/lib/env";
 import * as schema from "./schema";
 
-/**
- * Resolve a writable SQLite path.
- * Vercel serverless FS is read-only except /tmp — without this, login/signup
- * fail with SQLITE_READONLY. /tmp is ephemeral (per-instance); fine for demos,
- * not for durable production data.
- */
-function resolveDbPath() {
-  if (process.env.DATABASE_PATH) return process.env.DATABASE_PATH;
-  if (process.env.VERCEL === "1") {
-    return path.join("/tmp", "optra", "outreach.sqlite");
+type SqlClient = NeonQueryFunction<false, false>;
+type DbInstance = ReturnType<typeof drizzle<typeof schema>>;
+
+let sqlClient: SqlClient | null = null;
+let dbInstance: DbInstance | null = null;
+
+function requireDatabaseUrl(): string {
+  loadLocalEnv();
+  const url = process.env.DATABASE_URL?.trim();
+  if (!url) {
+    throw new Error(
+      "DATABASE_URL is required. Set it to your Neon PostgreSQL connection string (use the pooled URL on Vercel).",
+    );
   }
-  return path.join(process.cwd(), "data", "outreach.sqlite");
+  return url;
 }
 
-const dbPath = resolveDbPath();
-const dataDir = path.dirname(dbPath);
-
-let sqlite: Database.Database | null = null;
-let dbInstance: ReturnType<typeof drizzle<typeof schema>> | null = null;
-
-function ensureDataDir() {
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+/** Raw Neon SQL client — for migrations and one-off queries. */
+export function getSql(): SqlClient {
+  if (!sqlClient) {
+    sqlClient = neon(requireDatabaseUrl());
   }
+  return sqlClient;
 }
 
-export function getSqlite() {
-  if (!sqlite) {
-    ensureDataDir();
-    sqlite = new Database(dbPath);
-    // WAL needs sibling -wal/-shm files; skip on ephemeral /tmp hosts when it fails.
-    try {
-      sqlite.pragma("journal_mode = WAL");
-    } catch {
-      sqlite.pragma("journal_mode = DELETE");
-    }
-    sqlite.pragma("foreign_keys = ON");
-  }
-  return sqlite;
-}
-
-export function getDb() {
+export function getDb(): DbInstance {
   if (!dbInstance) {
-    dbInstance = drizzle(getSqlite(), { schema });
+    dbInstance = drizzle(getSql(), { schema });
   }
   return dbInstance;
 }
 
+/** Neon is durable; kept for call-site compatibility (always false). */
 export function isEphemeralDatabase() {
-  return process.env.VERCEL === "1" && !process.env.DATABASE_PATH;
+  return false;
 }
 
 export type Db = ReturnType<typeof getDb>;

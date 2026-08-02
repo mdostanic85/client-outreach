@@ -37,14 +37,13 @@ export async function extractPeopleFromTeamText(input: {
   recommendedRole?: string | null;
 }): Promise<ExtractedPerson[]> {
   const db = getDb();
-  const lead = db.select().from(leads).where(eq(leads.id, input.leadId)).get();
+  const lead = (await db.select().from(leads).where(eq(leads.id, input.leadId)).limit(1))[0];
   if (!lead) throw new Error("Lead not found");
 
-  const company = db
+  const company = (await db
     .select()
     .from(companies)
-    .where(eq(companies.id, lead.companyId))
-    .get();
+    .where(eq(companies.id, lead.companyId)).limit(1))[0];
 
   const system = loadPrompt("contacts/extract-people.md");
   const user = JSON.stringify(
@@ -85,7 +84,7 @@ export async function extractPeopleFromTeamText(input: {
     confidence: p.confidence ?? 0.5,
   }));
 
-  db.insert(activities)
+  await db.insert(activities)
     .values({
       id: newId("act"),
       leadId: input.leadId,
@@ -96,8 +95,7 @@ export async function extractPeopleFromTeamText(input: {
         people: people.slice(0, 10),
       }),
       occurredAt: nowIso(),
-    })
-    .run();
+    });
 
   return people;
 }

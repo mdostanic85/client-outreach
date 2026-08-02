@@ -54,8 +54,10 @@ export function normalizeCountryCode(raw?: string | null): string | null {
   return null;
 }
 
-export function loadCountryPolicyMap(): Record<string, CountryPolicy> {
-  const setting = getDb().select().from(settings).all()[0];
+export async function loadCountryPolicyMap(): Promise<
+  Record<string, CountryPolicy>
+> {
+  const setting = (await getDb().select().from(settings).limit(1))[0];
   let stored: Record<string, CountryPolicy> = {};
   try {
     stored = JSON.parse(setting?.countryPolicyJson || "{}") as Record<
@@ -68,12 +70,12 @@ export function loadCountryPolicyMap(): Record<string, CountryPolicy> {
   return { ...DEFAULT_COUNTRY_POLICY, ...stored };
 }
 
-export function resolveCountryPolicy(countryRaw?: string | null): {
+export async function resolveCountryPolicy(countryRaw?: string | null): Promise<{
   code: string | null;
   policy: CountryPolicy;
-} {
+}> {
   const code = normalizeCountryCode(countryRaw);
-  const map = loadCountryPolicyMap();
+  const map = await loadCountryPolicyMap();
   if (!code) return { code: null, policy: "unknown" };
   if (map[code]) return { code, policy: map[code] };
   if (EU_CODES.has(code)) return { code, policy: "manual_review_required" };
@@ -85,13 +87,13 @@ export function effectivePolicy(policy: CountryPolicy): CountryPolicy {
   return policy === "unknown" ? "manual_review_required" : policy;
 }
 
-export function canGenerateDraft(countryRaw?: string | null): {
+export async function canGenerateDraft(countryRaw?: string | null): Promise<{
   allowed: boolean;
   policy: CountryPolicy;
   code: string | null;
   reason?: string;
-} {
-  const { code, policy } = resolveCountryPolicy(countryRaw);
+}> {
+  const { code, policy } = await resolveCountryPolicy(countryRaw);
   const effective = effectivePolicy(policy);
 
   if (effective === "blocked") {

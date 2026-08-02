@@ -16,18 +16,18 @@ export default async function AppLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  ensureDb();
+  await ensureDb();
   const user = await getSessionUser();
   if (!user) {
-    redirect(countUsers() === 0 ? "/welcome" : "/login");
+    redirect((await countUsers()) === 0 ? "/welcome" : "/login");
   }
 
-  if (!maybeBackfillOnboardingComplete(user.id)) {
+  if (!(await maybeBackfillOnboardingComplete(user.id))) {
     redirect("/onboarding");
   }
 
-  const { leadsCount, queueCount, interestedCount } = getNavCounts();
-  const budget = getBudgetStatus();
+  const { leadsCount, queueCount, interestedCount } = await getNavCounts();
+  const budget = await getBudgetStatus();
 
   return (
     <TooltipProvider delay={200}>

@@ -16,9 +16,9 @@ export default async function LearningPage({
 }: {
   searchParams?: Promise<{ mode?: string }>;
 }) {
-  ensureDb();
+  await ensureDb();
   const sp = searchParams ? await searchParams : {};
-  const todayMode = getTodayMode();
+  const todayMode = await getTodayMode();
   const mode =
     sp.mode === "clients" || sp.mode === "jobs"
       ? sp.mode
@@ -26,8 +26,8 @@ export default async function LearningPage({
         ? "clients"
         : "jobs";
 
-  const clientsDash = getLearningDashboard();
-  const jobsDash = getJobLearningDashboard();
+  const clientsDash = await getLearningDashboard();
+  const jobsDash = await getJobLearningDashboard();
   const pending = clientsDash.proposals.filter(
     (p) => p.status === "pending" && p.kind !== "search_strategy",
   );

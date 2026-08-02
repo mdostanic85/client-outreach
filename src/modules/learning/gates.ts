@@ -18,13 +18,12 @@ const MIN_DAYS = 30;
 const MIN_EDITS = 20;
 const MIN_DELIVERED = 50;
 
-export function getLearningGates(): LearningGates {
+export async function getLearningGates(): Promise<LearningGates> {
   const db = getDb();
 
-  const signalTimes = db
+  const signalTimes = (await db
     .select()
-    .from(signals)
-    .all()
+    .from(signals))
     .map((s) => s.createdAt)
     .sort();
   let daysOfSignals = 0;
@@ -39,19 +38,17 @@ export function getLearningGates(): LearningGates {
     daysOfSignals = 1;
   }
 
-  const editedDrafts = db.select().from(draftEdits).all().length;
+  const editedDrafts = (await db.select().from(draftEdits)).length;
 
-  const deliveredMessages = db
+  const deliveredMessages = (await db
     .select()
-    .from(deliveryEvents)
-    .all()
+    .from(deliveryEvents))
     .filter((e) => e.eventType === "sent").length;
 
   // Also count manual marked_sent via lead state as soft delivered sample
-  const manualSent = db
+  const manualSent = (await db
     .select()
-    .from(leads)
-    .all()
+    .from(leads))
     .filter((l) =>
       ["sent", "replied", "in_conversation", "closed_won", "closed_lost"].includes(
         l.state,
@@ -81,8 +78,8 @@ export function getLearningGates(): LearningGates {
 }
 
 /** Allow report generation in dry-run / preview even when gates fail. */
-export function assertGatesOrPreview(force = false) {
-  const gates = getLearningGates();
+export async function assertGatesOrPreview(force = false) {
+  const gates = await getLearningGates();
   if (!gates.ready && !force) {
     throw new Error(
       `Learning gates not met: ${gates.missing.join("; ")}. Pass force=true for preview.`,

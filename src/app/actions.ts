@@ -45,7 +45,7 @@ export async function runVerticalSliceAction(): Promise<
   ActionResult<{ leadId: string; companyId: string }>
 > {
   try {
-    ensureDb();
+    await ensureDb();
     const persisted = await discoverAndPersistOne({ preferDomain: true });
     if (!persisted) {
       return { ok: false, error: "No Remotive signals available" };
@@ -70,7 +70,7 @@ export async function submitManualCompanyAction(input: {
   researchNow?: boolean;
 }): Promise<ActionResult<{ leadId: string; companyId: string }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const persisted = await submitManualCompany(input);
     if (input.researchNow !== false) {
       await researchCompany(persisted.companyId);
@@ -90,7 +90,7 @@ export async function runDailyPipelineAction(): Promise<
   ActionResult<{ runId: string }>
 > {
   try {
-    ensureDb();
+    await ensureDb();
     const result = await runWorkerPipeline();
     revalidatePath("/");
     revalidatePath("/admin");
@@ -105,7 +105,7 @@ export async function researchLeadAction(
   leadId: string,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     await researchCompany(companyId);
     revalidatePath(`/leads/${leadId}`);
     revalidatePath("/");
@@ -117,8 +117,8 @@ export async function researchLeadAction(
 
 export async function acceptLeadAction(leadId: string): Promise<ActionResult> {
   try {
-    ensureDb();
-    acceptLead(leadId);
+    await ensureDb();
+    await acceptLead(leadId);
     revalidatePath(`/leads/${leadId}`);
     revalidatePath("/");
     return { ok: true, data: undefined };
@@ -132,8 +132,8 @@ export async function rejectLeadAction(
   reason: string,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
-    rejectLead(leadId, reason);
+    await ensureDb();
+    await rejectLead(leadId, reason);
     revalidatePath(`/leads/${leadId}`);
     revalidatePath("/");
     return { ok: true, data: undefined };
@@ -144,8 +144,8 @@ export async function rejectLeadAction(
 
 export async function saveForLaterAction(leadId: string): Promise<ActionResult> {
   try {
-    ensureDb();
-    saveLeadForLater(leadId);
+    await ensureDb();
+    await saveLeadForLater(leadId);
     revalidatePath(`/leads/${leadId}`);
     revalidatePath("/");
     return { ok: true, data: undefined };
@@ -156,7 +156,7 @@ export async function saveForLaterAction(leadId: string): Promise<ActionResult> 
 
 export async function markRepliedAction(leadId: string): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     markLeadReplied(leadId);
     revalidatePath(`/leads/${leadId}`);
     revalidatePath("/");
@@ -171,8 +171,8 @@ export async function setFollowUpAction(
   followUpAt: string,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
-    setFollowUpDate(leadId, followUpAt);
+    await ensureDb();
+    await setFollowUpDate(leadId, followUpAt);
     revalidatePath(`/leads/${leadId}`);
     return { ok: true, data: undefined };
   } catch (err) {
@@ -185,8 +185,8 @@ export async function suppressLeadAction(
   reason: string,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
-    suppressLead(leadId, reason);
+    await ensureDb();
+    await suppressLead(leadId, reason);
     revalidatePath(`/leads/${leadId}`);
     revalidatePath("/");
     return { ok: true, data: undefined };
@@ -200,8 +200,8 @@ export async function setLeadStateAction(
   state: LeadState,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
-    setLeadState(leadId, state);
+    await ensureDb();
+    await setLeadState(leadId, state);
     revalidatePath(`/leads/${leadId}`);
     revalidatePath("/");
     return { ok: true, data: undefined };
@@ -219,8 +219,8 @@ export async function addContactAction(input: {
   confidence: ContactConfidence;
 }): Promise<ActionResult<{ contactId: string }>> {
   try {
-    ensureDb();
-    const contactId = addManualContact(input);
+    await ensureDb();
+    const contactId = await addManualContact(input);
     revalidatePath(`/leads/${input.leadId}`);
     return { ok: true, data: { contactId } };
   } catch (err) {
@@ -233,8 +233,8 @@ export async function confirmContactAction(
   leadId: string,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
-    confirmContact(contactId, leadId);
+    await ensureDb();
+    await confirmContact(contactId, leadId);
     revalidatePath(`/leads/${leadId}`);
     return { ok: true, data: undefined };
   } catch (err) {
@@ -252,7 +252,7 @@ export async function harvestContactsAction(
   }>
 > {
   try {
-    ensureDb();
+    await ensureDb();
     const { harvestContactsForLead } = await import(
       "@/modules/contacts/harvest"
     );
@@ -267,7 +267,7 @@ export async function harvestContactsAction(
     let people: Array<{ name: string; role: string | null }> = [];
 
     if (harvest.teamPageText && harvest.teamPageUrl) {
-      const lead = getDb().select().from(leads).where(eq(leads.id, leadId)).get();
+      const lead = (await getDb().select().from(leads).where(eq(leads.id, leadId)).limit(1))[0];
       people = await extractPeopleFromTeamText({
         leadId,
         pageUrl: harvest.teamPageUrl,
@@ -298,7 +298,7 @@ export async function suggestPatternsAction(input: {
   role?: string;
 }): Promise<ActionResult<{ suggestions: Array<{ email: string; pattern: string }> }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { suggestEmailPatterns } = await import(
       "@/modules/contacts/patterns"
     );
@@ -338,7 +338,7 @@ export async function generateDraftAction(
   }>
 > {
   try {
-    ensureDb();
+    await ensureDb();
     const result = await generateDraft(leadId, contactId, options);
     revalidatePath(`/leads/${leadId}`);
     return {
@@ -366,8 +366,8 @@ export async function inspectDraftQualityAction(
   ActionResult<{ ok: boolean; issues: Array<{ code: string; message: string }> }>
 > {
   try {
-    ensureDb();
-    const quality = inspectDraftQuality(draftId);
+    await ensureDb();
+    const quality = await inspectDraftQuality(draftId);
     revalidatePath(`/leads/${leadId}`);
     return {
       ok: true,
@@ -391,8 +391,8 @@ export async function saveDraftAction(
   subject: string,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
-    updateDraft(draftId, bodyFinal, subject);
+    await ensureDb();
+    await updateDraft(draftId, bodyFinal, subject);
     revalidatePath(`/leads/${leadId}`);
     return { ok: true, data: undefined };
   } catch (err) {
@@ -405,8 +405,8 @@ export async function markSentAction(
   draftId: string,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
-    markDraftSent(draftId);
+    await ensureDb();
+    await markDraftSent(draftId);
     revalidatePath(`/leads/${leadId}`);
     revalidatePath("/");
     return { ok: true, data: undefined };
@@ -420,9 +420,9 @@ export async function approveDraftAction(
   draftId: string,
 ): Promise<ActionResult<{ approvalId: string }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { approveDraft } = await import("@/modules/mail/approvals");
-    const approvalId = approveDraft(draftId);
+    const approvalId = await approveDraft(draftId);
     revalidatePath(`/leads/${leadId}`);
     revalidatePath("/queue");
     return { ok: true, data: { approvalId } };
@@ -435,7 +435,7 @@ export async function processSendQueueAction(): Promise<
   ActionResult<{ sent: number; processed: number; skipped: Array<{ id: string; reason: string }> }>
 > {
   try {
-    ensureDb();
+    await ensureDb();
     const { processSendQueue } = await import("@/modules/mail/send");
     const result = await processSendQueue();
     revalidatePath("/queue");
@@ -450,7 +450,7 @@ export async function syncMailboxAction(): Promise<
   ActionResult<{ fetched: number; stored: number }>
 > {
   try {
-    ensureDb();
+    await ensureDb();
     const { syncInbox } = await import("@/modules/mail/sync");
     const result = await syncInbox();
     revalidatePath("/queue");
@@ -466,7 +466,7 @@ export async function syncMailboxAction(): Promise<
 
 export async function resumeMailboxAction(): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     const { resumeMailbox } = await import("@/modules/mail/approvals");
     resumeMailbox();
     revalidatePath("/queue");
@@ -481,11 +481,11 @@ export async function saveSourceReportAction(): Promise<
   ActionResult<{ reportId: string }>
 > {
   try {
-    ensureDb();
+    await ensureDb();
     const { saveSourcePerformanceReport } = await import(
       "@/modules/learning/proposals"
     );
-    const reportId = saveSourcePerformanceReport();
+    const reportId = await saveSourcePerformanceReport();
     revalidatePath("/learning");
     revalidatePath("/analytics");
     return { ok: true, data: { reportId } };
@@ -498,7 +498,7 @@ export async function proposeStyleAction(
   force = false,
 ): Promise<ActionResult<{ proposalId: string }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { proposeStyleUpdate } = await import("@/modules/learning/proposals");
     const proposalId = await proposeStyleUpdate(force);
     revalidatePath("/learning");
@@ -512,11 +512,11 @@ export async function proposeScoringAction(
   force = false,
 ): Promise<ActionResult<{ proposalId: string }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { proposeScoringWeights } = await import(
       "@/modules/learning/proposals"
     );
-    const proposalId = proposeScoringWeights(force);
+    const proposalId = await proposeScoringWeights(force);
     revalidatePath("/learning");
     return { ok: true, data: { proposalId } };
   } catch (err) {
@@ -528,7 +528,7 @@ export async function generateMarketReportAction(
   force = false,
 ): Promise<ActionResult<{ reportId: string }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { generateMarketReport } = await import(
       "@/modules/learning/proposals"
     );
@@ -544,7 +544,7 @@ export async function generatePositioningAction(
   force = false,
 ): Promise<ActionResult<{ reportId: string }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { generatePositioningRecs } = await import(
       "@/modules/learning/proposals"
     );
@@ -560,9 +560,9 @@ export async function applyLearningProposalAction(
   proposalId: string,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     const { applyProposal } = await import("@/modules/learning/proposals");
-    applyProposal(proposalId);
+    await applyProposal(proposalId);
     revalidatePath("/learning");
     revalidatePath("/settings");
     revalidatePath("/search-criteria");
@@ -577,9 +577,9 @@ export async function rejectLearningProposalAction(
   proposalId: string,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     const { rejectProposal } = await import("@/modules/learning/proposals");
-    rejectProposal(proposalId);
+    await rejectProposal(proposalId);
     revalidatePath("/learning");
     return { ok: true, data: undefined };
   } catch (err) {
@@ -597,12 +597,12 @@ export async function updateSettingsAction(input: {
   aiBudgetUsd?: number;
 }): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     const db = getDb();
-    const row = db.select().from(settings).all()[0];
+    const row = (await db.select().from(settings).limit(1))[0];
     if (!row) throw new Error("Settings not found");
 
-    db.update(settings)
+    await db.update(settings)
       .set({
         profileMd: input.profileMd ?? row.profileMd,
         styleProfileJson: input.styleProfileJson ?? row.styleProfileJson,
@@ -613,8 +613,7 @@ export async function updateSettingsAction(input: {
         aiBudgetUsd: input.aiBudgetUsd ?? row.aiBudgetUsd,
         updatedAt: nowIso(),
       })
-      .where(eq(settings.id, row.id))
-      .run();
+      .where(eq(settings.id, row.id));
 
     revalidatePath("/settings");
     revalidatePath("/admin");
@@ -631,11 +630,11 @@ export async function exportPersonalDataAction(input?: {
   companyId?: string;
 }): Promise<ActionResult<{ path: string; bytes: number }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { writePersonalDataExport } = await import(
       "@/modules/privacy/export"
     );
-    const result = writePersonalDataExport({
+    const result = await writePersonalDataExport({
       leadId: input?.leadId,
       companyId: input?.companyId,
     });
@@ -650,9 +649,9 @@ export async function deleteContactAction(
   force = false,
 ): Promise<ActionResult<{ deleted: boolean; reason?: string }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { deleteContactData } = await import("@/modules/privacy/delete");
-    const result = deleteContactData(contactId, { force });
+    const result = await deleteContactData(contactId, { force });
     revalidatePath("/admin");
     revalidatePath("/");
     return { ok: true, data: result };
@@ -672,9 +671,9 @@ export async function runRetentionPruneAction(
   }>
 > {
   try {
-    ensureDb();
+    await ensureDb();
     const { runRetentionPrune } = await import("@/modules/privacy/retention");
-    const result = runRetentionPrune({ dryRun });
+    const result = await runRetentionPrune({ dryRun });
     revalidatePath("/admin");
     return { ok: true, data: result };
   } catch (err) {
@@ -723,20 +722,19 @@ export async function updateOpsChecklistAction(input: {
   notes?: string;
 }): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     const db = getDb();
-    const row = db.select().from(settings).all()[0];
+    const row = (await db.select().from(settings).limit(1))[0];
     if (!row) throw new Error("Settings not found");
     const { parseOpsChecklist } = await import("@/modules/ops/readiness");
     const current = parseOpsChecklist(row.opsChecklistJson);
     const next = { ...current, ...input };
-    db.update(settings)
+    await db.update(settings)
       .set({
         opsChecklistJson: JSON.stringify(next),
         updatedAt: nowIso(),
       })
-      .where(eq(settings.id, row.id))
-      .run();
+      .where(eq(settings.id, row.id));
     revalidatePath("/admin");
     return { ok: true, data: undefined };
   } catch (err) {
@@ -748,7 +746,7 @@ export async function ingestCvAction(
   formData: FormData,
 ): Promise<ActionResult<{ id: string; reused: boolean; textLength: number }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const file = formData.get("file");
     if (!(file instanceof File)) {
       return { ok: false, error: "No file uploaded" };
@@ -786,7 +784,7 @@ export async function ingestTextSourceAction(input: {
   label?: string;
 }): Promise<ActionResult<{ id: string; reused: boolean }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { ingestTextSource } = await import("@/modules/profile/ingest");
     const result = await ingestTextSource(input);
     revalidatePath("/profile");
@@ -800,7 +798,7 @@ export async function ingestPortfolioUrlAction(
   url: string,
 ): Promise<ActionResult<{ id: string; reused: boolean; textLength: number }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { ingestPortfolioUrl } = await import("@/modules/profile/ingest");
     const result = await ingestPortfolioUrl(url);
     revalidatePath("/profile");
@@ -814,7 +812,7 @@ export async function ingestGithubAction(
   usernameOrUrl: string,
 ): Promise<ActionResult<{ id: string; reused: boolean; textLength: number }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { ingestGithubProfile } = await import("@/modules/profile/ingest");
     const result = await ingestGithubProfile(usernameOrUrl);
     revalidatePath("/profile");
@@ -829,7 +827,7 @@ export async function ingestManualNotesAction(
   text: string,
 ): Promise<ActionResult<{ id: string; reused: boolean }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { ingestTextSource } = await import("@/modules/profile/ingest");
     const result = await ingestTextSource({
       type: "manual",
@@ -848,7 +846,7 @@ export async function deleteProfileSourceAction(
   options?: { confirmed?: boolean },
 ): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     if (!options?.confirmed) {
       return {
         ok: false,
@@ -858,7 +856,7 @@ export async function deleteProfileSourceAction(
     const { softDeleteProfileSource } = await import(
       "@/modules/profile/ingest"
     );
-    softDeleteProfileSource(id);
+    await softDeleteProfileSource(id);
     revalidatePath("/profile");
     revalidatePath("/onboarding");
     return { ok: true, data: undefined };
@@ -872,11 +870,11 @@ export async function setProfileSourceMatchingEnabledAction(
   enabled: boolean,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     const { setProfileSourceMatchingEnabled } = await import(
       "@/modules/profile/ingest"
     );
-    setProfileSourceMatchingEnabled(id, enabled);
+    await setProfileSourceMatchingEnabled(id, enabled);
     revalidatePath("/profile");
     revalidatePath("/");
     return { ok: true, data: undefined };
@@ -889,7 +887,7 @@ export async function refreshProfileSourceAction(
   id: string,
 ): Promise<ActionResult<{ id: string; textLength: number }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { refreshProfileSource } = await import("@/modules/profile/ingest");
     const result = await refreshProfileSource(id);
     revalidatePath("/profile");
@@ -905,11 +903,11 @@ export async function setMatchingSourcesConfigAction(
   >,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     const { setMatchingSourcesConfig } = await import(
       "@/modules/profile/matching-sources"
     );
-    setMatchingSourcesConfig(patch);
+    await setMatchingSourcesConfig(patch);
     revalidatePath("/profile");
     revalidatePath("/");
     return { ok: true, data: undefined };
@@ -928,7 +926,7 @@ export async function extractProfileAction(): Promise<
   }>
 > {
   try {
-    ensureDb();
+    await ensureDb();
     const { extractStructuredProfile } = await import(
       "@/modules/profile/extract"
     );
@@ -945,9 +943,9 @@ export async function saveProfileDraftAction(
   profile: import("@/modules/profile/schemas").StructuredProfile,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     const { saveDraftProfileEdits } = await import("@/modules/profile/extract");
-    saveDraftProfileEdits(profileId, profile);
+    await saveDraftProfileEdits(profileId, profile);
     revalidatePath("/profile");
     revalidatePath("/onboarding");
     return { ok: true, data: undefined };
@@ -964,9 +962,9 @@ export async function updateProfileFactAction(input: {
   projectTitle?: string;
 }): Promise<ActionResult<{ profileId: string }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { updateFact } = await import("@/modules/profile/facts");
-    const result = updateFact(input);
+    const result = await updateFact(input);
     revalidatePath("/profile");
     revalidatePath("/onboarding");
     return { ok: true, data: result };
@@ -983,9 +981,9 @@ export async function removeProfileFactAction(input: {
   projectTitle?: string;
 }): Promise<ActionResult<{ profileId: string }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { removeFact } = await import("@/modules/profile/facts");
-    const result = removeFact(input);
+    const result = await removeFact(input);
     revalidatePath("/profile");
     revalidatePath("/onboarding");
     return { ok: true, data: result };
@@ -1000,9 +998,9 @@ export async function addProfileFactAction(input: {
   value: string;
 }): Promise<ActionResult<{ profileId: string }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { addFact } = await import("@/modules/profile/facts");
-    const result = addFact(input);
+    const result = await addFact(input);
     revalidatePath("/profile");
     revalidatePath("/onboarding");
     return { ok: true, data: result };
@@ -1020,11 +1018,11 @@ export async function applyProfileDiffDecisionsAction(input: {
   edits?: Record<string, string>;
 }): Promise<ActionResult<{ profileId: string }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { applyDiffDecisionsToDraft } = await import(
       "@/modules/profile/facts"
     );
-    const result = applyDiffDecisionsToDraft(input);
+    const result = await applyDiffDecisionsToDraft(input);
     revalidatePath("/profile");
     revalidatePath("/onboarding");
     return { ok: true, data: result };
@@ -1037,11 +1035,11 @@ export async function createProfileDraftFromApprovedAction(): Promise<
   ActionResult<{ profileId: string; version: number }>
 > {
   try {
-    ensureDb();
+    await ensureDb();
     const { createDraftFromApprovedProfile } = await import(
       "@/modules/profile/extract"
     );
-    const result = createDraftFromApprovedProfile();
+    const result = await createDraftFromApprovedProfile();
     revalidatePath("/profile");
     revalidatePath("/onboarding");
     return { ok: true, data: result };
@@ -1060,11 +1058,11 @@ export async function approveProfileAction(
   }>
 > {
   try {
-    ensureDb();
+    await ensureDb();
     const { approveStructuredProfile } = await import(
       "@/modules/profile/approve"
     );
-    const result = approveStructuredProfile(profileId);
+    const result = await approveStructuredProfile(profileId);
 
     let searchProfileDraftId: string | undefined;
     try {
@@ -1096,7 +1094,7 @@ export async function generateSearchProfileAction(): Promise<
   ActionResult<{ id: string; version: number; usedLlm: boolean }>
 > {
   try {
-    ensureDb();
+    await ensureDb();
     const { generateSearchProfile } = await import(
       "@/modules/search-profile/generate"
     );
@@ -1114,11 +1112,11 @@ export async function saveSearchProfileDraftAction(
   rationale?: string[],
 ): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     const { saveSearchProfileDraft } = await import(
       "@/modules/search-profile/generate"
     );
-    saveSearchProfileDraft(id, params, rationale);
+    await saveSearchProfileDraft(id, params, rationale);
     revalidatePath("/search-criteria");
     return { ok: true, data: undefined };
   } catch (err) {
@@ -1130,11 +1128,11 @@ export async function approveSearchProfileAction(
   id: string,
 ): Promise<ActionResult<{ version: number }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { approveSearchProfile } = await import(
       "@/modules/search-profile/approve"
     );
-    const result = approveSearchProfile(id);
+    const result = await approveSearchProfile(id);
     revalidatePath("/search-criteria");
     revalidatePath("/");
     return { ok: true, data: result };
@@ -1147,7 +1145,7 @@ export async function runJobPipelineAction(): Promise<
   ActionResult<{ stats: import("@/modules/jobs/pipeline").JobPipelineStats }>
 > {
   try {
-    ensureDb();
+    await ensureDb();
     const { runJobDiscoveryPipeline } = await import(
       "@/modules/jobs/pipeline"
     );
@@ -1161,7 +1159,7 @@ export async function runJobPipelineAction(): Promise<
 
 export async function interestedJobAction(jobId: string): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     const { interestedJob } = await import("@/modules/jobs/queries");
     interestedJob(jobId);
     revalidatePath("/");
@@ -1178,7 +1176,7 @@ export async function rejectJobAction(
   reason: string,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     const { rejectJob } = await import("@/modules/jobs/queries");
     rejectJob(jobId, reason);
     revalidatePath("/");
@@ -1193,7 +1191,7 @@ export async function saveJobForLaterAction(
   jobId: string,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     const { saveJobForLater } = await import("@/modules/jobs/queries");
     saveJobForLater(jobId);
     revalidatePath("/");
@@ -1208,7 +1206,7 @@ export async function markJobAppliedAction(
   jobId: string,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     const { markJobApplied } = await import("@/modules/jobs/queries");
     markJobApplied(jobId);
     revalidatePath("/");
@@ -1224,9 +1222,9 @@ export async function setTodayModeAction(
   mode: "jobs" | "clients",
 ): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     const { setTodayMode } = await import("@/modules/jobs/queries");
-    setTodayMode(mode);
+    await setTodayMode(mode);
     revalidatePath("/");
     return { ok: true, data: undefined };
   } catch (err) {
@@ -1246,9 +1244,9 @@ export async function setJobOutcomeAction(
   note?: string,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     const { setJobOutcome } = await import("@/modules/learning/job-outcomes");
-    setJobOutcome(jobId, outcome, note);
+    await setJobOutcome(jobId, outcome, note);
     revalidatePath("/learning");
     revalidatePath("/");
     revalidatePath(`/jobs/${jobId}`);
@@ -1262,11 +1260,11 @@ export async function generateWeeklyJobInsightsAction(
   force = false,
 ): Promise<ActionResult<{ reportId: string }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { generateWeeklyJobInsights } = await import(
       "@/modules/learning/job-insights"
     );
-    const result = generateWeeklyJobInsights(force);
+    const result = await generateWeeklyJobInsights(force);
     revalidatePath("/learning");
     return { ok: true, data: { reportId: result.reportId } };
   } catch (err) {
@@ -1278,7 +1276,7 @@ export async function proposeSearchStrategyAction(
   force = false,
 ): Promise<ActionResult<{ proposalId: string; version: number }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { proposeSearchStrategyUpdate } = await import(
       "@/modules/learning/job-insights"
     );
@@ -1298,9 +1296,9 @@ export async function setAdaptiveJobRankingAction(
   enabled: boolean,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     const { setAdaptiveJobRanking } = await import("@/modules/jobs/queries");
-    setAdaptiveJobRanking(enabled);
+    await setAdaptiveJobRanking(enabled);
     revalidatePath("/learning");
     revalidatePath("/");
     return { ok: true, data: undefined };
@@ -1313,12 +1311,12 @@ export async function setUsePortfolioInMatchingAction(
   enabled: boolean,
 ): Promise<ActionResult> {
   try {
-    ensureDb();
+    await ensureDb();
     const { setMatchingSourcesConfig } = await import(
       "@/modules/profile/matching-sources"
     );
     // Matching preference only — never deletes sources or profile knowledge.
-    setMatchingSourcesConfig({ portfolioProjects: enabled });
+    await setMatchingSourcesConfig({ portfolioProjects: enabled });
     revalidatePath("/profile");
     revalidatePath("/");
     return { ok: true, data: undefined };
@@ -1331,21 +1329,20 @@ export async function reactivateSearchStrategyAction(
   version: number,
 ): Promise<ActionResult<{ version: number }>> {
   try {
-    ensureDb();
+    await ensureDb();
     const { getDb } = await import("@/db/client");
     const { jobSearchProfiles } = await import("@/db/schema");
     const { eq, desc } = await import("drizzle-orm");
     const { reactivateSearchProfile } = await import(
       "@/modules/search-profile/approve"
     );
-    const row = getDb()
+    const row = (await getDb()
       .select()
       .from(jobSearchProfiles)
       .where(eq(jobSearchProfiles.version, version))
-      .orderBy(desc(jobSearchProfiles.createdAt))
-      .all()[0];
+      .orderBy(desc(jobSearchProfiles.createdAt)).limit(1))[0];
     if (!row) throw new Error(`No search profile for version ${version}`);
-    const result = reactivateSearchProfile(row.id);
+    const result = await reactivateSearchProfile(row.id);
     revalidatePath("/learning");
     revalidatePath("/search-criteria");
     revalidatePath("/");

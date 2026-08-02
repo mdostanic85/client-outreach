@@ -19,59 +19,59 @@ import {
 } from "./schemas";
 
 /** Ensure a draft exists for editing; fork from approved when needed. */
-export function ensureEditableDraft(profileId?: string | null): {
+export async function ensureEditableDraft(profileId?: string | null): Promise<{
   profileId: string;
   profile: StructuredProfile;
-} {
+}> {
   if (profileId) {
-    const row = getStructuredProfileById(profileId);
+    const row = await getStructuredProfileById(profileId);
     if (row?.status === "draft") {
       return { profileId: row.id, profile: row.profile };
     }
   }
 
-  const draft = getLatestDraftProfile();
+  const draft = await getLatestDraftProfile();
   if (draft) {
     return { profileId: draft.id, profile: draft.profile };
   }
 
-  const forked = createDraftFromApprovedProfile();
-  const row = getStructuredProfileById(forked.profileId);
+  const forked = await createDraftFromApprovedProfile();
+  const row = await getStructuredProfileById(forked.profileId);
   if (!row) throw new Error("Could not create editable draft");
   return { profileId: row.id, profile: row.profile };
 }
 
-export function updateFact(input: {
+export async function updateFact(input: {
   profileId: string;
   field: string;
   value: string;
   index?: number;
   projectTitle?: string;
-}): { profileId: string } {
-  const { profileId, profile } = ensureEditableDraft(input.profileId);
+}): Promise<{ profileId: string }> {
+  const { profileId, profile } = await ensureEditableDraft(input.profileId);
   const next = updateProfileFact(profile, input);
-  saveDraftProfileEdits(profileId, StructuredProfileSchema.parse(next));
+  await saveDraftProfileEdits(profileId, StructuredProfileSchema.parse(next));
   return { profileId };
 }
 
-export function removeFact(input: {
+export async function removeFact(input: {
   profileId: string;
   field: string;
   index?: number;
   value?: string;
   projectTitle?: string;
-}): { profileId: string } {
-  const { profileId, profile } = ensureEditableDraft(input.profileId);
+}): Promise<{ profileId: string }> {
+  const { profileId, profile } = await ensureEditableDraft(input.profileId);
   const next = removeProfileFact(profile, input);
-  saveDraftProfileEdits(profileId, StructuredProfileSchema.parse(next));
+  await saveDraftProfileEdits(profileId, StructuredProfileSchema.parse(next));
   return { profileId };
 }
 
-export function addFact(input: {
+export async function addFact(input: {
   profileId: string;
   field: string;
   value: string;
-}): { profileId: string } {
+}): Promise<{ profileId: string }> {
   return updateFact({
     profileId: input.profileId,
     field: input.field,
@@ -84,12 +84,12 @@ export function addFact(input: {
  * Baseline = approved (or empty); incoming = current draft before decisions.
  * Result overwrites the draft.
  */
-export function applyDiffDecisionsToDraft(input: {
+export async function applyDiffDecisionsToDraft(input: {
   draftId: string;
   decisions: Record<string, DiffDecision>;
   edits?: Record<string, string>;
-}): { profileId: string } {
-  const draft = getStructuredProfileById(input.draftId);
+}): Promise<{ profileId: string }> {
+  const draft = await getStructuredProfileById(input.draftId);
   if (!draft || draft.status !== "draft") {
     throw new Error("Draft profile not found");
   }
@@ -125,12 +125,12 @@ export function applyDiffDecisionsToDraft(input: {
     }
   }
 
-  const approved = getApprovedProfile();
+  const approved = await getApprovedProfile();
   const merged = applyProfileDiffDecisions(
     approved?.profile ?? null,
     incoming,
     input.decisions,
   );
-  saveDraftProfileEdits(draft.id, StructuredProfileSchema.parse(merged));
+  await saveDraftProfileEdits(draft.id, StructuredProfileSchema.parse(merged));
   return { profileId: draft.id };
 }

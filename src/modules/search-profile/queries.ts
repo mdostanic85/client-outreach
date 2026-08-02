@@ -46,41 +46,38 @@ function mapRow(
   };
 }
 
-export function getApprovedSearchProfile(): SearchProfileRow | null {
-  const row = getDb()
+export async function getApprovedSearchProfile(): Promise<SearchProfileRow | null> {
+  const row = (await getDb()
     .select()
     .from(jobSearchProfiles)
-    .where(eq(jobSearchProfiles.status, "approved"))
-    .get();
+    .where(eq(jobSearchProfiles.status, "approved")).limit(1))[0];
   return row ? mapRow(row) : null;
 }
 
-export function getLatestDraftSearchProfile(): SearchProfileRow | null {
-  const row = getDb()
+export async function getLatestDraftSearchProfile(): Promise<SearchProfileRow | null> {
+  const row = (await getDb()
     .select()
     .from(jobSearchProfiles)
     .where(eq(jobSearchProfiles.status, "draft"))
-    .orderBy(desc(jobSearchProfiles.version))
-    .get();
+    .orderBy(desc(jobSearchProfiles.version)).limit(1))[0];
   return row ? mapRow(row) : null;
 }
 
-export function getSearchProfileById(id: string): SearchProfileRow | null {
-  const row = getDb()
+export async function getSearchProfileById(id: string): Promise<SearchProfileRow | null> {
+  const row = (await getDb()
     .select()
     .from(jobSearchProfiles)
-    .where(eq(jobSearchProfiles.id, id))
-    .get();
+    .where(eq(jobSearchProfiles.id, id)).limit(1))[0];
   return row ? mapRow(row) : null;
 }
 
 /** Active criteria for collectors — approved only. */
-export function getActiveSearchParams(): {
+export async function getActiveSearchParams(): Promise<{
   params: JobSearchParams;
   version: number;
   id: string;
-} | null {
-  const approved = getApprovedSearchProfile();
+} | null> {
+  const approved = await getApprovedSearchProfile();
   if (!approved) return null;
   return {
     params: approved.params,

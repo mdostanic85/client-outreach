@@ -15,11 +15,11 @@ export type OnboardingActionResult =
   | { ok: false; error: string };
 
 export async function completeOnboardingAction(): Promise<OnboardingActionResult> {
-  ensureDb();
+  await ensureDb();
   const user = await getSessionUser();
   if (!user) return { ok: false, error: "Not signed in." };
 
-  const status = getOnboardingStatus(user.id);
+  const status = await getOnboardingStatus(user.id);
   if (!status.hasApprovedProfile) {
     return { ok: false, error: "Approve your profile before finishing setup." };
   }
@@ -30,18 +30,18 @@ export async function completeOnboardingAction(): Promise<OnboardingActionResult
     };
   }
 
-  markOnboardingComplete(user.id);
+  await markOnboardingComplete(user.id);
   revalidatePath("/");
   revalidatePath("/onboarding");
   redirect("/");
 }
 
 export async function dismissSetupChecklistAction(): Promise<OnboardingActionResult> {
-  ensureDb();
+  await ensureDb();
   const user = await getSessionUser();
   if (!user) return { ok: false, error: "Not signed in." };
 
-  dismissSetupChecklist();
+  await dismissSetupChecklist();
   revalidatePath("/");
   return { ok: true };
 }

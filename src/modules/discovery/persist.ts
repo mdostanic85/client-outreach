@@ -23,20 +23,18 @@ export async function persistSignal(signal: DiscoverySignal): Promise<PersistRes
   const companyKey =
     signal.companyDomain ?? normalizeCompanyName(signal.companyName);
 
-  const existing = db
+  const existing = (await db
     .select()
     .from(signals)
     .where(
       and(eq(signals.source, signal.source), eq(signals.externalId, signal.externalId)),
-    )
-    .get();
+    ).limit(1))[0];
 
   if (existing) {
-    const existingLead = db
+    const existingLead = (await db
       .select()
       .from(leads)
-      .where(eq(leads.companyId, existing.companyId))
-      .get();
+      .where(eq(leads.companyId, existing.companyId)).limit(1))[0];
     return {
       companyId: existing.companyId,
       signalId: existing.id,
@@ -47,32 +45,29 @@ export async function persistSignal(signal: DiscoverySignal): Promise<PersistRes
   }
 
   const normalized = normalizeCompanyName(signal.companyName);
-  let company = db
+  let company = (await db
     .select()
     .from(companies)
-    .where(eq(companies.normalizedName, normalized))
-    .get();
+    .where(eq(companies.normalizedName, normalized)).limit(1))[0];
 
   if (!company && signal.companyDomain) {
-    company = db
+    company = (await db
       .select()
       .from(companies)
-      .where(eq(companies.domain, signal.companyDomain))
-      .get();
+      .where(eq(companies.domain, signal.companyDomain)).limit(1))[0];
   }
 
   if (company) {
-    db.update(companies)
+    await db.update(companies)
       .set({
         lastSeenAt: now,
         domain: company.domain ?? signal.companyDomain ?? null,
         country: company.country ?? signal.location ?? null,
       })
-      .where(eq(companies.id, company.id))
-      .run();
+      .where(eq(companies.id, company.id));
   } else {
     const companyId = newId("co");
-    db.insert(companies)
+    await db.insert(companies)
       .values({
         id: companyId,
         name: signal.companyName,
@@ -83,13 +78,12 @@ export async function persistSignal(signal: DiscoverySignal): Promise<PersistRes
         status: "new",
         firstSeenAt: now,
         lastSeenAt: now,
-      })
-      .run();
-    company = db.select().from(companies).where(eq(companies.id, companyId)).get()!;
+      });
+    company = (await db.select().from(companies).where(eq(companies.id, companyId)).limit(1))[0]!;
   }
 
   const signalId = newId("sig");
-  db.insert(signals)
+  await db.insert(signals)
     .values({
       id: signalId,
       companyId: company.id,
@@ -108,13 +102,12 @@ export async function persistSignal(signal: DiscoverySignal): Promise<PersistRes
             : undefined,
       }),
       createdAt: now,
-    })
-    .run();
+    });
 
-  let lead = db.select().from(leads).where(eq(leads.companyId, company.id)).get();
+  let lead = (await db.select().from(leads).where(eq(leads.companyId, company.id)).limit(1))[0];
   if (!lead) {
     const leadId = newId("lead");
-    db.insert(leads)
+    await db.insert(leads)
       .values({
         id: leadId,
         companyId: company.id,
@@ -122,9 +115,8 @@ export async function persistSignal(signal: DiscoverySignal): Promise<PersistRes
         researchStatus: "pending",
         createdAt: now,
         updatedAt: now,
-      })
-      .run();
-    lead = db.select().from(leads).where(eq(leads.id, leadId)).get()!;
+      });
+    lead = (await db.select().from(leads).where(eq(leads.id, leadId)).limit(1))[0]!;
   }
 
   logger.info(
@@ -156,7 +148,7 @@ export async function discoverAndPersistOne(options?: {
   }
 
   if (ordered[0]) {
-    return persistSignal(ordered[0]);
+    return await persistSignal(ordered[0]);
   }
 
   return null;
@@ -169,7 +161,7 @@ export async function submitManualCompany(input: {
   location?: string;
 }): Promise<PersistResult> {
   const signal = createManualSignal(input);
-  return persistSignal(signal);
+  return await persistSignal(signal);
 }
 
 export type DiscoverBatchResult = {
@@ -205,7 +197,7 @@ export async function discoverBatch(filtersJson: string): Promise<DiscoverBatchR
     });
   }
 
-  const { candidates, stats } = applyDeterministicFilters(rawSignals, filters);
+  const { candidates, stats } = await applyDeterministicFilters(rawSignals, filters);
   const persisted: PersistResult[] = [];
 
   for (const candidate of candidates) {

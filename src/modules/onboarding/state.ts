@@ -17,41 +17,39 @@ export type OnboardingStatus = {
   step: OnboardingStepId;
 };
 
-export function getUserOnboardingCompletedAt(userId: string): string | null {
+export async function getUserOnboardingCompletedAt(userId: string): Promise<string | null> {
   const row =
-    getDb()
+    (await getDb()
       .select({ onboardingCompletedAt: users.onboardingCompletedAt })
       .from(users)
-      .where(eq(users.id, userId))
-      .all()[0] ?? null;
+      .where(eq(users.id, userId)).limit(1))[0] ?? null;
   return row?.onboardingCompletedAt ?? null;
 }
 
-export function markOnboardingComplete(userId: string) {
+export async function markOnboardingComplete(userId: string) {
   const now = nowIso();
-  getDb()
+  await getDb()
     .update(users)
     .set({ onboardingCompletedAt: now, updatedAt: now })
-    .where(eq(users.id, userId))
-    .run();
+    .where(eq(users.id, userId));
 }
 
 /** Legacy users who already finished setup skip the wizard. */
-export function maybeBackfillOnboardingComplete(userId: string): boolean {
-  const existing = getUserOnboardingCompletedAt(userId);
+export async function maybeBackfillOnboardingComplete(userId: string): Promise<boolean> {
+  const existing = await getUserOnboardingCompletedAt(userId);
   if (existing) return true;
-  if (getApprovedProfile() && getApprovedSearchProfile()) {
-    markOnboardingComplete(userId);
+  if ((await getApprovedProfile()) && (await getApprovedSearchProfile())) {
+    await markOnboardingComplete(userId);
     return true;
   }
   return false;
 }
 
-export function getOnboardingStatus(userId: string): OnboardingStatus {
-  const completedAt = getUserOnboardingCompletedAt(userId);
-  const hasSources = listProfileSources().length > 0;
-  const hasApprovedProfile = Boolean(getApprovedProfile());
-  const hasApprovedSearch = Boolean(getApprovedSearchProfile());
+export async function getOnboardingStatus(userId: string): Promise<OnboardingStatus> {
+  const completedAt = await getUserOnboardingCompletedAt(userId);
+  const hasSources = (await listProfileSources()).length > 0;
+  const hasApprovedProfile = Boolean(await getApprovedProfile());
+  const hasApprovedSearch = Boolean(await getApprovedSearchProfile());
 
   let step: OnboardingStepId = "welcome";
   if (hasApprovedProfile && hasApprovedSearch) {
@@ -72,19 +70,18 @@ export function getOnboardingStatus(userId: string): OnboardingStatus {
   };
 }
 
-export function isSetupChecklistDismissed(): boolean {
-  const row = getDb().select().from(settings).all()[0];
+export async function isSetupChecklistDismissed(): Promise<boolean> {
+  const row = (await getDb().select().from(settings).limit(1))[0];
   return Boolean(row?.setupChecklistDismissedAt);
 }
 
-export function dismissSetupChecklist() {
-  const row = getDb().select().from(settings).all()[0];
+export async function dismissSetupChecklist() {
+  const row = (await getDb().select().from(settings).limit(1))[0];
   if (!row) return;
-  getDb()
+  await getDb()
     .update(settings)
     .set({ setupChecklistDismissedAt: nowIso(), updatedAt: nowIso() })
-    .where(eq(settings.id, row.id))
-    .run();
+    .where(eq(settings.id, row.id));
 }
 
 export type SetupChecklistItem = {
@@ -94,13 +91,13 @@ export type SetupChecklistItem = {
   done: boolean;
 };
 
-export function getSetupChecklistItems(): SetupChecklistItem[] {
-  const hasProfile = Boolean(getApprovedProfile());
-  const hasSearch = Boolean(getApprovedSearchProfile());
+export async function getSetupChecklistItems(): Promise<SetupChecklistItem[]> {
+  const hasProfile = Boolean(await getApprovedProfile());
+  const hasSearch = Boolean(await getApprovedSearchProfile());
   const hasCollected =
-    getDb().select({ id: jobs.id }).from(jobs).limit(1).all().length > 0;
+    (await getDb().select({ id: jobs.id }).from(jobs).limit(1)).length > 0;
   const styleRaw =
-    getDb().select({ style: settings.styleProfileJson }).from(settings).all()[0]
+    (await getDb().select({ style: settings.styleProfileJson }).from(settings).limit(1))[0]
       ?.style ?? "{}";
   let hasStyle = false;
   try {

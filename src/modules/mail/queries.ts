@@ -18,95 +18,93 @@ import {
   getSendPolicy,
 } from "@/modules/mail/policy";
 
-function enrichDraftRow(draft: typeof drafts.$inferSelect) {
-  const db = ensureDb();
-  const lead = db.select().from(leads).where(eq(leads.id, draft.leadId)).get();
+async function enrichDraftRow(draft: typeof drafts.$inferSelect) {
+  const db = await ensureDb();
+  const lead = (await db.select().from(leads).where(eq(leads.id, draft.leadId)).limit(1))[0];
   const company = lead
-    ? db.select().from(companies).where(eq(companies.id, lead.companyId)).get()
+    ? (await db.select().from(companies).where(eq(companies.id, lead.companyId)).limit(1))[0]
     : null;
   const contact = draft.contactId
-    ? db.select().from(contacts).where(eq(contacts.id, draft.contactId)).get()
+    ? (await db.select().from(contacts).where(eq(contacts.id, draft.contactId)).limit(1))[0]
     : null;
   return { draft, lead, company, contact };
 }
 
-export function listSendQueue() {
-  const db = ensureDb();
-  const approved = db
+export async function listSendQueue() {
+  const db = await ensureDb();
+  const approved = (await db
     .select()
-    .from(approvals)
-    .all()
+    .from(approvals))
     .filter((a) => a.status === "approved" && !a.consumedAt)
     .sort((a, b) => a.approvedAt.localeCompare(b.approvedAt));
 
-  return approved.map((approval) => {
-    const draft = db
+  return Promise.all(
+    approved.map(async (approval) => {
+    const draft = (await db
       .select()
       .from(drafts)
-      .where(eq(drafts.id, approval.draftId))
-      .get();
-    const lead = db
+      .where(eq(drafts.id, approval.draftId)).limit(1))[0];
+    const lead = (await db
       .select()
       .from(leads)
-      .where(eq(leads.id, approval.leadId))
-      .get();
+      .where(eq(leads.id, approval.leadId)).limit(1))[0];
     const company = lead
-      ? db
+      ? (await db
           .select()
           .from(companies)
-          .where(eq(companies.id, lead.companyId))
-          .get()
+          .where(eq(companies.id, lead.companyId)).limit(1))[0]
       : null;
     const contact = draft?.contactId
-      ? db
+      ? (await db
           .select()
           .from(contacts)
-          .where(eq(contacts.id, draft.contactId))
-          .get()
+          .where(eq(contacts.id, draft.contactId)).limit(1))[0]
       : null;
 
     return { approval, draft, lead, company, contact };
-  });
+  }),
+  );
 }
 
 /** Outbound board: pending drafts, scheduled (approved), sent, failed. */
-export function listOutboundBoard() {
-  const db = ensureDb();
+export async function listOutboundBoard() {
+  const db = await ensureDb();
 
-  const pending = db
-    .select()
-    .from(drafts)
-    .all()
-    .filter((d) => d.state === "draft")
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .map((draft) => ({
-      ...enrichDraftRow(draft),
-      approval: null as typeof approvals.$inferSelect | null,
-      tab: "pending" as const,
-    }));
+  const pending = await Promise.all(
+    (await db
+      .select()
+      .from(drafts))
+      .filter((d) => d.state === "draft")
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .map(async (draft) => ({
+        ...(await enrichDraftRow(draft)),
+        approval: null as typeof approvals.$inferSelect | null,
+        tab: "pending" as const,
+      })),
+  );
 
-  const scheduled = listSendQueue().map((item) => ({
+  const scheduled = (await listSendQueue()).map((item) => ({
     ...item,
     tab: "scheduled" as const,
   }));
 
-  const sentDrafts = db
-    .select()
-    .from(drafts)
-    .all()
-    .filter((d) => d.state === "sent")
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .slice(0, 40)
-    .map((draft) => ({
-      ...enrichDraftRow(draft),
-      approval: null as typeof approvals.$inferSelect | null,
-      tab: "sent" as const,
-    }));
+  const sentDrafts = await Promise.all(
+    (await db
+      .select()
+      .from(drafts))
+      .filter((d) => d.state === "sent")
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .slice(0, 40)
+      .map(async (draft) => ({
+        ...(await enrichDraftRow(draft)),
+        approval: null as typeof approvals.$inferSelect | null,
+        tab: "sent" as const,
+      })),
+  );
 
-  const failedEvents = db
+  const failedEvents = (await db
     .select()
-    .from(deliveryEvents)
-    .all()
+    .from(deliveryEvents))
     .filter(
       (e) =>
         e.eventType === "bounce_hard" ||
@@ -116,12 +114,13 @@ export function listOutboundBoard() {
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
     .slice(0, 40);
 
-  const failed = failedEvents.map((event) => {
+  const failed = await Promise.all(
+    failedEvents.map(async (event) => {
     const lead = event.leadId
-      ? db.select().from(leads).where(eq(leads.id, event.leadId)).get()
+      ? (await db.select().from(leads).where(eq(leads.id, event.leadId)).limit(1))[0]
       : null;
     const company = lead
-      ? db.select().from(companies).where(eq(companies.id, lead.companyId)).get()
+      ? (await db.select().from(companies).where(eq(companies.id, lead.companyId)).limit(1))[0]
       : null;
     return {
       event,
@@ -129,7 +128,8 @@ export function listOutboundBoard() {
       company,
       tab: "failed" as const,
     };
-  });
+  }),
+  );
 
   return {
     pending,
@@ -145,48 +145,43 @@ export function listOutboundBoard() {
   };
 }
 
-export function getMailboxStatus() {
-  ensureDb();
-  const policy = getSendPolicy();
+export async function getMailboxStatus() {
+  await ensureDb();
+  const policy = await getSendPolicy();
   return {
     credentialsConfigured: gmailCredentialsConfigured(),
-    health: getMailboxHealth(),
+    health: await getMailboxHealth(),
     policy,
-    sentToday: countNewSendsToday(),
-    remainingToday: Math.max(0, policy.maxNewPerDay - countNewSendsToday()),
+    sentToday: await countNewSendsToday(),
+    remainingToday: Math.max(0, policy.maxNewPerDay - await countNewSendsToday()),
   };
 }
 
-export function getLeadMailDetail(leadId: string) {
-  const db = ensureDb();
-  const leadThreads = db
+export async function getLeadMailDetail(leadId: string) {
+  const db = await ensureDb();
+  const leadThreads = await db
     .select()
     .from(threads)
-    .where(eq(threads.leadId, leadId))
-    .all();
-  const leadMessages = db
+    .where(eq(threads.leadId, leadId));
+  const leadMessages = (await db
     .select()
     .from(messages)
-    .where(eq(messages.leadId, leadId))
-    .all()
+    .where(eq(messages.leadId, leadId)))
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  const leadFollowUps = db
+  const leadFollowUps = (await db
     .select()
     .from(followUps)
-    .where(eq(followUps.leadId, leadId))
-    .all()
+    .where(eq(followUps.leadId, leadId)))
     .sort((a, b) => a.sequence - b.sequence);
-  const leadApprovals = db
+  const leadApprovals = (await db
     .select()
     .from(approvals)
-    .where(eq(approvals.leadId, leadId))
-    .all()
+    .where(eq(approvals.leadId, leadId)))
     .sort((a, b) => b.approvedAt.localeCompare(a.approvedAt));
-  const events = db
+  const events = (await db
     .select()
     .from(deliveryEvents)
-    .where(eq(deliveryEvents.leadId, leadId))
-    .all()
+    .where(eq(deliveryEvents.leadId, leadId)))
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
 
   return {
@@ -198,11 +193,12 @@ export function getLeadMailDetail(leadId: string) {
   };
 }
 
-export function listRecentDeliveryEvents(limit = 30) {
-  return ensureDb()
-    .select()
-    .from(deliveryEvents)
-    .orderBy(desc(deliveryEvents.occurredAt))
-    .all()
-    .slice(0, limit);
+export async function listRecentDeliveryEvents(limit = 30) {
+  const db = await ensureDb();
+  return (
+    await db
+      .select()
+      .from(deliveryEvents)
+      .orderBy(desc(deliveryEvents.occurredAt))
+  ).slice(0, limit);
 }

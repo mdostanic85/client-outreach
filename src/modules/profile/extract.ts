@@ -27,12 +27,11 @@ function hasAnthropicKey(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
 }
 
-function nextVersion(): number {
-  const latest = getDb()
+async function nextVersion(): Promise<number> {
+  const latest = (await getDb()
     .select({ version: structuredProfiles.version })
     .from(structuredProfiles)
-    .orderBy(desc(structuredProfiles.version))
-    .get();
+    .orderBy(desc(structuredProfiles.version)).limit(1))[0];
   return (latest?.version ?? 0) + 1;
 }
 
@@ -103,13 +102,12 @@ export async function extractStructuredProfile(options?: {
   groundingIssues: string[];
 }> {
   const db = getDb();
-  let sources = db.select().from(profileSources).all();
+  let sources = await db.select().from(profileSources);
   if (options?.sourceIds?.length) {
-    sources = db
+    sources = await db
       .select()
       .from(profileSources)
-      .where(inArray(profileSources.id, options.sourceIds))
-      .all();
+      .where(inArray(profileSources.id, options.sourceIds));
   }
   sources = sources.filter((s) => (s.rawText ?? "").trim().length > 0);
   if (sources.length === 0) {
@@ -182,9 +180,9 @@ export async function extractStructuredProfile(options?: {
     };
   }
 
-  const version = nextVersion();
+  const version = await nextVersion();
   const id = newId("sprof");
-  db.insert(structuredProfiles)
+  await db.insert(structuredProfiles)
     .values({
       id,
       version,
@@ -195,8 +193,7 @@ export async function extractStructuredProfile(options?: {
       promptVersion: PROFILE_EXTRACT_PROMPT_VERSION,
       createdAt: nowIso(),
       approvedAt: null,
-    })
-    .run();
+    });
 
   logger.info(
     { id, version, model, privatePath, groundingIssues: groundingIssues.length },
@@ -212,65 +209,61 @@ export async function extractStructuredProfile(options?: {
   };
 }
 
-export function saveDraftProfileEdits(
+export async function saveDraftProfileEdits(
   profileId: string,
   profile: StructuredProfile,
-): void {
+): Promise<void> {
   const db = getDb();
-  const row = db
+  const row = (await db
     .select()
     .from(structuredProfiles)
-    .where(eq(structuredProfiles.id, profileId))
-    .get();
+    .where(eq(structuredProfiles.id, profileId)).limit(1))[0];
   if (!row) throw new Error("Profile not found");
   if (row.status !== "draft") {
     throw new Error("Only draft profiles can be edited — extract a new version instead");
   }
   const validated = StructuredProfileSchema.parse(profile);
-  db.update(structuredProfiles)
+  await db.update(structuredProfiles)
     .set({ profileJson: JSON.stringify(validated) })
-    .where(eq(structuredProfiles.id, profileId))
-    .run();
+    .where(eq(structuredProfiles.id, profileId));
 }
 
 /**
  * Copy the approved profile into a new draft so the user can edit
  * (preferences, compensation, etc.) without re-extracting sources.
  */
-export function createDraftFromApprovedProfile(): {
+export async function createDraftFromApprovedProfile(): Promise<{
+
   profileId: string;
   version: number;
-} {
+}> {
   const db = getDb();
-  const existingDraft = db
+  const existingDraft = (await db
     .select()
     .from(structuredProfiles)
     .where(eq(structuredProfiles.status, "draft"))
     .orderBy(desc(structuredProfiles.version))
-    .limit(1)
-    .get();
+    .limit(1))[0];
   if (existingDraft) {
     return { profileId: existingDraft.id, version: existingDraft.version };
   }
 
-  const approved = db
+  const approved = (await db
     .select()
     .from(structuredProfiles)
     .where(eq(structuredProfiles.status, "approved"))
     .orderBy(desc(structuredProfiles.version))
-    .limit(1)
-    .get();
+    .limit(1))[0];
   if (!approved) {
     throw new Error("Approve a profile first, or extract a draft from sources");
   }
 
   const maxVersion =
-    db
+    (await db
       .select()
       .from(structuredProfiles)
       .orderBy(desc(structuredProfiles.version))
-      .limit(1)
-      .get()?.version ?? approved.version;
+      .limit(1))[0]?.version ?? approved.version;
 
   const id = newId("sprof");
   const version = maxVersion + 1;
@@ -278,7 +271,7 @@ export function createDraftFromApprovedProfile(): {
     JSON.parse(approved.profileJson || "{}"),
   );
 
-  db.insert(structuredProfiles)
+  await db.insert(structuredProfiles)
     .values({
       id,
       version,
@@ -289,8 +282,7 @@ export function createDraftFromApprovedProfile(): {
       promptVersion: approved.promptVersion,
       createdAt: nowIso(),
       approvedAt: null,
-    })
-    .run();
+    });
 
   logger.info(
     { profileId: id, version, from: approved.id },

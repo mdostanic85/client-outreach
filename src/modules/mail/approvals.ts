@@ -15,46 +15,42 @@ export function approvalContentHash(
     .digest("hex");
 }
 
-export function invalidateApprovalsForDraft(draftId: string) {
+export async function invalidateApprovalsForDraft(draftId: string) {
   const db = getDb();
   const now = nowIso();
-  const rows = db
+  const rows = (await db
     .select()
     .from(approvals)
-    .where(eq(approvals.draftId, draftId))
-    .all()
+    .where(eq(approvals.draftId, draftId)))
     .filter((a) => a.status === "approved");
 
   for (const row of rows) {
-    db.update(approvals)
+    await db.update(approvals)
       .set({ status: "invalidated", invalidatedAt: now })
-      .where(eq(approvals.id, row.id))
-      .run();
+      .where(eq(approvals.id, row.id));
   }
   return rows.length;
 }
 
-export function getActiveApproval(draftId: string) {
-  return getDb()
+export async function getActiveApproval(draftId: string) {
+  return (await getDb()
     .select()
     .from(approvals)
-    .where(eq(approvals.draftId, draftId))
-    .all()
+    .where(eq(approvals.draftId, draftId)))
     .find((a) => a.status === "approved");
 }
 
-export function approveDraft(draftId: string) {
+export async function approveDraft(draftId: string) {
   const db = getDb();
-  const draft = db.select().from(drafts).where(eq(drafts.id, draftId)).get();
+  const draft = (await db.select().from(drafts).where(eq(drafts.id, draftId)).limit(1))[0];
   if (!draft) throw new Error("Draft not found");
   if (draft.state === "sent") throw new Error("Draft already sent");
   if (!draft.contactId) throw new Error("Draft has no contact");
 
-  const contact = db
+  const contact = (await db
     .select()
     .from(contacts)
-    .where(eq(contacts.id, draft.contactId))
-    .get();
+    .where(eq(contacts.id, draft.contactId)).limit(1))[0];
   if (!contact?.email) throw new Error("Contact email required");
 
   if (contact.confidence === "pattern_unverified") {
@@ -67,7 +63,7 @@ export function approveDraft(draftId: string) {
   }
 
   // Invalidate any prior approval for this draft
-  invalidateApprovalsForDraft(draftId);
+  await invalidateApprovalsForDraft(draftId);
 
   const hash = approvalContentHash(
     draft.subject,
@@ -77,7 +73,7 @@ export function approveDraft(draftId: string) {
   const now = nowIso();
   const id = newId("appr");
 
-  db.insert(approvals)
+  await db.insert(approvals)
     .values({
       id,
       draftId,
@@ -90,22 +86,19 @@ export function approveDraft(draftId: string) {
       approvedAt: now,
       invalidatedAt: null,
       consumedAt: null,
-    })
-    .run();
+    });
 
-  db.update(drafts)
+  await db.update(drafts)
     .set({ state: "approved", updatedAt: now })
-    .where(eq(drafts.id, draftId))
-    .run();
+    .where(eq(drafts.id, draftId));
 
   return id;
 }
 
-export function listApprovedQueue() {
-  return getDb()
+export async function listApprovedQueue() {
+  return (await getDb()
     .select()
-    .from(approvals)
-    .all()
+    .from(approvals))
     .filter((a) => a.status === "approved")
     .sort((a, b) => a.approvedAt.localeCompare(b.approvedAt));
 }
@@ -115,8 +108,8 @@ export type MailboxHealth = {
   pauseReason?: string | null;
 };
 
-export function getMailboxHealth(): MailboxHealth {
-  const row = getDb().select().from(settings).all()[0];
+export async function getMailboxHealth(): Promise<MailboxHealth> {
+  const row = (await getDb().select().from(settings).limit(1))[0];
   try {
     return JSON.parse(row?.mailboxHealthJson || "{}") as MailboxHealth;
   } catch {
@@ -124,23 +117,22 @@ export function getMailboxHealth(): MailboxHealth {
   }
 }
 
-export function setMailboxHealth(health: MailboxHealth) {
+export async function setMailboxHealth(health: MailboxHealth) {
   const db = getDb();
-  const row = db.select().from(settings).all()[0];
+  const row = (await db.select().from(settings).limit(1))[0];
   if (!row) throw new Error("Settings not found");
-  db.update(settings)
+  await db.update(settings)
     .set({
       mailboxHealthJson: JSON.stringify(health),
       updatedAt: nowIso(),
     })
-    .where(eq(settings.id, row.id))
-    .run();
+    .where(eq(settings.id, row.id));
 }
 
-export function pauseMailbox(reason: string) {
-  setMailboxHealth({ pausedAt: nowIso(), pauseReason: reason });
+export async function pauseMailbox(reason: string) {
+  await setMailboxHealth({ pausedAt: nowIso(), pauseReason: reason });
 }
 
-export function resumeMailbox() {
-  setMailboxHealth({ pausedAt: null, pauseReason: null });
+export async function resumeMailbox() {
+  await setMailboxHealth({ pausedAt: null, pauseReason: null });
 }

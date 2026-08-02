@@ -33,23 +33,21 @@ export async function researchCompany(companyId: string) {
   assertPublicBudgetAllows("researchAndScore");
 
   const db = getDb();
-  const company = db.select().from(companies).where(eq(companies.id, companyId)).get();
+  const company = (await db.select().from(companies).where(eq(companies.id, companyId)).limit(1))[0];
   if (!company) throw new Error(`Company not found: ${companyId}`);
 
-  const lead = db.select().from(leads).where(eq(leads.companyId, companyId)).get();
+  const lead = (await db.select().from(leads).where(eq(leads.companyId, companyId)).limit(1))[0];
   if (!lead) throw new Error(`Lead not found for company: ${companyId}`);
 
-  const companySignals = db
+  const companySignals = await db
     .select()
     .from(signals)
-    .where(eq(signals.companyId, companyId))
-    .all();
+    .where(eq(signals.companyId, companyId));
   const signal = companySignals[0];
 
-  db.update(leads)
+  await db.update(leads)
     .set({ researchStatus: "in_progress", updatedAt: nowIso() })
-    .where(eq(leads.id, lead.id))
-    .run();
+    .where(eq(leads.id, lead.id));
 
   const evidence: EvidenceItem[] = [];
   let okPages = 0;
@@ -114,14 +112,13 @@ export async function researchCompany(companyId: string) {
   }
 
   if (evidence.length === 0) {
-    db.update(leads)
+    await db.update(leads)
       .set({
         researchStatus: "incomplete",
         state: lead.state === "new" ? "suggested" : lead.state,
         updatedAt: nowIso(),
       })
-      .where(eq(leads.id, lead.id))
-      .run();
+      .where(eq(leads.id, lead.id));
     return {
       briefId: null,
       leadId: lead.id,
@@ -184,7 +181,7 @@ export async function researchCompany(companyId: string) {
       : "complete";
 
   const briefId = newId("brief");
-  db.insert(researchBriefs)
+  await db.insert(researchBriefs)
     .values({
       id: briefId,
       companyId,
@@ -196,13 +193,12 @@ export async function researchCompany(companyId: string) {
       outputTokens: completion.usage.outputTokens,
       costEstimate: completion.estimatedCost,
       createdAt: nowIso(),
-    })
-    .run();
+    });
 
   const nextState =
     lead.state === "new" || lead.state === "researched" ? "suggested" : lead.state;
 
-  db.update(leads)
+  await db.update(leads)
     .set({
       score: total,
       scoreBreakdownJson: JSON.stringify({ ...result.score, total }),
@@ -212,8 +208,7 @@ export async function researchCompany(companyId: string) {
       state: nextState,
       updatedAt: nowIso(),
     })
-    .where(eq(leads.id, lead.id))
-    .run();
+    .where(eq(leads.id, lead.id));
 
   logger.info(
     { companyId, leadId: lead.id, score: total, researchStatus },

@@ -17,10 +17,10 @@ const MIN_APPLICATIONS = 15;
 const MIN_DAYS = 30;
 const CYCLE_TARGET_APPLICATIONS = 30;
 
-export function getJobLearningGates(): JobLearningGates {
+export async function getJobLearningGates(): Promise<JobLearningGates> {
   const db = getDb();
-  const allJobs = db.select().from(jobs).all();
-  const events = db.select().from(jobOutcomeEvents).all();
+  const allJobs = await db.select().from(jobs);
+  const events = await db.select().from(jobOutcomeEvents);
 
   const triageDecisions = allJobs.filter((j) =>
     ["interested", "saved", "rejected", "applied"].includes(j.triageState),
@@ -81,8 +81,8 @@ export function getJobLearningGates(): JobLearningGates {
   };
 }
 
-export function assertJobGatesOrPreview(force = false) {
-  const gates = getJobLearningGates();
+export async function assertJobGatesOrPreview(force = false) {
+  const gates = await getJobLearningGates();
   if (!gates.ready && !force) {
     throw new Error(
       `Job learning gates not met: ${gates.missing.join("; ")}. Pass force=true for preview.`,

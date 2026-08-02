@@ -9,7 +9,7 @@ import { ensureDb } from "../src/db/ensure";
 import { processSendQueue } from "../src/modules/mail/send";
 
 async function main() {
-  ensureDb();
+  await ensureDb();
   const args = process.argv.slice(2);
   const limitIdx = args.indexOf("--limit");
   const limit = limitIdx >= 0 ? Number(args[limitIdx + 1]) : undefined;

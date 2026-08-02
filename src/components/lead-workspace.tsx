@@ -54,7 +54,7 @@ import { cn } from "@/lib/utils";
 import type { ContactConfidence } from "@/modules/leads/actions";
 import type { getLeadDetail } from "@/modules/leads/queries";
 
-type Detail = NonNullable<ReturnType<typeof getLeadDetail>>;
+type Detail = NonNullable<Awaited<ReturnType<typeof getLeadDetail>>>;
 type Stage = "review" | "contact" | "compose" | "approve" | "outcome";
 
 const DECISION_STATES = ["suggested", "researched", "saved_for_later", "new"];

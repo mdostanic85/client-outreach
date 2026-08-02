@@ -31,12 +31,12 @@ function formatStatValue(value: unknown): string {
   return JSON.stringify(value);
 }
 
-export default function AdminPage() {
-  ensureDb();
-  const admin = getAdminOverview();
-  const settings = getSettingsRow();
+export default async function AdminPage() {
+  await ensureDb();
+  const admin = await getAdminOverview();
+  const settings = await getSettingsRow();
   const ops = parseOpsChecklist(settings?.opsChecklistJson);
-  const readiness = getValidationReadiness(ops);
+  const readiness = await getValidationReadiness(ops);
   const secrets = getSecretsStatus();
   const service = keychainServiceName();
   const stats = admin.latestRun

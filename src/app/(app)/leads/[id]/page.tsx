@@ -11,7 +11,7 @@ export default async function LeadPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const detail = getLeadDetail(id);
+  const detail = await getLeadDetail(id);
   if (!detail) notFound();
 
   return (

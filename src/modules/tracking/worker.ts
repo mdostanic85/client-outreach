@@ -39,17 +39,17 @@ type Checkpoint = {
   keptCompanyKeys?: string[];
 };
 
-function loadSettings() {
-  return getDb().select().from(settings).all()[0]!;
+async function loadSettings() {
+  return (await getDb().select().from(settings).limit(1))[0]!;
 }
 
-function saveCheckpoint(
+async function saveCheckpoint(
   runId: string,
   checkpoint: Checkpoint,
   stats: RunStats,
   error?: string,
 ) {
-  getDb()
+  await getDb()
     .update(syncRuns)
     .set({
       checkpointJson: JSON.stringify(checkpoint),
@@ -60,8 +60,7 @@ function saveCheckpoint(
           ? nowIso()
           : null,
     })
-    .where(eq(syncRuns.id, runId))
-    .run();
+    .where(eq(syncRuns.id, runId));
 }
 
 function stageDone(checkpoint: Checkpoint, stage: WorkerStage) {
@@ -81,9 +80,9 @@ export async function runWorkerPipeline(options?: {
   resumeRunId?: string;
   maxResearch?: number;
 }) {
-  ensureDb();
+  await ensureDb();
   const db = getDb();
-  const setting = loadSettings();
+  const setting = await loadSettings();
   const maxResearch = options?.maxResearch ?? setting.dailyLeadCount ?? 12;
 
   let runId = options?.resumeRunId;
@@ -91,22 +90,21 @@ export async function runWorkerPipeline(options?: {
   let stats: RunStats = {};
 
   if (runId) {
-    const existing = db.select().from(syncRuns).where(eq(syncRuns.id, runId)).get();
+    const existing = (await db.select().from(syncRuns).where(eq(syncRuns.id, runId)).limit(1))[0];
     if (!existing) throw new Error(`sync_run not found: ${runId}`);
     checkpoint = JSON.parse(existing.checkpointJson || "{}") as Checkpoint;
     stats = JSON.parse(existing.statsJson || "{}") as RunStats;
     logger.info({ runId, checkpoint }, "Resuming worker run");
   } else {
     runId = newId("run");
-    db.insert(syncRuns)
+    await db.insert(syncRuns)
       .values({
         id: runId,
         kind: "daily_pipeline",
         startedAt: nowIso(),
         checkpointJson: JSON.stringify(checkpoint),
         statsJson: "{}",
-      })
-      .run();
+      });
   }
 
   try {
@@ -135,12 +133,11 @@ export async function runWorkerPipeline(options?: {
 
       // Retry triage_failed as well — a missing key / transient LLM error
       // previously left leads stuck forever because only `new` was selected.
-      const pendingLeads = db
+      const pendingLeads = await db
         .select({ lead: leads, company: companies })
         .from(leads)
         .innerJoin(companies, eq(leads.companyId, companies.id))
-        .where(inArray(leads.state, ["new", "triage_failed"]))
-        .all();
+        .where(inArray(leads.state, ["new", "triage_failed"]));
 
       const candidates: FilteredCandidate[] = [];
       const leadIdsByCompanyKey = new Map<string, string>();
@@ -149,11 +146,10 @@ export async function runWorkerPipeline(options?: {
         const companyKey = company.domain ?? company.normalizedName;
         leadIdsByCompanyKey.set(companyKey, lead.id);
 
-        const sig = db
+        const sig = (await db
           .select()
           .from(signals)
-          .where(eq(signals.companyId, company.id))
-          .all()[0];
+          .where(eq(signals.companyId, company.id)).limit(1))[0];
 
         candidates.push({
           companyKey,
@@ -197,14 +193,13 @@ export async function runWorkerPipeline(options?: {
       for (const c of triage.rejected) {
         const leadId = leadIdsByCompanyKey.get(c.companyKey);
         if (leadId) {
-          db.update(leads)
+          await db.update(leads)
             .set({
               state: "rejected",
               rejectReason: "triage_rejected",
               updatedAt: nowIso(),
             })
-            .where(eq(leads.id, leadId))
-            .run();
+            .where(eq(leads.id, leadId));
         }
       }
 
@@ -224,7 +219,7 @@ export async function runWorkerPipeline(options?: {
     }
 
     if (!stageDone(checkpoint, "research_and_score_batch")) {
-      const budget = getBudgetStatus();
+      const budget = await getBudgetStatus();
       if (budget.hardStopped) {
         stats.researchSkippedBudget = true;
         markStage(checkpoint, "retrieve_pages");
@@ -236,7 +231,7 @@ export async function runWorkerPipeline(options?: {
         let incomplete = 0;
 
         for (const companyId of ids) {
-          if (getBudgetStatus().hardStopped) break;
+          if ((await getBudgetStatus()).hardStopped) break;
           try {
             const result = await researchCompany(companyId);
             researched += 1;
@@ -257,21 +252,19 @@ export async function runWorkerPipeline(options?: {
 
     if (!stageDone(checkpoint, "publish_daily_list")) {
       const dailyCount = setting.dailyLeadCount ?? 12;
-      const ranked = db
+      const ranked = (await db
         .select({ lead: leads, company: companies })
         .from(leads)
         .innerJoin(companies, eq(leads.companyId, companies.id))
-        .where(eq(leads.state, "suggested"))
-        .all()
+        .where(eq(leads.state, "suggested")))
         .sort((a, b) => (b.lead.score ?? 0) - (a.lead.score ?? 0))
         .slice(0, dailyCount);
 
       const now = nowIso();
       for (const row of ranked) {
-        db.update(leads)
+        await db.update(leads)
           .set({ publishedAt: now, updatedAt: now })
-          .where(eq(leads.id, row.lead.id))
-          .run();
+          .where(eq(leads.id, row.lead.id));
       }
 
       stats.published = ranked.length;
@@ -282,7 +275,7 @@ export async function runWorkerPipeline(options?: {
     }
 
     if (!stageDone(checkpoint, "record_usage")) {
-      stats.budget = getBudgetStatus();
+      stats.budget = await getBudgetStatus();
       markStage(checkpoint, "record_usage");
       saveCheckpoint(runId, checkpoint, stats);
     }
@@ -300,10 +293,9 @@ export async function runWorkerPipeline(options?: {
     }
     saveCheckpoint(runId, checkpoint, stats);
 
-    db.update(syncRuns)
+    await db.update(syncRuns)
       .set({ finishedAt: nowIso() })
-      .where(eq(syncRuns.id, runId))
-      .run();
+      .where(eq(syncRuns.id, runId));
 
     logger.info({ runId, stats }, "Worker pipeline complete");
     return { runId, stats, checkpoint };
@@ -315,22 +307,20 @@ export async function runWorkerPipeline(options?: {
   }
 }
 
-export function getLatestSyncRun() {
-  ensureDb();
-  return getDb()
+export async function getLatestSyncRun() {
+  await ensureDb();
+  return (await getDb()
     .select()
     .from(syncRuns)
     .orderBy(desc(syncRuns.startedAt))
-    .limit(1)
-    .all()[0];
+    .limit(1))[0];
 }
 
-export function listSyncRuns(limit = 20) {
-  ensureDb();
-  return getDb()
+export async function listSyncRuns(limit = 20) {
+  await ensureDb();
+  return await getDb()
     .select()
     .from(syncRuns)
     .orderBy(desc(syncRuns.startedAt))
-    .limit(limit)
-    .all();
+    .limit(limit);
 }

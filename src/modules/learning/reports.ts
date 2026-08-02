@@ -19,13 +19,13 @@ export type SourcePerfRow = {
   replyRate: number;
 };
 
-export function buildSourcePerformance(): {
+export async function buildSourcePerformance(): Promise<{
   rows: SourcePerfRow[];
   generatedAt: string;
-} {
+}> {
   const db = getDb();
-  const allSignals = db.select().from(signals).all();
-  const allLeads = db.select().from(leads).all();
+  const allSignals = await db.select().from(signals);
+  const allLeads = await db.select().from(leads);
 
   const companySource = new Map<string, string>();
   for (const s of allSignals) {
@@ -103,33 +103,31 @@ export function buildSourcePerformance(): {
   return { rows, generatedAt: new Date().toISOString() };
 }
 
-export function buildFunnelAnalytics() {
+export async function buildFunnelAnalytics() {
   const db = getDb();
-  const allLeads = db.select().from(leads).all();
+  const allLeads = await db.select().from(leads);
   const counts: Record<string, number> = {};
   for (const l of allLeads) {
     counts[l.state] = (counts[l.state] ?? 0) + 1;
   }
 
-  const edits = db.select().from(draftEdits).all();
+  const edits = await db.select().from(draftEdits);
   const avgEditRatio =
     edits.length === 0
       ? 0
       : edits.reduce((s, e) => s + e.editRatio, 0) / edits.length;
   const majorRewrites = edits.filter((e) => e.editRatio >= 0.3).length;
 
-  const replies = db
+  const replies = (await db
     .select()
-    .from(messages)
-    .all()
+    .from(messages))
     .filter((m) => m.direction === "inbound" && m.classification === "reply")
     .length;
 
   const sent = Math.max(
-    db
+    (await db
       .select()
-      .from(deliveryEvents)
-      .all()
+      .from(deliveryEvents))
       .filter((e) => e.eventType === "sent").length,
     allLeads.filter((l) =>
       ["sent", "replied", "in_conversation", "closed_won", "closed_lost"].includes(

@@ -17,9 +17,9 @@ export type LlmCompletion = {
   estimatedCost: number;
 };
 
-export function recordUsage(usage: LlmUsage): number {
+export async function recordUsage(usage: LlmUsage): Promise<number> {
   const cost = estimateCost(usage.model, usage.inputTokens, usage.outputTokens);
-  getDb()
+  await getDb()
     .insert(apiUsage)
     .values({
       id: newId("usage"),
@@ -30,8 +30,7 @@ export function recordUsage(usage: LlmUsage): number {
       outputTokens: usage.outputTokens,
       estimatedCost: cost,
       occurredAt: nowIso(),
-    })
-    .run();
+    });
   return cost;
 }
 

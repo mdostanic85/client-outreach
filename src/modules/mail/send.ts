@@ -64,38 +64,35 @@ export type SendResult =
  */
 export async function sendApprovedDraft(approvalId: string): Promise<SendResult> {
   const db = getDb();
-  const approval = db
+  const approval = (await db
     .select()
     .from(approvals)
-    .where(eq(approvals.id, approvalId))
-    .get();
+    .where(eq(approvals.id, approvalId)).limit(1))[0];
   if (!approval) return { ok: false, reason: "Approval not found" };
   if (approval.status !== "approved") {
     return { ok: false, reason: `Approval status is ${approval.status}` };
   }
 
-  const window = checkSendWindow();
+  const window = await checkSendWindow();
   if (!window.ok) return window;
 
-  const health = checkMailboxHealth();
+  const health = await checkMailboxHealth();
   if (!health.ok) return health;
 
-  const cap = checkDailyCap();
+  const cap = await checkDailyCap();
   if (!cap.ok) return cap;
 
-  const draft = db
+  const draft = (await db
     .select()
     .from(drafts)
-    .where(eq(drafts.id, approval.draftId))
-    .get();
+    .where(eq(drafts.id, approval.draftId)).limit(1))[0];
   if (!draft) return { ok: false, reason: "Draft not found" };
   if (!draft.contactId) return { ok: false, reason: "Draft has no contact" };
 
-  const contact = db
+  const contact = (await db
     .select()
     .from(contacts)
-    .where(eq(contacts.id, draft.contactId))
-    .get();
+    .where(eq(contacts.id, draft.contactId)).limit(1))[0];
   if (!contact?.email) return { ok: false, reason: "Contact email missing" };
 
   if (contact.confidence === "pattern_unverified") {
@@ -122,14 +119,13 @@ export async function sendApprovedDraft(approvalId: string): Promise<SendResult>
     };
   }
 
-  const lead = db.select().from(leads).where(eq(leads.id, draft.leadId)).get();
+  const lead = (await db.select().from(leads).where(eq(leads.id, draft.leadId)).limit(1))[0];
   if (!lead) return { ok: false, reason: "Lead not found" };
 
-  const company = db
+  const company = (await db
     .select()
     .from(companies)
-    .where(eq(companies.id, lead.companyId))
-    .get();
+    .where(eq(companies.id, lead.companyId)).limit(1))[0];
 
   try {
     assertNotSuppressed(recipient, company?.domain);
@@ -140,7 +136,7 @@ export async function sendApprovedDraft(approvalId: string): Promise<SendResult>
     };
   }
 
-  const jurisdiction = canGenerateDraft(company?.country);
+  const jurisdiction = await canGenerateDraft(company?.country);
   if (!jurisdiction.allowed) {
     return {
       ok: false,
@@ -189,7 +185,7 @@ export async function sendApprovedDraft(approvalId: string): Promise<SendResult>
   const threadId = newId("thr");
   const messageId = newId("msg");
 
-  db.insert(threads)
+  await db.insert(threads)
     .values({
       id: threadId,
       leadId: lead.id,
@@ -200,10 +196,9 @@ export async function sendApprovedDraft(approvalId: string): Promise<SendResult>
       state: "open",
       createdAt: now,
       updatedAt: now,
-    })
-    .run();
+    });
 
-  db.insert(messages)
+  await db.insert(messages)
     .values({
       id: messageId,
       threadId,
@@ -219,10 +214,9 @@ export async function sendApprovedDraft(approvalId: string): Promise<SendResult>
       classificationSource: null,
       imapUid: null,
       createdAt: now,
-    })
-    .run();
+    });
 
-  db.insert(deliveryEvents)
+  await db.insert(deliveryEvents)
     .values({
       id: newId("dev"),
       messageId,
@@ -230,35 +224,30 @@ export async function sendApprovedDraft(approvalId: string): Promise<SendResult>
       eventType: "sent",
       detail: null,
       occurredAt: now,
-    })
-    .run();
+    });
 
-  db.update(approvals)
+  await db.update(approvals)
     .set({ status: "consumed", consumedAt: now })
-    .where(eq(approvals.id, approval.id))
-    .run();
+    .where(eq(approvals.id, approval.id));
 
-  db.update(drafts)
+  await db.update(drafts)
     .set({ state: "sent", updatedAt: now })
-    .where(eq(drafts.id, draft.id))
-    .run();
+    .where(eq(drafts.id, draft.id));
 
-  db.update(leads)
+  await db.update(leads)
     .set({ state: "sent", updatedAt: now })
-    .where(eq(leads.id, lead.id))
-    .run();
+    .where(eq(leads.id, lead.id));
 
-  db.insert(activities)
+  await db.insert(activities)
     .values({
       id: newId("act"),
       leadId: lead.id,
       type: "sent_automated",
       metadataJson: JSON.stringify({ draftId: draft.id, messageId, threadId }),
       occurredAt: now,
-    })
-    .run();
+    });
 
-  scheduleFollowUps(lead.id, threadId);
+  await scheduleFollowUps(lead.id, threadId);
 
   logger.info({ leadId: lead.id, messageId, threadId }, "Outbound email sent");
   return { ok: true, messageId, threadId };
@@ -266,14 +255,14 @@ export async function sendApprovedDraft(approvalId: string): Promise<SendResult>
 
 /** Process approved queue up to remaining daily cap. */
 export async function processSendQueue(limit?: number) {
-  const policy = getSendPolicy();
-  const remaining = Math.max(0, policy.maxNewPerDay - countNewSendsToday());
+  const policy = await getSendPolicy();
+  const remaining = Math.max(0, policy.maxNewPerDay - await countNewSendsToday());
   const cap = limit ?? remaining;
   if (cap <= 0) {
     return { processed: 0, sent: 0, skipped: [] as Array<{ id: string; reason: string }> };
   }
 
-  const bounce = evaluateBounceHealth();
+  const bounce = await evaluateBounceHealth();
   if (bounce.shouldPause) {
     pauseMailbox(bounce.reason ?? "bounce health");
     return {
@@ -283,10 +272,9 @@ export async function processSendQueue(limit?: number) {
     };
   }
 
-  const queue = getDb()
+  const queue = (await getDb()
     .select()
-    .from(approvals)
-    .all()
+    .from(approvals))
     .filter((a) => a.status === "approved")
     .sort((a, b) => a.approvedAt.localeCompare(b.approvedAt))
     .slice(0, cap);
@@ -303,10 +291,10 @@ export async function processSendQueue(limit?: number) {
   return { processed: queue.length, sent, skipped };
 }
 
-export function verifyApprovalStillValid(draftId: string): boolean {
-  const approval = getActiveApproval(draftId);
+export async function verifyApprovalStillValid(draftId: string): Promise<boolean> {
+  const approval = await getActiveApproval(draftId);
   if (!approval) return false;
-  const draft = getDb().select().from(drafts).where(eq(drafts.id, draftId)).get();
+  const draft = (await getDb().select().from(drafts).where(eq(drafts.id, draftId)).limit(1))[0];
   if (!draft) return false;
   const hash = approvalContentHash(
     draft.subject,

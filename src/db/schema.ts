@@ -1,6 +1,13 @@
-import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+  boolean,
+  integer,
+  real,
+  pgTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
-export const settings = sqliteTable("settings", {
+export const settings = pgTable("settings", {
   id: text("id").primaryKey(),
   profileMd: text("profile_md").notNull().default(""),
   targetFiltersJson: text("target_filters_json").notNull().default("{}"),
@@ -41,7 +48,7 @@ export const settings = sqliteTable("settings", {
   updatedAt: text("updated_at").notNull(),
 });
 
-export const companies = sqliteTable(
+export const companies = pgTable(
   "companies",
   {
     id: text("id").primaryKey(),
@@ -57,7 +64,7 @@ export const companies = sqliteTable(
   (t) => [uniqueIndex("companies_normalized_name_idx").on(t.normalizedName)],
 );
 
-export const signals = sqliteTable(
+export const signals = pgTable(
   "signals",
   {
     id: text("id").primaryKey(),
@@ -76,7 +83,7 @@ export const signals = sqliteTable(
   (t) => [uniqueIndex("signals_source_external_id_idx").on(t.source, t.externalId)],
 );
 
-export const sourcePages = sqliteTable("source_pages", {
+export const sourcePages = pgTable("source_pages", {
   id: text("id").primaryKey(),
   companyId: text("company_id")
     .notNull()
@@ -95,7 +102,7 @@ export const sourcePages = sqliteTable("source_pages", {
   modelId: text("model_id"),
 });
 
-export const researchBriefs = sqliteTable("research_briefs", {
+export const researchBriefs = pgTable("research_briefs", {
   id: text("id").primaryKey(),
   companyId: text("company_id")
     .notNull()
@@ -110,7 +117,7 @@ export const researchBriefs = sqliteTable("research_briefs", {
   createdAt: text("created_at").notNull(),
 });
 
-export const leads = sqliteTable("leads", {
+export const leads = pgTable("leads", {
   id: text("id").primaryKey(),
   companyId: text("company_id")
     .notNull()
@@ -128,7 +135,7 @@ export const leads = sqliteTable("leads", {
   updatedAt: text("updated_at").notNull(),
 });
 
-export const contacts = sqliteTable("contacts", {
+export const contacts = pgTable("contacts", {
   id: text("id").primaryKey(),
   companyId: text("company_id")
     .notNull()
@@ -144,13 +151,11 @@ export const contacts = sqliteTable("contacts", {
   lawfulBasisNote: text("lawful_basis_note"),
   /** Country policy applied when contact was added. */
   countryPolicyApplied: text("country_policy_applied"),
-  manuallyConfirmed: integer("manually_confirmed", { mode: "boolean" })
-    .notNull()
-    .default(true),
+  manuallyConfirmed: boolean("manually_confirmed").notNull().default(true),
   createdAt: text("created_at").notNull(),
 });
 
-export const drafts = sqliteTable("drafts", {
+export const drafts = pgTable("drafts", {
   id: text("id").primaryKey(),
   leadId: text("lead_id")
     .notNull()
@@ -167,7 +172,7 @@ export const drafts = sqliteTable("drafts", {
   updatedAt: text("updated_at").notNull(),
 });
 
-export const activities = sqliteTable("activities", {
+export const activities = pgTable("activities", {
   id: text("id").primaryKey(),
   leadId: text("lead_id")
     .notNull()
@@ -177,7 +182,7 @@ export const activities = sqliteTable("activities", {
   occurredAt: text("occurred_at").notNull(),
 });
 
-export const suppressions = sqliteTable("suppressions", {
+export const suppressions = pgTable("suppressions", {
   id: text("id").primaryKey(),
   email: text("email"),
   domain: text("domain"),
@@ -185,7 +190,7 @@ export const suppressions = sqliteTable("suppressions", {
   createdAt: text("created_at").notNull(),
 });
 
-export const syncRuns = sqliteTable("sync_runs", {
+export const syncRuns = pgTable("sync_runs", {
   id: text("id").primaryKey(),
   kind: text("kind").notNull(),
   startedAt: text("started_at").notNull(),
@@ -195,7 +200,7 @@ export const syncRuns = sqliteTable("sync_runs", {
   error: text("error"),
 });
 
-export const apiUsage = sqliteTable("api_usage", {
+export const apiUsage = pgTable("api_usage", {
   id: text("id").primaryKey(),
   provider: text("provider").notNull(),
   model: text("model").notNull(),
@@ -208,7 +213,7 @@ export const apiUsage = sqliteTable("api_usage", {
 
 /** Phase 3 — mailbox automation (credentials stay in Keychain, never here). */
 
-export const approvals = sqliteTable("approvals", {
+export const approvals = pgTable("approvals", {
   id: text("id").primaryKey(),
   draftId: text("draft_id")
     .notNull()
@@ -226,7 +231,7 @@ export const approvals = sqliteTable("approvals", {
   consumedAt: text("consumed_at"),
 });
 
-export const threads = sqliteTable("threads", {
+export const threads = pgTable("threads", {
   id: text("id").primaryKey(),
   leadId: text("lead_id")
     .notNull()
@@ -240,7 +245,7 @@ export const threads = sqliteTable("threads", {
   updatedAt: text("updated_at").notNull(),
 });
 
-export const messages = sqliteTable("messages", {
+export const messages = pgTable("messages", {
   id: text("id").primaryKey(),
   threadId: text("thread_id")
     .notNull()
@@ -261,7 +266,7 @@ export const messages = sqliteTable("messages", {
   createdAt: text("created_at").notNull(),
 });
 
-export const followUps = sqliteTable("follow_ups", {
+export const followUps = pgTable("follow_ups", {
   id: text("id").primaryKey(),
   leadId: text("lead_id")
     .notNull()
@@ -275,7 +280,7 @@ export const followUps = sqliteTable("follow_ups", {
   updatedAt: text("updated_at").notNull(),
 });
 
-export const mailSyncCursors = sqliteTable(
+export const mailSyncCursors = pgTable(
   "mail_sync_cursors",
   {
     id: text("id").primaryKey(),
@@ -288,7 +293,7 @@ export const mailSyncCursors = sqliteTable(
   (t) => [uniqueIndex("mail_sync_mailbox_folder_idx").on(t.mailbox, t.folder)],
 );
 
-export const deliveryEvents = sqliteTable("delivery_events", {
+export const deliveryEvents = pgTable("delivery_events", {
   id: text("id").primaryKey(),
   messageId: text("message_id").references(() => messages.id),
   leadId: text("lead_id").references(() => leads.id),
@@ -299,7 +304,7 @@ export const deliveryEvents = sqliteTable("delivery_events", {
 
 /** Phase 4 — learning (proposals never auto-apply). */
 
-export const draftEdits = sqliteTable("draft_edits", {
+export const draftEdits = pgTable("draft_edits", {
   id: text("id").primaryKey(),
   draftId: text("draft_id")
     .notNull()
@@ -315,7 +320,7 @@ export const draftEdits = sqliteTable("draft_edits", {
   createdAt: text("created_at").notNull(),
 });
 
-export const learningProposals = sqliteTable("learning_proposals", {
+export const learningProposals = pgTable("learning_proposals", {
   id: text("id").primaryKey(),
   kind: text("kind").notNull(),
   title: text("title").notNull(),
@@ -327,7 +332,7 @@ export const learningProposals = sqliteTable("learning_proposals", {
   decidedAt: text("decided_at"),
 });
 
-export const learningReports = sqliteTable("learning_reports", {
+export const learningReports = pgTable("learning_reports", {
   id: text("id").primaryKey(),
   kind: text("kind").notNull(),
   title: text("title").notNull(),
@@ -338,14 +343,14 @@ export const learningReports = sqliteTable("learning_reports", {
 });
 
 /** Soft scoring weight overrides — only applied via approved proposal. */
-export const settingsScoring = sqliteTable("settings_scoring", {
+export const settingsScoring = pgTable("settings_scoring", {
   id: text("id").primaryKey(),
   weightsJson: text("weights_json").notNull().default("{}"),
   updatedAt: text("updated_at").notNull(),
 });
 
 /** Raw materials for structured professional profile (CV, portfolio, etc.). */
-export const profileSources = sqliteTable("profile_sources", {
+export const profileSources = pgTable("profile_sources", {
   id: text("id").primaryKey(),
   type: text("type").notNull(),
   label: text("label"),
@@ -366,7 +371,7 @@ export const profileSources = sqliteTable("profile_sources", {
 });
 
 /** Versioned structured profile. Matching uses approved only. */
-export const structuredProfiles = sqliteTable("structured_profiles", {
+export const structuredProfiles = pgTable("structured_profiles", {
   id: text("id").primaryKey(),
   version: integer("version").notNull(),
   status: text("status").notNull().default("draft"),
@@ -379,7 +384,7 @@ export const structuredProfiles = sqliteTable("structured_profiles", {
 });
 
 /** AI-generated Apify/search criteria. Collectors use approved only. Strategy versions = rows. */
-export const jobSearchProfiles = sqliteTable("job_search_profiles", {
+export const jobSearchProfiles = pgTable("job_search_profiles", {
   id: text("id").primaryKey(),
   version: integer("version").notNull(),
   status: text("status").notNull().default("draft"),
@@ -401,7 +406,7 @@ export const jobSearchProfiles = sqliteTable("job_search_profiles", {
 });
 
 /** First-class open roles for job-application mode. */
-export const jobs = sqliteTable(
+export const jobs = pgTable(
   "jobs",
   {
     id: text("id").primaryKey(),
@@ -438,13 +443,13 @@ export const jobs = sqliteTable(
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
-  (t) => ({
-    sourceExternal: uniqueIndex("jobs_source_external").on(t.source, t.externalId),
-  }),
+  (t) => [
+    uniqueIndex("jobs_source_external").on(t.source, t.externalId),
+  ],
 );
 
 /** Append-only job learning signals (triage + post-apply outcomes). */
-export const jobOutcomeEvents = sqliteTable("job_outcome_events", {
+export const jobOutcomeEvents = pgTable("job_outcome_events", {
   id: text("id").primaryKey(),
   jobId: text("job_id")
     .notNull()
@@ -457,7 +462,7 @@ export const jobOutcomeEvents = sqliteTable("job_outcome_events", {
 });
 
 /** Snapshot of funnel KPIs per search strategy version (recomputed on demand). */
-export const strategyCohortMetrics = sqliteTable("strategy_cohort_metrics", {
+export const strategyCohortMetrics = pgTable("strategy_cohort_metrics", {
   id: text("id").primaryKey(),
   strategyVersion: integer("strategy_version").notNull(),
   applicationsN: integer("applications_n").notNull().default(0),
@@ -476,7 +481,7 @@ export const strategyCohortMetrics = sqliteTable("strategy_cohort_metrics", {
 });
 
 /** One collector/Apify query run. */
-export const collectorRuns = sqliteTable("collector_runs", {
+export const collectorRuns = pgTable("collector_runs", {
   id: text("id").primaryKey(),
   searchProfileVersion: integer("search_profile_version"),
   source: text("source").notNull(),
@@ -490,7 +495,7 @@ export const collectorRuns = sqliteTable("collector_runs", {
 });
 
 /** Local account for private app access. */
-export const users = sqliteTable(
+export const users = pgTable(
   "users",
   {
     id: text("id").primaryKey(),
@@ -505,7 +510,7 @@ export const users = sqliteTable(
   (t) => [uniqueIndex("users_email_idx").on(t.email)],
 );
 
-export const sessions = sqliteTable("sessions", {
+export const sessions = pgTable("sessions", {
   id: text("id").primaryKey(),
   userId: text("user_id")
     .notNull()
@@ -515,7 +520,7 @@ export const sessions = sqliteTable("sessions", {
   createdAt: text("created_at").notNull(),
 });
 
-export const passwordResetTokens = sqliteTable("password_reset_tokens", {
+export const passwordResetTokens = pgTable("password_reset_tokens", {
   id: text("id").primaryKey(),
   userId: text("user_id")
     .notNull()
@@ -527,7 +532,7 @@ export const passwordResetTokens = sqliteTable("password_reset_tokens", {
 });
 
 /** AI job-vs-profile evaluation. */
-export const jobMatches = sqliteTable(
+export const jobMatches = pgTable(
   "job_matches",
   {
     id: text("id").primaryKey(),
@@ -548,11 +553,11 @@ export const jobMatches = sqliteTable(
     costUsd: real("cost_usd"),
     createdAt: text("created_at").notNull(),
   },
-  (t) => ({
-    jobProfile: uniqueIndex("job_matches_job_profile").on(
+  (t) => [
+    uniqueIndex("job_matches_job_profile").on(
       t.jobId,
       t.profileVersion,
       t.promptVersion,
     ),
-  }),
+  ],
 );
