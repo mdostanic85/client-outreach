@@ -1,7 +1,4 @@
 import { createHash } from "node:crypto";
-import { Readability } from "@mozilla/readability";
-import * as cheerio from "cheerio";
-import { JSDOM } from "jsdom";
 import { isBlockedUrl } from "@/lib/security/ssrf";
 import { logger } from "@/lib/logging/logger";
 
@@ -106,7 +103,7 @@ export async function retrievePage(url: string): Promise<RetrievedPage> {
     }
 
     const html = buf.toString("utf8");
-    const extracted = extractText(html, res.url);
+    const extracted = await extractText(html, res.url);
     const contentHash = createHash("sha256").update(extracted.text).digest("hex");
 
     return {
@@ -143,8 +140,28 @@ export async function retrievePage(url: string): Promise<RetrievedPage> {
   }
 }
 
-function extractText(html: string, url: string): { title: string | null; text: string; method: string } {
+async function extractTextWithCheerio(html: string): Promise<{
+  title: string | null;
+  text: string;
+  method: string;
+}> {
+  const cheerio = await import("cheerio");
+  const $ = cheerio.load(html);
+  $("script, style, noscript, nav, footer, iframe").remove();
+  const title = $("title").first().text().trim() || null;
+  const text = $("body").text().replace(/\s+/g, " ").trim();
+  return { title, text, method: "cheerio" };
+}
+
+async function extractText(
+  html: string,
+  url: string,
+): Promise<{ title: string | null; text: string; method: string }> {
   try {
+    const [{ JSDOM }, { Readability }] = await Promise.all([
+      import("jsdom"),
+      import("@mozilla/readability"),
+    ]);
     const dom = new JSDOM(html, { url });
     const reader = new Readability(dom.window.document);
     const article = reader.parse();
@@ -155,13 +172,12 @@ function extractText(html: string, url: string): { title: string | null; text: s
         method: "readability",
       };
     }
-  } catch {
-    // fall through to cheerio
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "Readability/jsdom extract failed — falling back to cheerio",
+    );
   }
 
-  const $ = cheerio.load(html);
-  $("script, style, noscript, nav, footer, iframe").remove();
-  const title = $("title").first().text().trim() || null;
-  const text = $("body").text().replace(/\s+/g, " ").trim();
-  return { title, text, method: "cheerio" };
+  return extractTextWithCheerio(html);
 }

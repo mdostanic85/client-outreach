@@ -5,7 +5,6 @@ import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { profileSources } from "@/db/schema";
 import { newId, nowIso } from "@/lib/ids";
-import { retrievePage } from "@/lib/retrieval/fetch-page";
 import { logger } from "@/lib/logging/logger";
 import type { ProfileSourceType } from "./schemas";
 
@@ -13,10 +12,17 @@ function hashContent(text: string): string {
   return createHash("sha256").update(text).digest("hex").slice(0, 32);
 }
 
+/** Writable path for optional PDF copies. Vercel only allows /tmp. */
 function sourcesDir(): string {
-  const dir = path.join(process.cwd(), "data", "profile-sources");
+  const root = process.env.VERCEL ? "/tmp/optra" : process.cwd();
+  const dir = path.join(root, "data", "profile-sources");
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
+}
+
+async function loadRetrievePage() {
+  const { retrievePage } = await import("@/lib/retrieval/fetch-page");
+  return retrievePage;
 }
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
@@ -105,15 +111,28 @@ export async function ingestFileUpload(input: {
     rawText = await extractPdfText(input.bytes);
     if (!rawText) throw new Error("Could not extract text from PDF");
     const id = newId("psrc");
-    const dest = path.join(sourcesDir(), `${id}.pdf`);
-    fs.writeFileSync(dest, input.bytes);
-    filePath = dest;
+
+    // Best-effort PDF copy for local debugging. Extracted text is the source of truth in DB.
+    try {
+      const dest = path.join(sourcesDir(), `${id}.pdf`);
+      fs.writeFileSync(dest, input.bytes);
+      filePath = dest;
+    } catch (err) {
+      logger.warn({ err }, "Could not persist PDF copy; continuing with extracted text");
+      filePath = null;
+    }
 
     const contentHash = hashContent(`${type}:${rawText}`);
     const db = getDb();
     const existing = await findActiveByHash(contentHash);
     if (existing) {
-      fs.unlinkSync(dest);
+      if (filePath) {
+        try {
+          fs.unlinkSync(filePath);
+        } catch {
+          // ignore cleanup errors
+        }
+      }
       const syncedAt = nowIso();
       await db.update(profileSources)
         .set({ lastSyncedAt: syncedAt })
@@ -166,6 +185,7 @@ export async function ingestCvUpload(input: {
 export async function ingestPortfolioUrl(
   url: string,
 ): Promise<{ id: string; reused: boolean; textLength: number }> {
+  const retrievePage = await loadRetrievePage();
   const page = await retrievePage(url);
   if (page.status !== "ok" || !page.extractedText?.trim()) {
     throw new Error(page.error ?? "Failed to fetch portfolio page");
@@ -195,6 +215,7 @@ export async function refreshProfileSource(
 
   if (row.type === "portfolio_url") {
     if (!row.sourceUrl) throw new Error("Portfolio source has no URL to refresh");
+    const retrievePage = await loadRetrievePage();
     const page = await retrievePage(row.sourceUrl);
     if (page.status !== "ok" || !page.extractedText?.trim()) {
       throw new Error(page.error ?? "Failed to refresh portfolio page");
