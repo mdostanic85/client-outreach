@@ -164,8 +164,8 @@ export function SearchCriteriaWorkspace({
         return approveSearchProfileAction(draft.id);
       }
       const created = await createSearchDraftFromApprovedAction(buildParams());
-      if (!created.ok || !created.data) {
-        return { ok: false, error: created.error ?? "Could not create draft" };
+      if (!created.ok) {
+        return { ok: false, error: created.error };
       }
       return approveSearchProfileAction(created.data.id);
     }, "Search criteria approved");
