@@ -29,6 +29,7 @@ export function QueueBoard({
   board,
   status,
   events,
+  embedded = false,
 }: {
   board: Board;
   status: {
@@ -45,6 +46,8 @@ export function QueueBoard({
     leadId: string | null;
     occurredAt: string;
   }>;
+  /** When true, skip outer PageShell/header (used inside QueueWorkspace). */
+  embedded?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>(
     board.counts.pending > 0 ? "pending" : "scheduled",
@@ -60,13 +63,19 @@ export function QueueBoard({
 
   const paused = Boolean(status.health.pausedAt);
 
-  return (
-    <PageShell>
-      <PageHeader
-        title="Queue"
-        description="Review pending drafts and monitor scheduled mail."
-        actions={<QueueControls paused={paused} />}
-      />
+  const body = (
+    <>
+      {!embedded ? (
+        <PageHeader
+          title="Queue"
+          description="Review pending drafts and monitor scheduled mail."
+          actions={<QueueControls paused={paused} />}
+        />
+      ) : (
+        <div className="flex justify-end">
+          <QueueControls paused={paused} />
+        </div>
+      )}
 
       <div className="bg-card border-border flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border px-5 py-3.5 text-[14px] shadow-[var(--shadow-card)]">
         <span
@@ -302,8 +311,14 @@ export function QueueBoard({
           </Surface>
         ) : null}
       </div>
-    </PageShell>
+    </>
   );
+
+  if (embedded) {
+    return <div className="space-y-6">{body}</div>;
+  }
+
+  return <PageShell>{body}</PageShell>;
 }
 
 function QueueRow({

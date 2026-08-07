@@ -4,6 +4,7 @@ import {
   getTodayMode,
   listDailyJobs,
 } from "@/modules/jobs/queries";
+import { toJobTriageRow } from "@/modules/jobs/to-triage-row";
 import { listDailyLeads, getSettingsRow } from "@/modules/leads/queries";
 import {
   getSetupChecklistItems,
@@ -29,27 +30,7 @@ export default async function HomePage() {
       mode={mode}
       hasSearchProfile={hasSearchProfile}
       checklistItems={checklistItems}
-      jobRows={jobRows.map((row) => ({
-        jobId: row.job.id,
-        title: row.job.title,
-        companyName: row.company?.name ?? "Unknown",
-        location: row.job.location,
-        remotePolicy: row.job.remotePolicy,
-        employmentType: row.job.employmentType,
-        source: row.job.source,
-        sourceUrl: row.job.sourceUrl,
-        matchScore: row.match?.matchScore ?? null,
-        eligibility: row.match?.eligibility ?? null,
-        recommendation: row.match?.recommendation ?? null,
-        matchingReasons: row.matchingReasons,
-        concerns: row.concerns,
-        remoteFit: row.remoteFit,
-        mainRisk: row.mainRisk,
-        missingRequirements: row.missingRequirements,
-        remoteRequired: row.remoteRequired,
-        postedAt: row.job.postedAt,
-        triageState: row.job.triageState,
-      }))}
+      jobRows={jobRows.map(toJobTriageRow)}
       leadRows={leadRows.map((row) => ({
         leadId: row.lead.id,
         companyName: row.company.name,

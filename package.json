@@ -2,6 +2,13 @@
   "name": "client-outreach",
   "version": "0.1.0",
   "private": true,
+  "license": "UNLICENSED",
+  "author": {
+    "name": "Miloš Dostanić",
+    "email": "info@dostanic.net",
+    "url": "https://dostanic.net"
+  },
+  "copyright": "Copyright (c) 2026 Miloš Dostanić. All rights reserved.",
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1 --port 3000",
     "build": "next build",
@@ -15,7 +22,7 @@
     "backup": "tsx scripts/backup.ts",
     "retention": "tsx scripts/retention.ts",
     "export-data": "tsx scripts/export-data.ts",
-    "test": "tsx tests/unit.test.ts && tsx tests/phase2-quality.test.ts && tsx tests/jobs-filters.test.ts && tsx tests/collectors-mix.test.ts && tsx tests/matching-sources.test.ts && tsx tests/profile-diff.test.ts && tsx tests/remote-fit.test.ts",
+    "test": "tsx tests/unit.test.ts && tsx tests/phase2-quality.test.ts && tsx tests/jobs-filters.test.ts && tsx tests/collectors-mix.test.ts && tsx tests/matching-sources.test.ts && tsx tests/profile-diff.test.ts && tsx tests/remote-fit.test.ts && tsx tests/company-snapshot.test.ts && tsx tests/market-fit.test.ts && tsx tests/mail-credentials.test.ts",
     "eval:writing": "tsx tests/evals/writing-compare.ts",
     "eval:research": "tsx tests/evals/research-scorecard.ts"
   },
@@ -30,6 +37,7 @@
     "imapflow": "^1.6.5",
     "jsdom": "^29.1.1",
     "lucide-react": "^1.28.0",
+    "motion": "^12.43.0",
     "nanoid": "^6.0.0",
     "next": "16.2.12",
     "next-themes": "^0.4.6",

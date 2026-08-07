@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentType } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -14,6 +15,7 @@ import {
   Sparkles,
   UserRound,
 } from "lucide-react";
+import { MakerCredit } from "@/components/maker-credit";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -38,6 +40,7 @@ function NavLink({
     <Link
       href={item.href}
       onClick={onNavigate}
+      prefetch
       className={cn(
         "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] transition-[background-color,color,transform] duration-150 ease-[var(--ease-out-soft)] active:scale-[0.98]",
         active
@@ -82,13 +85,13 @@ function NavLink({
 function NavGroup({
   label,
   items,
-  pathname,
+  activeHref,
   onNavigate,
 }: {
   label: string;
   items: NavItem[];
-  pathname: string;
-  onNavigate?: () => void;
+  activeHref: string;
+  onNavigate?: (href: string) => void;
 }) {
   return (
     <div className="space-y-1">
@@ -99,8 +102,8 @@ function NavGroup({
         <NavLink
           key={item.href}
           item={item}
-          active={isActive(pathname, item.href)}
-          onNavigate={onNavigate}
+          active={isActive(activeHref, item.href)}
+          onNavigate={() => onNavigate?.(item.href)}
         />
       ))}
     </div>
@@ -120,16 +123,30 @@ export function AppSidebarNav({
   leadsCount = 0,
   queueCount = 0,
   interestedCount = 0,
+  profileFitCount = 0,
   onNavigate,
   className,
 }: {
   leadsCount?: number;
   queueCount?: number;
   interestedCount?: number;
+  profileFitCount?: number;
   onNavigate?: () => void;
   className?: string;
 }) {
   const pathname = usePathname();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
+
+  const activeHref = pendingHref ?? pathname;
+
+  const handleNavigate = (href: string) => {
+    setPendingHref(href);
+    onNavigate?.();
+  };
 
   const daily: NavItem[] = [
     { href: "/", label: "Today", icon: Inbox, count: leadsCount },
@@ -142,7 +159,12 @@ export function AppSidebarNav({
     { href: "/queue", label: "Queue", icon: Send, count: queueCount },
   ];
   const setup: NavItem[] = [
-    { href: "/profile", label: "Profile", icon: UserRound },
+    {
+      href: "/profile",
+      label: "Profile",
+      icon: UserRound,
+      count: profileFitCount,
+    },
     { href: "/search-criteria", label: "Search", icon: Search },
     { href: "/learning", label: "Improve", icon: Sparkles },
     {
@@ -171,33 +193,34 @@ export function AppSidebarNav({
         />
         <Link
           href="/"
-          onClick={onNavigate}
+          onClick={() => handleNavigate("/")}
           className="font-display text-[17px] font-semibold tracking-tight text-[var(--card-foreground)]"
         >
           Optra
         </Link>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-7 overflow-y-auto px-2.5 pb-6">
+      <nav className="flex flex-1 flex-col gap-7 overflow-y-auto px-2.5 pb-4">
         <NavGroup
           label="Daily"
           items={daily}
-          pathname={pathname}
-          onNavigate={onNavigate}
+          activeHref={activeHref}
+          onNavigate={handleNavigate}
         />
         <NavGroup
           label="Setup"
           items={setup}
-          pathname={pathname}
-          onNavigate={onNavigate}
+          activeHref={activeHref}
+          onNavigate={handleNavigate}
         />
-        <div className="mt-auto">
+        <div className="mt-auto space-y-4">
           <NavGroup
             label="System"
             items={system}
-            pathname={pathname}
-            onNavigate={onNavigate}
+            activeHref={activeHref}
+            onNavigate={handleNavigate}
           />
+          <MakerCredit className="px-3 pb-2" />
         </div>
       </nav>
     </aside>
@@ -208,10 +231,12 @@ export function AppSidebar({
   leadsCount = 0,
   queueCount = 0,
   interestedCount = 0,
+  profileFitCount = 0,
 }: {
   leadsCount?: number;
   queueCount?: number;
   interestedCount?: number;
+  profileFitCount?: number;
 }) {
   return (
     <div className="sticky top-0 hidden h-svh lg:block">
@@ -219,6 +244,7 @@ export function AppSidebar({
         leadsCount={leadsCount}
         queueCount={queueCount}
         interestedCount={interestedCount}
+        profileFitCount={profileFitCount}
         className="h-svh"
       />
     </div>

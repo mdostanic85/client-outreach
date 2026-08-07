@@ -1,5 +1,6 @@
-import { QueueBoard } from "@/components/queue-board";
+import { QueueWorkspace } from "@/components/queue-workspace";
 import { ensureDb } from "@/db/ensure";
+import { listApplicationMailBoard } from "@/modules/applications/board";
 import {
   getMailboxStatus,
   listOutboundBoard,
@@ -8,11 +9,31 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function QueuePage() {
+export default async function QueuePage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await ensureDb();
-  const board = await listOutboundBoard();
-  const status = await getMailboxStatus();
-  const events = await listRecentDeliveryEvents(20);
+  const sp = (await searchParams) ?? {};
+  const tabRaw = typeof sp.tab === "string" ? sp.tab : "";
+  const initialTab =
+    tabRaw === "outreach" ? "outreach" : "applications";
 
-  return <QueueBoard board={board} status={status} events={events} />;
+  const [applications, board, status, events] = await Promise.all([
+    listApplicationMailBoard(),
+    listOutboundBoard(),
+    getMailboxStatus(),
+    listRecentDeliveryEvents(20),
+  ]);
+
+  return (
+    <QueueWorkspace
+      applications={applications}
+      outreach={board}
+      status={status}
+      events={events}
+      initialTab={initialTab}
+    />
+  );
 }

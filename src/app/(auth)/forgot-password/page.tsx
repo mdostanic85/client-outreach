@@ -5,16 +5,7 @@ import { noWidow } from "@/lib/utils";
 
 export default function ForgotPasswordPage() {
   return (
-    <AuthShell
-      panel={
-        <ProductPanel
-          eyebrow="Account recovery"
-          headline={noWidow(
-            "Reset your password here. No email inbox needed on this private setup.",
-          )}
-        />
-      }
-    >
+    <AuthShell panel={<ProductPanel />}>
       <div className="max-w-sm">
         <h1 className="font-display text-[1.75rem] font-semibold tracking-tight text-[var(--card-foreground)]">
           Forgot password

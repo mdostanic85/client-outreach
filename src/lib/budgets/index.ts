@@ -29,9 +29,11 @@ export async function getMonthSpendUsd(): Promise<number> {
 }
 
 export async function getBudgetStatus(): Promise<BudgetStatus> {
-  const setting = (await getDb().select().from(settings).limit(1))[0];
+  const [setting, spentUsd] = await Promise.all([
+    getDb().select().from(settings).limit(1).then((rows) => rows[0]),
+    getMonthSpendUsd(),
+  ]);
   const budgetUsd = setting?.aiBudgetUsd ?? 8;
-  const spentUsd = await getMonthSpendUsd();
   const remainingUsd = Math.max(0, budgetUsd - spentUsd);
   const ratio = budgetUsd > 0 ? spentUsd / budgetUsd : 1;
 

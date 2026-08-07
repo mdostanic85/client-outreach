@@ -252,6 +252,78 @@ export async function saveSearchProfileDraft(
     .where(eq(jobSearchProfiles.id, id));
 }
 
+/**
+ * Fork the approved search profile into a draft so edits can be reviewed
+ * and re-approved. Pass `params` to keep in-progress form edits.
+ */
+export async function createDraftFromApprovedSearchProfile(options?: {
+  params?: JobSearchParams;
+  rationale?: string[];
+}): Promise<{ id: string; version: number }> {
+  const db = getDb();
+  const existingDraft = (await db
+    .select()
+    .from(jobSearchProfiles)
+    .where(eq(jobSearchProfiles.status, "draft"))
+    .orderBy(desc(jobSearchProfiles.version))
+    .limit(1))[0];
+  if (existingDraft) {
+    if (options?.params) {
+      await saveSearchProfileDraft(
+        existingDraft.id,
+        options.params,
+        options.rationale,
+      );
+    }
+    return { id: existingDraft.id, version: existingDraft.version };
+  }
+
+  const approved = (await db
+    .select()
+    .from(jobSearchProfiles)
+    .where(eq(jobSearchProfiles.status, "approved"))
+    .orderBy(desc(jobSearchProfiles.version))
+    .limit(1))[0];
+  if (!approved) {
+    throw new Error("Approve search criteria first, or generate a draft");
+  }
+
+  const params = JobSearchParamsSchema.parse(
+    options?.params ?? JSON.parse(approved.paramsJson || "{}"),
+  );
+  let rationale: string[] = options?.rationale ?? [];
+  if (!options?.rationale) {
+    try {
+      rationale = JSON.parse(approved.rationaleJson || "[]") as string[];
+    } catch {
+      rationale = [];
+    }
+  }
+
+  const id = newId("jsp");
+  const version = await nextVersion();
+  await db.insert(jobSearchProfiles).values({
+    id,
+    version,
+    status: "draft",
+    structuredProfileId: approved.structuredProfileId,
+    structuredProfileVersion: approved.structuredProfileVersion,
+    paramsJson: JSON.stringify(params),
+    rationaleJson: JSON.stringify(rationale),
+    generationTrigger: "manual",
+    parentVersion: approved.version,
+    modelId: approved.modelId,
+    promptVersion: approved.promptVersion,
+    createdAt: nowIso(),
+  });
+
+  logger.info(
+    { id, version, parentVersion: approved.version },
+    "job search profile draft forked from approved",
+  );
+  return { id, version };
+}
+
 /** Ensure a structured profile row still exists (for typing). */
 export async function assertStructuredProfileExists(id: string) {
   const row = (await getDb()

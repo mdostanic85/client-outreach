@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Bookmark } from "lucide-react";
 import {
   markJobAppliedAction,
@@ -11,7 +11,9 @@ import {
 import { EmptyState } from "@/components/empty-state";
 import { InlineAlert } from "@/components/inline-alert";
 import { JobListItem } from "@/components/job-list-item";
-import type { JobTriageRow } from "@/components/jobs-inbox";
+import type { PackageListMeta } from "@/modules/applications/packages";
+import type { JobTriageRow } from "@/modules/jobs/triage-row";
+import { timezoneOverlapVaries } from "@/modules/matching/remote-fit";
 import { Stagger, StaggerItem } from "@/components/motion";
 import {
   PageHeader,
@@ -23,7 +25,13 @@ import {
  * Interested / saved jobs list — Braintrust "Your saved items"
  * + Peerlist SAVED / APPLIED tab pattern (Mobbin).
  */
-export function InterestedJobs({ rows }: { rows: JobTriageRow[] }) {
+export function InterestedJobs({
+  rows,
+  packageMeta = {},
+}: {
+  rows: JobTriageRow[];
+  packageMeta?: Record<string, PackageListMeta>;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -40,11 +48,17 @@ export function InterestedJobs({ rows }: { rows: JobTriageRow[] }) {
     });
   };
 
+  const showTimezoneChip = useMemo(
+    () =>
+      timezoneOverlapVaries(rows.map((row) => row.remoteFit.timezoneOverlap)),
+    [rows],
+  );
+
   return (
     <PageShell>
       <PageHeader
         title="Interested"
-        description="Roles you marked as a fit. Open the posting, mark applied, or move them back to Today with Save."
+        description="Roles you marked as a fit. Prepare an application package, open the posting, or mark applied."
         meta={`${rows.length} role${rows.length === 1 ? "" : "s"}`}
       />
 
@@ -73,6 +87,8 @@ export function InterestedJobs({ rows }: { rows: JobTriageRow[] }) {
                 pending={pending}
                 rejecting={rejectingId === row.jobId}
                 rejectReason={rejectReason}
+                packageMeta={packageMeta[row.jobId] ?? null}
+                showTimezoneChip={showTimezoneChip}
                 onToggle={() =>
                   setExpandedId(
                     expandedId === row.jobId ? null : row.jobId,

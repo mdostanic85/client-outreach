@@ -45,12 +45,14 @@ export function AppTopbar({
   leadsCount = 0,
   queueCount = 0,
   interestedCount = 0,
+  profileFitCount = 0,
 }: {
   budget?: BudgetMeter;
   userEmail?: string;
   leadsCount?: number;
   queueCount?: number;
   interestedCount?: number;
+  profileFitCount?: number;
 }) {
   const [navOpen, setNavOpen] = useState(false);
 
@@ -92,6 +94,7 @@ export function AppTopbar({
               leadsCount={leadsCount}
               queueCount={queueCount}
               interestedCount={interestedCount}
+              profileFitCount={profileFitCount}
               onNavigate={() => setNavOpen(false)}
               className="h-full w-full border-0"
             />

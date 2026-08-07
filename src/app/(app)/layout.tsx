@@ -22,20 +22,26 @@ export default async function AppLayout({
     redirect((await countUsers()) === 0 ? "/welcome" : "/login");
   }
 
-  if (!(await maybeBackfillOnboardingComplete(user.id))) {
+  if (
+    !user.onboardingCompletedAt &&
+    !(await maybeBackfillOnboardingComplete(user.id))
+  ) {
     redirect("/onboarding");
   }
 
-  const { leadsCount, queueCount, interestedCount } = await getNavCounts();
-  const budget = await getBudgetStatus();
+  const [counts, budget] = await Promise.all([
+    getNavCounts(),
+    getBudgetStatus(),
+  ]);
 
   return (
     <TooltipProvider delay={200}>
       <div className="flex min-h-svh">
         <AppSidebar
-          leadsCount={leadsCount}
-          queueCount={queueCount}
-          interestedCount={interestedCount}
+          leadsCount={counts.leadsCount}
+          queueCount={counts.queueCount}
+          interestedCount={counts.interestedCount}
+          profileFitCount={counts.profileFitCount}
         />
         <div className="flex min-h-svh min-w-0 flex-1 flex-col overflow-x-hidden">
           <AppTopbar
@@ -46,9 +52,10 @@ export default async function AppLayout({
               alert: budget.alerts[0],
             }}
             userEmail={user.email}
-            leadsCount={leadsCount}
-            queueCount={queueCount}
-            interestedCount={interestedCount}
+            leadsCount={counts.leadsCount}
+            queueCount={counts.queueCount}
+            interestedCount={counts.interestedCount}
+            profileFitCount={counts.profileFitCount}
           />
           {children}
         </div>

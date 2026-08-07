@@ -24,8 +24,6 @@ export const metadata: Metadata = {
   description: "A private daily shortlist of roles that fit, with reasons you can trust",
 };
 
-export const dynamic = "force-dynamic";
-
 export default function RootLayout({
   children,
 }: Readonly<{

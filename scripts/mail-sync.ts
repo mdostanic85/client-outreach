@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Sync Gmail INBOX for replies / bounces / opt-outs.
+ * Sync mailbox INBOX for replies / bounces / opt-outs.
  *
  *   pnpm mail:sync
  */

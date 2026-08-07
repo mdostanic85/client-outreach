@@ -45,14 +45,17 @@ function StatusIcon({ status }: { status: RemoteFit["status"] }) {
   return <AlertTriangle className="size-3.5 shrink-0" />;
 }
 
-function MatchConstraintChips({
+export function MatchConstraintChips({
   remoteFit,
   onOpen,
+  showTimezone = true,
 }: {
   remoteFit: RemoteFit;
   onOpen: () => void;
+  /** Hide when every card in the list shares the same overlap. */
+  showTimezone?: boolean;
 }) {
-  const tz = timezoneLabel(remoteFit.timezoneOverlap);
+  const tz = showTimezone ? timezoneLabel(remoteFit.timezoneOverlap) : null;
 
   const open = (e: MouseEvent) => {
     e.preventDefault();
@@ -61,13 +64,16 @@ function MatchConstraintChips({
   };
 
   return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
+    <div className="flex h-7 flex-wrap items-center gap-1.5">
       <button
         type="button"
         onClick={open}
         className={cn(
-          "inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[13px] font-medium transition-colors hover:brightness-110",
-          statusTone(remoteFit.status),
+          "inline-flex h-full items-center gap-1 rounded-[14px] px-2 py-1 text-[13px] font-medium transition-colors hover:brightness-110",
+          remoteFit.status === "pass" && "bg-primary/15 text-primary",
+          remoteFit.status === "fail" && "bg-destructive/15 text-destructive",
+          remoteFit.status === "unclear" &&
+            "bg-amber-500/12 text-amber-900 dark:text-amber-100",
         )}
         title={remoteFit.summary}
       >
@@ -79,13 +85,13 @@ function MatchConstraintChips({
           type="button"
           onClick={open}
           className={cn(
-            "inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[13px] font-medium hover:brightness-110",
+            "inline-flex h-full items-center gap-1 rounded-[14px] px-2 py-1 text-[13px] font-medium transition-colors hover:brightness-110",
             remoteFit.timezoneOverlap === "full" &&
-              "bg-primary/10 text-primary ring-1 ring-primary/25",
+              "bg-primary/10 text-primary",
             remoteFit.timezoneOverlap === "partial" &&
-              "bg-amber-500/10 text-amber-900 ring-1 ring-amber-500/25 dark:text-amber-100",
+              "bg-amber-500/10 text-amber-900 dark:text-amber-100",
             remoteFit.timezoneOverlap === "poor" &&
-              "bg-destructive/10 text-destructive ring-1 ring-destructive/25",
+              "bg-destructive/10 text-destructive",
           )}
           title="Timezone overlap vs your profile"
         >
@@ -376,11 +382,14 @@ export type JobMatchInsightsProps = {
   missingRequirements: string[];
   /** Shown in the rationale sheet footer (e.g. Interested). */
   sheetPrimaryAction?: ReactNode;
+  /** Controlled rationale sheet — use when chips live in the card header. */
+  rationaleOpen?: boolean;
+  onRationaleOpenChange?: (open: boolean) => void;
 };
 
 /**
- * Hybrid match insights: constraint chips on the card header, decision card +
- * scannable reasons when expanded, Sheet for the full AI rationale.
+ * Hybrid match insights: decision card + scannable reasons when expanded,
+ * Sheet for the full AI rationale. Constraint chips live on the card header.
  */
 export function JobMatchInsights({
   expanded,
@@ -396,19 +405,18 @@ export function JobMatchInsights({
   mainRisk,
   missingRequirements,
   sheetPrimaryAction,
+  rationaleOpen,
+  onRationaleOpenChange,
 }: JobMatchInsightsProps) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = rationaleOpen ?? uncontrolledOpen;
+  const setOpen = onRationaleOpenChange ?? setUncontrolledOpen;
   const hasReasons = matchingReasons.length > 0;
   const hasWatch = concerns.length > 0;
 
   return (
     <>
-      {!expanded ? (
-        <MatchConstraintChips
-          remoteFit={remoteFit}
-          onOpen={() => setOpen(true)}
-        />
-      ) : (
+      {expanded ? (
         <div className="space-y-3">
           <RemoteDecisionCard
             remoteFit={remoteFit}
@@ -448,7 +456,7 @@ export function JobMatchInsights({
             </div>
           ) : null}
         </div>
-      )}
+      ) : null}
 
       <MatchRationaleSheet
         open={open}

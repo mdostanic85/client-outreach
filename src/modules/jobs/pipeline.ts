@@ -71,6 +71,28 @@ export async function runJobDiscoveryPipeline(options?: {
     return { skipped: "budget" };
   }
 
+  await report?.(
+    progressFor(
+      "collect",
+      2,
+      "Understanding your profile…",
+      {
+        regionOrCategory: active.params.targetTitles[0],
+      },
+    ),
+  );
+  await report?.(
+    progressFor(
+      "collect",
+      6,
+      "Building search strategy from your criteria…",
+      {
+        regionOrCategory:
+          active.params.targetTitles.slice(0, 2).join(" · ") || undefined,
+      },
+    ),
+  );
+
   const collected = await collectJobsForProfile({
     params: active.params,
     searchProfileVersion: active.version,
@@ -82,6 +104,10 @@ export async function runJobDiscoveryPipeline(options?: {
       "filter",
       58,
       `Filtering ${collected.raw.length} openings…`,
+      {
+        reviewed: collected.raw.length,
+        regionOrCategory: active.params.targetTitles[0],
+      },
     ),
   );
   const filtered = filterRawJobs(collected.raw, active.params);
@@ -91,6 +117,12 @@ export async function runJobDiscoveryPipeline(options?: {
       "filter",
       62,
       `Kept ${filtered.kept.length} · dropped ${filtered.dropped.length}`,
+      {
+        reviewed: collected.raw.length,
+        removed: filtered.dropped.length,
+        promising: filtered.kept.length,
+        regionOrCategory: active.params.targetTitles[0],
+      },
     ),
   );
 
@@ -118,7 +150,12 @@ export async function runJobDiscoveryPipeline(options?: {
   });
 
   await report?.(
-    progressFor("publish", 95, "Building today’s shortlist…"),
+    progressFor("publish", 95, "Building today’s shortlist…", {
+      reviewed: collected.raw.length,
+      removed: filtered.dropped.length,
+      promising: evalResult.recommended,
+      regionOrCategory: active.params.targetTitles[0],
+    }),
   );
   const setting = (await db.select().from(settings).limit(1))[0];
   const limit = setting?.dailyJobCount ?? 20;
@@ -145,6 +182,12 @@ export async function runJobDiscoveryPipeline(options?: {
       published.published > 0
         ? `${published.strong} strong · ${published.worthALook} worth a look`
         : "No matches to show this run",
+      {
+        reviewed: collected.raw.length,
+        removed: filtered.dropped.length,
+        promising: published.strong + published.worthALook,
+        regionOrCategory: active.params.targetTitles[0],
+      },
     ),
   );
 

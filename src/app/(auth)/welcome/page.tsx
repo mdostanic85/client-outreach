@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AuthBrand } from "@/components/auth/auth-shell";
+import { MakerCredit } from "@/components/maker-credit";
 import { ensureDb } from "@/db/ensure";
 import { noWidow } from "@/lib/utils";
 import { countUsers } from "@/modules/auth/session";
@@ -98,6 +99,10 @@ export default async function WelcomePage() {
           ))}
         </div>
       </main>
+
+      <footer className="relative z-10 px-6 pb-8 sm:px-10">
+        <MakerCredit align="center" />
+      </footer>
     </div>
   );
 }

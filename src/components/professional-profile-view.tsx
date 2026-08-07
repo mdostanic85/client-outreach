@@ -565,7 +565,19 @@ export function ProfessionalProfileView({
                     className="border-border rounded-xl border px-4 py-3"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <p className="font-medium">{p.title}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium">
+                          {p.role && p.organization
+                            ? `${p.role} · ${p.organization}`
+                            : p.title}
+                        </p>
+                        {(p.start || p.end) && (
+                          <p className="text-muted-foreground mt-0.5 text-[13px]">
+                            {[p.start, p.end].filter(Boolean).join(" – ")}
+                            {p.location ? ` · ${p.location}` : ""}
+                          </p>
+                        )}
+                      </div>
                       {editable.canEdit ? (
                         <FactActions
                           disabled={pending}
@@ -608,11 +620,22 @@ export function ProfessionalProfileView({
                           Save
                         </Button>
                       </div>
-                    ) : p.summary ? (
-                      <p className="text-muted-foreground mt-1 text-[14px]">
-                        {p.summary}
-                      </p>
-                    ) : null}
+                    ) : (
+                      <>
+                        {p.summary ? (
+                          <p className="text-muted-foreground mt-1 text-[14px]">
+                            {p.summary}
+                          </p>
+                        ) : null}
+                        {p.outcomes.length ? (
+                          <ul className="text-muted-foreground mt-2 list-disc space-y-1 pl-4 text-[13px]">
+                            {p.outcomes.slice(0, 4).map((o) => (
+                              <li key={o}>{o}</li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </>
+                    )}
                     <SourceBadges sources={p.sourcePointers} />
                   </li>
                 );

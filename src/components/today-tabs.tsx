@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useState, useTransition } from "react";
 import { setTodayModeAction } from "@/app/actions";
-import { JobsInbox, type JobTriageRow } from "@/components/jobs-inbox";
+import { JobsInbox } from "@/components/jobs-inbox";
+import type { JobTriageRow } from "@/modules/jobs/triage-row";
 import type { SetupChecklistItem } from "@/modules/onboarding/state";
 import { SetupChecklistBanner } from "@/components/onboarding/setup-checklist-banner";
 import { AnimateIn } from "@/components/motion";
@@ -27,12 +28,18 @@ export function TodayTabs({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [jobsSearching, setJobsSearching] = useState(false);
-  const onSearchingChange = useCallback((next: boolean) => {
+  const [companiesSearching, setCompaniesSearching] = useState(false);
+  const onJobsSearchingChange = useCallback((next: boolean) => {
     setJobsSearching(next);
   }, []);
+  const onCompaniesSearchingChange = useCallback((next: boolean) => {
+    setCompaniesSearching(next);
+  }, []);
+
+  const searching = jobsSearching || companiesSearching;
 
   const switchMode = (next: "jobs" | "clients") => {
-    if (jobsSearching) return;
+    if (searching) return;
     startTransition(async () => {
       await setTodayModeAction(next);
       router.refresh();
@@ -49,7 +56,7 @@ export function TodayTabs({
         <ModeSwitch
           ariaLabel="Today view"
           value={mode}
-          disabled={pending || jobsSearching}
+          disabled={pending || searching}
           disabledHint="Stay on this page until the search finishes."
           onChange={switchMode}
           options={[
@@ -73,10 +80,14 @@ export function TodayTabs({
             <JobsInbox
               rows={jobRows}
               hasSearchProfile={hasSearchProfile}
-              onSearchingChange={onSearchingChange}
+              onSearchingChange={onJobsSearchingChange}
             />
           ) : (
-            <TriageInbox rows={leadRows} embedded />
+            <TriageInbox
+              rows={leadRows}
+              embedded
+              onSearchingChange={onCompaniesSearchingChange}
+            />
           )}
         </AnimateIn>
       </div>

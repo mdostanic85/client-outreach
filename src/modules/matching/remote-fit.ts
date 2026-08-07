@@ -231,6 +231,19 @@ export function timezoneLabel(
   return null;
 }
 
+/** True when timezone chips would differ across rows — hide when uniform. */
+export function timezoneOverlapVaries(
+  overlaps: Array<RemoteFit["timezoneOverlap"] | null | undefined>,
+): boolean {
+  const known = new Set(
+    overlaps.filter(
+      (value): value is Exclude<RemoteFit["timezoneOverlap"], "unknown"> =>
+        value != null && value !== "unknown",
+    ),
+  );
+  return known.size > 1;
+}
+
 export function policyLabel(policy: RemoteFit["policy"]): string {
   if (policy === "remote") return "Remote";
   if (policy === "hybrid") return "Hybrid";

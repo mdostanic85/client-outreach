@@ -1,36 +1,22 @@
 import { InterestedJobs } from "@/components/interested-jobs";
 import { ensureDb } from "@/db/ensure";
+import { listPackageMetaForJobs } from "@/modules/applications/packages";
 import { listInterestedJobs } from "@/modules/jobs/queries";
+import { toJobTriageRow } from "@/modules/jobs/to-triage-row";
 
 export const dynamic = "force-dynamic";
 
 export default async function InterestedPage() {
   await ensureDb();
   const rows = await listInterestedJobs();
+  const packageMeta = await listPackageMetaForJobs(
+    rows.map((r) => r.job.id),
+  );
 
   return (
     <InterestedJobs
-      rows={rows.map((row) => ({
-        jobId: row.job.id,
-        title: row.job.title,
-        companyName: row.company?.name ?? "Unknown",
-        location: row.job.location,
-        remotePolicy: row.job.remotePolicy,
-        employmentType: row.job.employmentType,
-        source: row.job.source,
-        sourceUrl: row.job.sourceUrl,
-        matchScore: row.match?.matchScore ?? null,
-        eligibility: row.match?.eligibility ?? null,
-        recommendation: row.match?.recommendation ?? null,
-        matchingReasons: row.matchingReasons,
-        concerns: row.concerns,
-        remoteFit: row.remoteFit,
-        mainRisk: row.mainRisk,
-        missingRequirements: row.missingRequirements,
-        remoteRequired: row.remoteRequired,
-        postedAt: row.job.postedAt,
-        triageState: row.job.triageState,
-      }))}
+      rows={rows.map(toJobTriageRow)}
+      packageMeta={packageMeta}
     />
   );
 }

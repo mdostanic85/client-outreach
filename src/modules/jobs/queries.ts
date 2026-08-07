@@ -1,7 +1,19 @@
-import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { companies, jobMatches, jobs, settings } from "@/db/schema";
+import {
+  companies,
+  jobMatches,
+  jobs,
+  researchBriefs,
+  settings,
+} from "@/db/schema";
 import { nowIso } from "@/lib/ids";
+import {
+  emptyCompanySnapshot,
+  formatSalaryDisplay,
+  HIRING_LOOKBACK_DAYS,
+  type CompanySnapshot,
+} from "@/modules/jobs/company-snapshot";
 import { recordJobOutcomeEvent } from "@/modules/learning/job-outcomes";
 import {
   parseMatchExtrasFromScoreJson,
@@ -9,6 +21,7 @@ import {
   type RemoteFit,
 } from "@/modules/matching/remote-fit";
 import { WORTH_A_LOOK_LIMIT } from "@/modules/matching/tiers";
+import type { ResearchAndScore } from "@/modules/research/schemas";
 import { getApprovedSearchProfile } from "@/modules/search-profile/queries";
 
 export type JobTriageState =
@@ -29,7 +42,127 @@ export type DailyJobRow = {
   mainRisk: string | null;
   missingRequirements: string[];
   remoteRequired: boolean;
+  companySnapshot: CompanySnapshot;
 };
+
+function lookbackIso(days: number): string {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+}
+
+async function loadCompanySnapshotContext(companyIds: string[]) {
+  const db = getDb();
+  const unique = [...new Set(companyIds)];
+  const lookbackSince = lookbackIso(HIRING_LOOKBACK_DAYS);
+  if (unique.length === 0) {
+    return {
+      summaryByCompany: new Map<string, string>(),
+      risksByCompany: new Map<string, string[]>(),
+      openingsByCompany: new Map<string, number>(),
+      lookbackSince,
+    };
+  }
+
+  const [briefRows, recentJobs] = await Promise.all([
+    db
+      .select()
+      .from(researchBriefs)
+      .where(inArray(researchBriefs.companyId, unique))
+      .orderBy(desc(researchBriefs.createdAt)),
+    db
+      .select({
+        companyId: jobs.companyId,
+        id: jobs.id,
+      })
+      .from(jobs)
+      .where(
+        and(
+          inArray(jobs.companyId, unique),
+          eq(jobs.status, "active"),
+          gte(jobs.createdAt, lookbackSince),
+        ),
+      ),
+  ]);
+
+  const summaryByCompany = new Map<string, string>();
+  const risksByCompany = new Map<string, string[]>();
+  for (const brief of briefRows) {
+    if (summaryByCompany.has(brief.companyId)) continue;
+    try {
+      const result = JSON.parse(brief.resultJson) as ResearchAndScore;
+      if (result.companySummary?.trim()) {
+        summaryByCompany.set(brief.companyId, result.companySummary.trim());
+      }
+      risksByCompany.set(
+        brief.companyId,
+        (result.risksAndUnknowns ?? []).filter(Boolean).slice(0, 4),
+      );
+    } catch {
+      /* ignore malformed brief */
+    }
+  }
+
+  const openingsByCompany = new Map<string, number>();
+  for (const row of recentJobs) {
+    if (!row.companyId) continue;
+    openingsByCompany.set(
+      row.companyId,
+      (openingsByCompany.get(row.companyId) ?? 0) + 1,
+    );
+  }
+
+  return {
+    summaryByCompany,
+    risksByCompany,
+    openingsByCompany,
+    lookbackSince,
+  };
+}
+
+function buildCompanySnapshot(input: {
+  job: typeof jobs.$inferSelect;
+  company: typeof companies.$inferSelect | null;
+  summaryByCompany: Map<string, string>;
+  risksByCompany: Map<string, string[]>;
+  openingsByCompany: Map<string, number>;
+  lookbackSince: string;
+}): CompanySnapshot {
+  const { job, company } = input;
+  const companyId = company?.id ?? job.companyId ?? null;
+  const base = emptyCompanySnapshot(company?.name ?? "Unknown");
+  const rawOpenings = companyId
+    ? (input.openingsByCompany.get(companyId) ?? 0)
+    : 0;
+  const currentInWindow =
+    Boolean(companyId) &&
+    job.companyId === companyId &&
+    job.createdAt >= input.lookbackSince;
+  const relatedOpenings = currentInWindow
+    ? Math.max(0, rawOpenings - 1)
+    : rawOpenings;
+
+  return {
+    ...base,
+    companyId,
+    companyName: company?.name ?? "Unknown",
+    domain: company?.domain ?? null,
+    country: company?.country ?? null,
+    summary: companyId ? (input.summaryByCompany.get(companyId) ?? null) : null,
+    headcountBand: null,
+    salaryText: formatSalaryDisplay({
+      salaryText: job.salaryText,
+      salaryMin: job.salaryMin,
+      salaryMax: job.salaryMax,
+      salaryCurrency: job.salaryCurrency,
+    }),
+    employmentType: job.employmentType,
+    relatedOpenings,
+    hiringLookbackDays: HIRING_LOOKBACK_DAYS,
+    risksAndUnknowns: companyId
+      ? (input.risksByCompany.get(companyId) ?? [])
+      : [],
+    reputation: null,
+  };
+}
 
 async function hydrateJobRows(
   jobList: (typeof jobs.$inferSelect)[],
@@ -37,6 +170,13 @@ async function hydrateJobRows(
   const db = getDb();
   const remoteRequired =
     (await getApprovedSearchProfile())?.params.remoteRequired ?? true;
+
+  const companyIds = jobList
+    .map((j) => j.companyId)
+    .filter((id): id is string => Boolean(id));
+
+  const snapshotCtx = await loadCompanySnapshotContext(companyIds);
+
   const rows: DailyJobRow[] = [];
   for (const job of jobList) {
     const company = job.companyId
@@ -81,6 +221,11 @@ async function hydrateJobRows(
       mainRisk: extras.mainRisk,
       missingRequirements: extras.missingRequirements,
       remoteRequired,
+      companySnapshot: buildCompanySnapshot({
+        job,
+        company,
+        ...snapshotCtx,
+      }),
     });
   }
 
@@ -138,51 +283,10 @@ export async function countInterestedJobs(): Promise<number> {
 }
 
 export async function getJobDetail(jobId: string): Promise<DailyJobRow | null> {
-  const db = getDb();
-  const job = (await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1))[0];
-  if (!job) return null;
-  const company = job.companyId
-    ? (await db.select().from(companies).where(eq(companies.id, job.companyId)).limit(1))[0] ??
-      null
-    : null;
-  const match =
-    (await db
-      .select()
-      .from(jobMatches)
-      .where(eq(jobMatches.jobId, jobId)))
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null;
-  let matchingReasons: string[] = [];
-  let concerns: string[] = [];
-  if (match) {
-    try {
-      matchingReasons = JSON.parse(match.matchingReasonsJson) as string[];
-      concerns = JSON.parse(match.concernsJson) as string[];
-    } catch {
-      /* ignore */
-    }
-  }
-  const remoteRequired =
-    (await getApprovedSearchProfile())?.params.remoteRequired ?? true;
-  const extras = parseMatchExtrasFromScoreJson(match?.scoreJson);
-  const remoteFit = resolveRemoteFit({
-    scoreJson: match?.scoreJson,
-    remotePolicy: job.remotePolicy,
-    location: job.location,
-    concerns,
-    eligibility: match?.eligibility ?? null,
-    remoteRequired,
-  });
-  return {
-    job,
-    company,
-    match,
-    matchingReasons,
-    concerns,
-    remoteFit,
-    mainRisk: extras.mainRisk,
-    missingRequirements: extras.missingRequirements,
-    remoteRequired,
-  };
+  const hydrated = await hydrateJobRows(
+    (await getDb().select().from(jobs).where(eq(jobs.id, jobId)).limit(1)),
+  );
+  return hydrated[0] ?? null;
 }
 
 export async function setJobTriageState(

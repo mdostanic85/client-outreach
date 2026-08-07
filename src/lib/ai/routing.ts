@@ -77,6 +77,27 @@ export const TASK_ROUTES = {
     modelEnv: "PRIVATE_WRITING_MODEL",
     defaultModel: "claude-sonnet-4-5",
   },
+  /** Application pack analysis — structured, public mid-tier OK. */
+  applicationAnalysis: {
+    dataClass: "PUBLIC" as const,
+    provider: "google" as const,
+    modelEnv: "PUBLIC_LLM_MODEL",
+    defaultModel: "gemini-3.1-flash-lite",
+  },
+  /** Tailored CV slot patches — private writing. */
+  tailoredCvSlots: {
+    dataClass: "PRIVATE" as const,
+    provider: "anthropic" as const,
+    modelEnv: "PRIVATE_WRITING_MODEL",
+    defaultModel: "claude-sonnet-4-5",
+  },
+  /** Application cover letter — private writing. */
+  applicationCoverLetter: {
+    dataClass: "PRIVATE" as const,
+    provider: "anthropic" as const,
+    modelEnv: "PRIVATE_WRITING_MODEL",
+    defaultModel: "claude-sonnet-4-5",
+  },
 } as const;
 
 export type TaskName = keyof typeof TASK_ROUTES;

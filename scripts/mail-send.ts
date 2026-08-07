@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Process approved send queue (SMTP via Gmail app password).
+ * Process approved send queue (SMTP via configured mailbox).
  *
  *   pnpm mail:send
  *   pnpm mail:send --limit 2

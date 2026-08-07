@@ -25,7 +25,18 @@ export const RelevantProjectSchema = z.object({
   evidenceKind: z
     .enum(["portfolio_project", "general"])
     .default("portfolio_project"),
+  /** Employer / organization — preferred for evidenceKind "general". */
+  organization: z.string().optional(),
+  /** Job title / role — preferred for evidenceKind "general". */
+  role: z.string().optional(),
+  /** Start date label as written in sources (e.g. "Jan 2021", "2021"). */
+  start: z.string().optional(),
+  /** End date label or "Present" / "Current". */
+  end: z.string().optional(),
+  location: z.string().optional(),
 });
+
+export type RelevantProject = z.infer<typeof RelevantProjectSchema>;
 
 export const COMPENSATION_CURRENCIES = [
   "EUR",

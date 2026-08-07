@@ -12,7 +12,7 @@ import {
   threads,
 } from "@/db/schema";
 import { getMailboxHealth } from "@/modules/mail/approvals";
-import { gmailCredentialsConfigured } from "@/modules/mail/credentials";
+import { mailCredentialsConfigured } from "@/modules/mail/credentials";
 import {
   countNewSendsToday,
   getSendPolicy,
@@ -149,7 +149,7 @@ export async function getMailboxStatus() {
   await ensureDb();
   const policy = await getSendPolicy();
   return {
-    credentialsConfigured: gmailCredentialsConfigured(),
+    credentialsConfigured: mailCredentialsConfigured(),
     health: await getMailboxHealth(),
     policy,
     sentToday: await countNewSendsToday(),

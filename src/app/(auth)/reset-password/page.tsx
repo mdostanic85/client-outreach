@@ -11,16 +11,7 @@ export default async function ResetPasswordPage({
   const { token = "" } = await searchParams;
 
   return (
-    <AuthShell
-      panel={
-        <ProductPanel
-          eyebrow="Almost there"
-          headline={noWidow(
-            "Set a new password, then return to today's shortlist.",
-          )}
-        />
-      }
-    >
+    <AuthShell panel={<ProductPanel />}>
       <div className="max-w-sm">
         <h1 className="font-display text-[1.75rem] font-semibold tracking-tight text-[var(--card-foreground)]">
           Set a new password

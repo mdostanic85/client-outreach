@@ -14,10 +14,15 @@ import {
 
 type ScoreKind = "match" | "fit";
 
-const TOOLTIPS: Record<ScoreKind, string> = {
-  match:
-    "How closely this role matches your approved profile — skills, seniority, location, and preferences. 70+ is Strong; 55–69 is Worth a look.",
-  fit: "How well this company fits outreach — need, timing, and your positioning. Not a job match score.",
+const TOOLTIPS: Record<ScoreKind, { title: string; body: string }> = {
+  match: {
+    title: "Match score",
+    body: `How closely this role fits your approved profile — skills, seniority, location, and preferences. ${STRONG_MATCH_MIN}+ Strong · ${WORTH_A_LOOK_MIN}–${STRONG_MATCH_MIN - 1} Worth a look.`,
+  },
+  fit: {
+    title: "Fit score",
+    body: "How well this company fits outreach — need, timing, and your positioning. Not a job match score.",
+  },
 };
 
 function matchLabel(
@@ -29,18 +34,35 @@ function matchLabel(
   return "Match";
 }
 
+function ScoreTooltipBody({
+  title,
+  body,
+}: {
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="space-y-1 text-left">
+      <p className="font-medium text-[var(--card-foreground)]">{title}</p>
+      <p className="text-muted-foreground">{body}</p>
+    </div>
+  );
+}
+
 export function ScoreBadge({
   score,
   kind = "match",
   size = "md",
   className,
   tooltip,
+  onClick,
 }: {
   score: number | null;
   kind?: ScoreKind;
   size?: "sm" | "md";
   className?: string;
   tooltip?: string;
+  onClick?: () => void;
 }) {
   if (score == null) {
     return (
@@ -51,7 +73,8 @@ export function ScoreBadge({
   }
 
   const display = Number.isInteger(score) ? score : Number(score.toFixed(1));
-  const tip = tooltip ?? TOOLTIPS[kind];
+  const tip = TOOLTIPS[kind];
+  const tipBody = tooltip ?? tip.body;
 
   if (kind === "fit") {
     const strong = score >= 70;
@@ -59,7 +82,8 @@ export function ScoreBadge({
       <Tooltip>
         <TooltipTrigger
           render={
-            <span
+            <button
+              type="button"
               className={cn(
                 "inline-flex min-w-[4.25rem] cursor-help flex-col items-center justify-center gap-0.5 rounded-2xl px-3 py-2 font-semibold tabular-nums transition-[transform,box-shadow,background-color] duration-150 ease-[var(--ease-out-soft)] hover:scale-[1.03]",
                 size === "sm" && "min-w-[3.5rem] px-2.5 py-1.5",
@@ -69,6 +93,7 @@ export function ScoreBadge({
                 className,
               )}
               aria-label={`Fit score ${display}`}
+              onClick={onClick}
             />
           }
         >
@@ -84,8 +109,8 @@ export function ScoreBadge({
             Fit
           </span>
         </TooltipTrigger>
-        <TooltipContent className="max-w-xs text-left leading-relaxed">
-          {tip}
+        <TooltipContent side="left" sideOffset={8} className="max-w-[240px]">
+          <ScoreTooltipBody title={tip.title} body={tipBody} />
         </TooltipContent>
       </Tooltip>
     );
@@ -98,24 +123,25 @@ export function ScoreBadge({
     <Tooltip>
       <TooltipTrigger
         render={
-          <span
+          <button
+            type="button"
             className={cn(
-              "flex shrink-0 cursor-help flex-col items-center justify-center gap-1 rounded-2xl px-3.5 py-2.5 min-w-[6.75rem] transition-[transform,box-shadow,background-color] duration-150 ease-[var(--ease-out-soft)] hover:scale-[1.03]",
-              size === "sm" && "min-w-[5rem] gap-0.5 px-3 py-2",
-              tier === "strong" &&
-                "bg-primary/15 text-primary ring-1 ring-primary/30",
+              "inline-flex shrink-0 cursor-help items-center justify-center gap-3 rounded-[24px] px-3.5 py-2.5 transition-[transform,box-shadow,background-color] duration-150 ease-[var(--ease-out-soft)] hover:scale-[1.03]",
+              size === "sm" && "gap-2 px-3 py-2",
+              tier === "strong" && "bg-primary/15 text-primary",
               tier === "worth_a_look" &&
-                "bg-amber-500/12 text-amber-900 ring-1 ring-amber-500/30 dark:text-amber-100",
-              !tier && "bg-muted text-muted-foreground ring-1 ring-border",
+                "bg-amber-500/12 text-amber-900 dark:text-amber-100",
+              !tier && "bg-muted text-muted-foreground",
               className,
             )}
             aria-label={`${label}, score ${display}`}
+            onClick={onClick}
           />
         }
       >
         <span
           className={cn(
-            "font-display tabular font-semibold leading-none tracking-tight",
+            "font-mono tabular font-semibold leading-none tracking-tight",
             size === "sm" ? "text-[22px]" : "text-[28px]",
           )}
         >
@@ -123,16 +149,15 @@ export function ScoreBadge({
         </span>
         <span
           className={cn(
-            "font-medium leading-tight tracking-wide",
-            size === "sm" ? "text-[12px]" : "text-[15px]",
+            "font-medium leading-tight tracking-wide whitespace-nowrap",
+            size === "sm" ? "text-[13px]" : "text-[15px]",
           )}
         >
           {label}
         </span>
       </TooltipTrigger>
-      <TooltipContent className="max-w-xs text-left leading-relaxed">
-        {tip}
-        {` (${STRONG_MATCH_MIN}+ Strong · ${WORTH_A_LOOK_MIN}–${STRONG_MATCH_MIN - 1} Worth a look)`}
+      <TooltipContent side="left" sideOffset={8} className="max-w-[240px]">
+        <ScoreTooltipBody title={tip.title} body={tipBody} />
       </TooltipContent>
     </Tooltip>
   );

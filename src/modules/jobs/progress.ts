@@ -1,4 +1,6 @@
-/** High-level steps shown in SearchProgressModal (jobs mode). */
+import type { SearchLiveStats } from "@/modules/search-experience/stages";
+
+/** High-level steps shown in the search experience (jobs mode). */
 export type JobSearchStepId = "collect" | "filter" | "evaluate" | "publish";
 
 export type JobSearchProgress = {
@@ -9,6 +11,8 @@ export type JobSearchProgress = {
   label: string;
   /** What is happening right now */
   detail?: string;
+  /** Structured counters — only real pipeline values */
+  stats?: SearchLiveStats;
 };
 
 export type JobSearchProgressCallback = (
@@ -37,11 +41,13 @@ export function progressFor(
   stepId: JobSearchStepId,
   percent: number,
   detail?: string,
+  stats?: SearchLiveStats,
 ): JobSearchProgress {
   return {
     stepId,
     percent: Math.max(0, Math.min(100, Math.round(percent))),
     label: JOB_SEARCH_STEP_LABELS[stepId],
     detail,
+    stats,
   };
 }

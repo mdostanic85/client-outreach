@@ -2,25 +2,33 @@
 
 Complete these before live automated sending. Track status in **Admin → Validation readiness**.
 
-## Checklist
+## Connect mailbox (simplest path)
 
-1. **Product validated** — Phase 1/2 quality gates look good (lead quality, research, drafts).
-2. **Dedicated outreach mailbox** — separate from personal Gmail.
-3. **SPF** — sending domain publishes SPF that includes Google (or your SMTP provider).
-4. **DKIM** — Gmail/Google Workspace DKIM enabled and verifying.
-5. **DMARC** — publish a DMARC record; start with `p=none` while monitoring.
-6. **Manual practice** — send a few messages by hand from that mailbox first.
+Open **Admin → Connect mailbox**.
 
-## Credentials (local app)
+### Gmail
 
-Prefer Keychain:
+1. One-time: create a Google Cloud **OAuth client** (Web application).
+2. Authorized redirect URI (match the port you run):
+   `http://127.0.0.1:3003/api/mail/oauth/google/callback`
+   (or `:3000` if you use the default `pnpm dev` port)
+3. Paste Client ID + Secret into the Gmail card (or Keychain / `.env`).
+4. Click **Connect Gmail** → sign in with Google → done.
 
-```bash
-security add-generic-password -s client-outreach -a GMAIL_USER -w 'outreach@yourdomain.com'
-security add-generic-password -s client-outreach -a GMAIL_APP_PASSWORD -w 'xxxx-xxxx-xxxx-xxxx'
-```
+### Other email
 
-Fallback: `.env` `GMAIL_USER` + `GMAIL_APP_PASSWORD` (never commit).
+1. Click **Connect other email**.
+2. Enter email, password, **SMTP** (outgoing), **IMAP** (incoming).
+3. Save. IMAP is required so Optra can track replies (POP is not supported).
+
+Credentials stay in Keychain / `.env` — never SQLite.
+
+## Ops checklist
+
+1. **Product validated** — Phase 1/2 quality gates look good.
+2. **Dedicated outreach mailbox** — separate from personal inbox when possible.
+3. **SPF / DKIM / DMARC** — for your sending domain.
+4. **Manual practice** — send a few messages by hand first.
 
 ## App commands
 
@@ -33,6 +41,5 @@ UI: Approve draft → **/queue** → Process / Sync.
 
 ## Do not yet
 
-- Separate outreach subdomain (reputation trade-offs — later)
 - Raise daily cap above 5 until ≥50 valid delivered + healthy bounce/reply rates
 - Auto-send to `pattern_unverified`

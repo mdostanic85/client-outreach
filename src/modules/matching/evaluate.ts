@@ -225,6 +225,7 @@ export async function evaluateJobsBatch(options: {
       total > 0
         ? `Scoring ${total} roles against your profile…`
         : "Nothing new to score",
+      { reviewed: 0, promising: 0 },
     ),
   );
 
@@ -248,6 +249,11 @@ export async function evaluateJobsBatch(options: {
           "evaluate",
           evaluatePercent(done, Math.max(total, 1)),
           `Cached score · ${done}/${total}`,
+          {
+            reviewed: done,
+            promising: recommended,
+            regionOrCategory: undefined,
+          },
         ),
       );
       continue;
@@ -264,6 +270,11 @@ export async function evaluateJobsBatch(options: {
         "evaluate",
         evaluatePercent(done, Math.max(total, 1)),
         `${jobRow.title}${jobRow.location ? ` · ${jobRow.location}` : ""}`,
+        {
+          reviewed: done,
+          promising: recommended,
+          regionOrCategory: jobRow.location ?? undefined,
+        },
       ),
     );
 
@@ -301,6 +312,11 @@ export async function evaluateJobsBatch(options: {
           "evaluate",
           evaluatePercent(done, Math.max(total, 1)),
           `${jobRow.title} · score ${Math.round(result.matchScore)} · ${done}/${total}`,
+          {
+            reviewed: done,
+            promising: recommended,
+            regionOrCategory: jobRow.location ?? undefined,
+          },
         ),
       );
       // Free-tier Gemini is ~15 RPM — pace new matches so a full batch survives.
@@ -313,6 +329,7 @@ export async function evaluateJobsBatch(options: {
           "evaluate",
           evaluatePercent(done, Math.max(total, 1)),
           `Skipped one role · ${done}/${total}`,
+          { reviewed: done, promising: recommended },
         ),
       );
     }

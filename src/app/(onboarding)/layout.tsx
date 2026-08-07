@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AuthBrand } from "@/components/auth/auth-shell";
+import { MakerCredit } from "@/components/maker-credit";
 import { ensureDb } from "@/db/ensure";
 import { countUsers, getSessionUser } from "@/modules/auth/session";
 import { getUserOnboardingCompletedAt } from "@/modules/onboarding/state";
@@ -43,6 +44,9 @@ export default async function OnboardingLayout({
         </form>
       </header>
       <div className="relative z-10 flex flex-1 flex-col">{children}</div>
+      <footer className="relative z-10 px-6 pb-6 sm:px-10 lg:px-12">
+        <MakerCredit />
+      </footer>
     </div>
   );
 }

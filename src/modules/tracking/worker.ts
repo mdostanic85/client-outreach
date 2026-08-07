@@ -11,6 +11,10 @@ import {
 import { assertPublicBudgetAllows, getBudgetStatus } from "@/lib/budgets";
 import { newId, nowIso } from "@/lib/ids";
 import { logger } from "@/lib/logging/logger";
+import {
+  companyProgressFor,
+  type CompanySearchProgressCallback,
+} from "@/modules/companies/progress";
 import { discoverBatch } from "@/modules/discovery/persist";
 import type { FilteredCandidate } from "@/modules/discovery/filters";
 import { triageCandidatesBatch } from "@/modules/discovery/triage";
@@ -79,11 +83,15 @@ function markStage(checkpoint: Checkpoint, stage: WorkerStage) {
 export async function runWorkerPipeline(options?: {
   resumeRunId?: string;
   maxResearch?: number;
+  /** When true, skip nested job discovery (Find Companies UI). */
+  skipJobs?: boolean;
+  onProgress?: CompanySearchProgressCallback;
 }) {
   await ensureDb();
   const db = getDb();
   const setting = await loadSettings();
   const maxResearch = options?.maxResearch ?? setting.dailyLeadCount ?? 12;
+  const report = options?.onProgress;
 
   let runId = options?.resumeRunId;
   let checkpoint: Checkpoint = { completedStages: [] };
@@ -108,7 +116,29 @@ export async function runWorkerPipeline(options?: {
   }
 
   try {
+    await report?.(
+      companyProgressFor(
+        "discover",
+        4,
+        "Understanding your targeting preferences…",
+      ),
+    );
+    await report?.(
+      companyProgressFor(
+        "discover",
+        10,
+        "Building company search strategy…",
+      ),
+    );
+
     if (!stageDone(checkpoint, "deterministic_filter")) {
+      await report?.(
+        companyProgressFor(
+          "discover",
+          18,
+          "Searching company and hiring sources…",
+        ),
+      );
       const discovered = await discoverBatch(setting.targetFiltersJson);
       stats.rawCandidates = discovered.filterStats.raw;
       stats.filterStats = discovered.filterStats;
@@ -126,10 +156,42 @@ export async function runWorkerPipeline(options?: {
       markStage(checkpoint, "deduplicate");
       markStage(checkpoint, "deterministic_filter");
       saveCheckpoint(runId, checkpoint, stats);
+
+      const sourceErrors = discovered.sourceErrors ?? [];
+      await report?.(
+        companyProgressFor(
+          "discover",
+          35,
+          sourceErrors.length > 0
+            ? `Found ${discovered.filterStats.raw} · ${sourceErrors.length} source issue${sourceErrors.length === 1 ? "" : "s"}`
+            : `Found ${discovered.filterStats.raw} candidates · kept ${discovered.filterStats.kept}`,
+          {
+            reviewed: discovered.filterStats.raw,
+            removed: discovered.filterStats.raw - discovered.filterStats.kept,
+            promising: discovered.filterStats.kept,
+            sourcesActive:
+              sourceErrors.length > 0
+                ? sourceErrors.slice(0, 3).map((e) => e.source)
+                : undefined,
+          },
+        ),
+      );
     }
 
     if (!stageDone(checkpoint, "llm_triage_batch")) {
       assertPublicBudgetAllows("triage");
+
+      await report?.(
+        companyProgressFor(
+          "triage",
+          40,
+          "Reviewing companies against fit criteria…",
+          {
+            reviewed: Number(stats.rawCandidates ?? 0) || undefined,
+            removed: Number(stats.deterministicallyRemoved ?? 0) || undefined,
+          },
+        ),
+      );
 
       // Retry triage_failed as well — a missing key / transient LLM error
       // previously left leads stuck forever because only `new` was selected.
@@ -216,6 +278,22 @@ export async function runWorkerPipeline(options?: {
 
       markStage(checkpoint, "llm_triage_batch");
       saveCheckpoint(runId, checkpoint, stats);
+
+      const removed =
+        (Number(stats.deterministicallyRemoved ?? 0) || 0) +
+        triage.rejected.length;
+      await report?.(
+        companyProgressFor(
+          "triage",
+          55,
+          `Qualified ${triage.kept.length} · removed ${triage.rejected.length}`,
+          {
+            reviewed: candidates.length,
+            removed,
+            promising: triage.kept.length,
+          },
+        ),
+      );
     }
 
     if (!stageDone(checkpoint, "research_and_score_batch")) {
@@ -225,10 +303,32 @@ export async function runWorkerPipeline(options?: {
         markStage(checkpoint, "retrieve_pages");
         markStage(checkpoint, "research_and_score_batch");
         saveCheckpoint(runId, checkpoint, stats);
+        await report?.(
+          companyProgressFor(
+            "research",
+            80,
+            "Research paused — monthly AI budget reached",
+          ),
+        );
       } else {
         const ids = (checkpoint.companyIdsForResearch ?? []).slice(0, maxResearch);
         let researched = 0;
         let incomplete = 0;
+
+        await report?.(
+          companyProgressFor(
+            "research",
+            58,
+            ids.length > 0
+              ? `Researching ${ids.length} companies…`
+              : "No companies left to research",
+            {
+              promising: ids.length,
+              reviewed: Number(stats.rawCandidates ?? 0) || undefined,
+              removed: Number(stats.deterministicallyRemoved ?? 0) || undefined,
+            },
+          ),
+        );
 
         for (const companyId of ids) {
           if ((await getBudgetStatus()).hardStopped) break;
@@ -240,6 +340,20 @@ export async function runWorkerPipeline(options?: {
             logger.error({ companyId, err }, "Research failed for company");
             incomplete += 1;
           }
+          await report?.(
+            companyProgressFor(
+              "research",
+              58 + Math.round((researched / Math.max(ids.length, 1)) * 24),
+              `Researched ${researched}/${ids.length}`,
+              {
+                reviewed: researched,
+                promising: researched - incomplete,
+                removed:
+                  (Number(stats.deterministicallyRemoved ?? 0) || 0) +
+                  (Number(stats.triageRejected ?? 0) || 0),
+              },
+            ),
+          );
         }
 
         stats.researched = researched;
@@ -251,6 +365,15 @@ export async function runWorkerPipeline(options?: {
     }
 
     if (!stageDone(checkpoint, "publish_daily_list")) {
+      await report?.(
+        companyProgressFor("rank", 88, "Ranking the strongest companies…", {
+          promising: Number(stats.researched ?? stats.passedTriage ?? 0) || undefined,
+          removed:
+            (Number(stats.deterministicallyRemoved ?? 0) || 0) +
+            (Number(stats.triageRejected ?? 0) || 0),
+        }),
+      );
+
       const dailyCount = setting.dailyLeadCount ?? 12;
       const ranked = (await db
         .select({ lead: leads, company: companies })
@@ -272,6 +395,23 @@ export async function runWorkerPipeline(options?: {
       markStage(checkpoint, "rank");
       markStage(checkpoint, "publish_daily_list");
       saveCheckpoint(runId, checkpoint, stats);
+
+      await report?.(
+        companyProgressFor(
+          "publish",
+          96,
+          ranked.length > 0
+            ? `Preparing ${ranked.length} recommendations…`
+            : "No strong companies to show this run",
+          {
+            promising: ranked.length,
+            removed:
+              (Number(stats.deterministicallyRemoved ?? 0) || 0) +
+              (Number(stats.triageRejected ?? 0) || 0),
+            reviewed: Number(stats.rawCandidates ?? 0) || undefined,
+          },
+        ),
+      );
     }
 
     if (!stageDone(checkpoint, "record_usage")) {
@@ -280,18 +420,37 @@ export async function runWorkerPipeline(options?: {
       saveCheckpoint(runId, checkpoint, stats);
     }
 
-    // Job discovery (requires approved search profile)
-    try {
-      const { runJobDiscoveryPipeline } = await import(
-        "@/modules/jobs/pipeline"
-      );
-      stats.jobs = await runJobDiscoveryPipeline();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      stats.jobsError = message;
-      logger.warn({ err: message }, "Job discovery pipeline failed (non-fatal)");
+    // Job discovery (requires approved search profile) — skip from Find Companies UI
+    if (!options?.skipJobs) {
+      try {
+        const { runJobDiscoveryPipeline } = await import(
+          "@/modules/jobs/pipeline"
+        );
+        stats.jobs = await runJobDiscoveryPipeline();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        stats.jobsError = message;
+        logger.warn({ err: message }, "Job discovery pipeline failed (non-fatal)");
+      }
+      saveCheckpoint(runId, checkpoint, stats);
     }
-    saveCheckpoint(runId, checkpoint, stats);
+
+    await report?.(
+      companyProgressFor(
+        "publish",
+        100,
+        Number(stats.published ?? 0) > 0
+          ? `${stats.published} companies ready`
+          : "Search finished",
+        {
+          promising: Number(stats.published ?? 0) || undefined,
+          reviewed: Number(stats.rawCandidates ?? 0) || undefined,
+          removed:
+            (Number(stats.deterministicallyRemoved ?? 0) || 0) +
+            (Number(stats.triageRejected ?? 0) || 0),
+        },
+      ),
+    );
 
     await db.update(syncRuns)
       .set({ finishedAt: nowIso() })

@@ -2,6 +2,8 @@
 
 Local single-user client discovery and outreach app.
 
+**Owner:** [Miloš Dostanić](https://dostanic.net) — proprietary. See [`LICENSE`](./LICENSE) and [`OWNERSHIP.md`](./OWNERSHIP.md). All rights reserved.
+
 **Build status:** Phases 0–5 code is complete. Open items are validation/ops (daily runs, mailbox DNS, human scoring) — track them on **Admin → Validation readiness**. Phase 5 later (ATS, multi-user, remote) stays deferred.
 
 ## Setup
@@ -9,7 +11,7 @@ Local single-user client discovery and outreach app.
 ```bash
 cp .env.example .env
 # Add GOOGLE_API_KEY (research) and ANTHROPIC_API_KEY (drafts)
-# Phase 3 mail: GMAIL_USER + GMAIL_APP_PASSWORD
+# Phase 3 mail: Admin → Connect mailbox (Gmail OAuth or other SMTP/IMAP)
 # Prefer macOS Keychain: service=client-outreach, account=<NAME>
 
 npm install
@@ -46,9 +48,12 @@ On an accepted lead:
 3. Generate draft — deterministic quality checks + optional critique
 4. After sent: **Generate follow-up 1/2**
 
-## Phase 3 — Gmail automation
+## Phase 3 — Mailbox automation
 
-Credential strategy: **Gmail app password** (Keychain / `.env` fallback).
+Open **Admin → Connect mailbox**:
+
+- **Gmail** — sign in with Google (OAuth)
+- **Other email** — username, password, SMTP + IMAP hosts
 
 1. Draft → edit → **Approve for send**
 2. Open **Send queue** → Process send queue (SMTP, max 5/day, weekdays)

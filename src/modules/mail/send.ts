@@ -21,7 +21,7 @@ import {
   getActiveApproval,
   pauseMailbox,
 } from "./approvals";
-import { requireGmailCredentials } from "./credentials";
+import { requireMailCredentials } from "./credentials";
 import { scheduleFollowUps } from "./followups";
 import {
   checkDailyCap,
@@ -39,16 +39,33 @@ function makeRfcMessageId(domain: string): string {
 }
 
 function createTransport() {
-  const creds = requireGmailCredentials();
+  const creds = requireMailCredentials();
+  if (creds.authMode === "oauth") {
+    return {
+      creds,
+      transport: nodemailer.createTransport({
+        host: creds.smtp.host,
+        port: creds.smtp.port,
+        secure: creds.smtp.secure,
+        auth: {
+          type: "OAuth2",
+          user: creds.user,
+          clientId: creds.clientId,
+          clientSecret: creds.clientSecret,
+          refreshToken: creds.refreshToken,
+        },
+      }),
+    };
+  }
   return {
     creds,
     transport: nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
+      host: creds.smtp.host,
+      port: creds.smtp.port,
+      secure: creds.smtp.secure,
       auth: {
         user: creds.user,
-        pass: creds.appPassword,
+        pass: creds.password,
       },
     }),
   };
@@ -158,8 +175,8 @@ export async function sendApprovedDraft(approvalId: string): Promise<SendResult>
 
   const { creds, transport } = createTransport();
   const fromDomain = creds.user.includes("@")
-    ? creds.user.split("@")[1]
-    : "gmail.com";
+    ? creds.user.split("@")[1]!
+    : creds.smtp.host.replace(/^smtp\./i, "") || "localhost";
   const rfcMessageId = makeRfcMessageId(fromDomain);
   const now = nowIso();
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, ChevronDown, RefreshCw } from "lucide-react";
 import {
   approveSearchProfileAction,
+  createSearchDraftFromApprovedAction,
   generateSearchProfileAction,
   saveSearchProfileDraftAction,
 } from "@/app/actions";
@@ -155,6 +156,31 @@ export function SearchCriteriaWorkspace({
       }
     });
   };
+
+  const approveFromForm = () =>
+    run(async () => {
+      if (draft) {
+        await saveSearchProfileDraftAction(draft.id, buildParams());
+        return approveSearchProfileAction(draft.id);
+      }
+      const created = await createSearchDraftFromApprovedAction(buildParams());
+      if (!created.ok || !created.data) {
+        return { ok: false, error: created.error ?? "Could not create draft" };
+      }
+      return approveSearchProfileAction(created.data.id);
+    }, "Search criteria approved");
+
+  const saveDraftFromForm = () =>
+    run(async () => {
+      if (draft) {
+        return saveSearchProfileDraftAction(
+          draft.id,
+          buildParams(),
+          draft.rationale,
+        );
+      }
+      return createSearchDraftFromApprovedAction(buildParams());
+    }, "Draft saved");
 
   const buildParams = (): JobSearchParams => {
     const base = source?.params;
@@ -395,21 +421,13 @@ export function SearchCriteriaWorkspace({
               </div>
 
               {/* Single primary in this region — footer Continue appears only after approve */}
-              {canApprove ? (
+              {canApprove || isApproved ? (
                 <div className="border-border flex flex-wrap items-center gap-3 border-t pt-5">
                   <Button
                     size="lg"
                     className="h-11 px-5 text-[15px]"
                     disabled={pending}
-                    onClick={() =>
-                      run(async () => {
-                        await saveSearchProfileDraftAction(
-                          draft!.id,
-                          buildParams(),
-                        );
-                        return approveSearchProfileAction(draft!.id);
-                      }, "Search criteria approved")
-                    }
+                    onClick={approveFromForm}
                   >
                     Approve criteria
                   </Button>
@@ -419,26 +437,16 @@ export function SearchCriteriaWorkspace({
                     size="lg"
                     className="h-11 px-3 text-[14px]"
                     disabled={pending}
-                    onClick={() =>
-                      run(async () => {
-                        return saveSearchProfileDraftAction(
-                          draft!.id,
-                          buildParams(),
-                          draft!.rationale,
-                        );
-                      }, "Draft saved")
-                    }
+                    onClick={saveDraftFromForm}
                   >
                     Save draft
                   </Button>
                   <p className="text-muted-foreground text-[15px]">
-                    Then continue below when you’re ready.
+                    {canApprove
+                      ? "Then continue below when you’re ready."
+                      : "Saves your edits as the new approved criteria."}
                   </p>
                 </div>
-              ) : isApproved || approved ? (
-                <p className="text-muted-foreground border-border border-t pt-5 text-[14px]">
-                  Criteria approved. Continue below — or regenerate to revise.
-                </p>
               ) : null}
             </PanelBody>
           </Surface>
@@ -450,6 +458,7 @@ export function SearchCriteriaWorkspace({
   // Full page — same card + primary CTA pattern as onboarding / Today
   const canApprove = Boolean(draft);
   const isApprovedOnly = Boolean(approved) && !draft;
+  const showApproveActions = canApprove || isApprovedOnly;
 
   const headerActions =
     !draft && !approved ? (
@@ -462,27 +471,9 @@ export function SearchCriteriaWorkspace({
       >
         {pending ? "Generating…" : "Generate from profile"}
       </Button>
-    ) : canApprove ? (
-      <Button
-        size="lg"
-        disabled={pending}
-        onClick={() =>
-          run(async () => {
-            await saveSearchProfileDraftAction(draft!.id, buildParams());
-            return approveSearchProfileAction(draft!.id);
-          }, "Search criteria approved")
-        }
-      >
+    ) : showApproveActions ? (
+      <Button size="lg" disabled={pending} onClick={approveFromForm}>
         Approve criteria
-      </Button>
-    ) : isApprovedOnly ? (
-      <Button
-        type="button"
-        variant="ghost"
-        size="lg"
-        onClick={() => router.push("/")}
-      >
-        Go to Today
       </Button>
     ) : null;
 
@@ -596,7 +587,8 @@ export function SearchCriteriaWorkspace({
                   Go to Today
                 </Button>
                 <p className="text-muted-foreground text-[15px]">
-                  Find jobs from Today — or regenerate above to revise criteria.
+                  Edit above, then Approve criteria — or regenerate to start
+                  over.
                 </p>
               </div>
             ) : null}
@@ -604,35 +596,24 @@ export function SearchCriteriaWorkspace({
         </Surface>
       )}
 
-      {canApprove ? (
-        <StickyFormActions message="Review titles and locations, then approve.">
+      {showApproveActions ? (
+        <StickyFormActions
+          message={
+            canApprove
+              ? "Review titles and locations, then approve."
+              : "Edit titles and locations, then approve to update."
+          }
+        >
           <Button
             type="button"
             variant="outline"
             size="lg"
             disabled={pending}
-            onClick={() =>
-              run(async () => {
-                return saveSearchProfileDraftAction(
-                  draft!.id,
-                  buildParams(),
-                  draft!.rationale,
-                );
-              }, "Draft saved")
-            }
+            onClick={saveDraftFromForm}
           >
             Save draft
           </Button>
-          <Button
-            size="lg"
-            disabled={pending}
-            onClick={() =>
-              run(async () => {
-                await saveSearchProfileDraftAction(draft!.id, buildParams());
-                return approveSearchProfileAction(draft!.id);
-              }, "Search criteria approved")
-            }
-          >
+          <Button size="lg" disabled={pending} onClick={approveFromForm}>
             Approve criteria
           </Button>
         </StickyFormActions>

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { eq, and, gt, isNull } from "drizzle-orm";
 import { getDb } from "@/db/client";
@@ -20,6 +21,7 @@ export type AuthUser = {
   id: string;
   email: string;
   name: string | null;
+  onboardingCompletedAt: string | null;
 };
 
 function sessionExpiryIso(days = SESSION_DAYS) {
@@ -44,7 +46,7 @@ export async function findUserByEmail(email: string) {
   );
 }
 
-export async function getSessionUser(): Promise<AuthUser | null> {
+export const getSessionUser = cache(async (): Promise<AuthUser | null> => {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -56,6 +58,7 @@ export async function getSessionUser(): Promise<AuthUser | null> {
       userId: users.id,
       email: users.email,
       name: users.name,
+      onboardingCompletedAt: users.onboardingCompletedAt,
       expiresAt: sessions.expiresAt,
     })
     .from(sessions)
@@ -63,8 +66,13 @@ export async function getSessionUser(): Promise<AuthUser | null> {
     .where(and(eq(sessions.tokenHash, tokenHash), gt(sessions.expiresAt, now))).limit(1))[0];
 
   if (!row) return null;
-  return { id: row.userId, email: row.email, name: row.name };
-}
+  return {
+    id: row.userId,
+    email: row.email,
+    name: row.name,
+    onboardingCompletedAt: row.onboardingCompletedAt,
+  };
+});
 
 export async function createSession(userId: string) {
   const token = newSessionToken();

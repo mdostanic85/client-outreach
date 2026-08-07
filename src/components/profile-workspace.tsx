@@ -70,6 +70,28 @@ const SOURCE_LABELS: Record<string, string> = {
 
 type ReviewTab = "essentials" | "skills" | "preferences" | "advanced";
 
+/** `?fix=` values from Market fit CTAs. */
+export type ProfileFixTarget =
+  | "sources"
+  | "essentials"
+  | "skills"
+  | "preferences"
+  | "evidence"
+  | "advanced";
+
+function reviewTabFromFix(fix: string | null): ReviewTab | null {
+  if (
+    fix === "essentials" ||
+    fix === "skills" ||
+    fix === "preferences" ||
+    fix === "advanced"
+  ) {
+    return fix;
+  }
+  if (fix === "evidence") return "advanced";
+  return null;
+}
+
 const REVIEW_TABS: Array<{
   id: ReviewTab;
   label: string;
@@ -500,6 +522,7 @@ export function ProfileWorkspace({
   approved,
   usePortfolioInMatching = true,
   variant = "page",
+  initialFix = null,
   children,
 }: {
   sources: SourceView[];
@@ -509,6 +532,8 @@ export function ProfileWorkspace({
   usePortfolioInMatching?: boolean;
   /** Phased UX for onboarding wizard. */
   variant?: "page" | "onboarding";
+  /** Market fit deep-link (`?fix=`). */
+  initialFix?: ProfileFixTarget | null;
   /** Extra setup sections (e.g. Matching) — rendered above sticky approve. */
   children?: React.ReactNode;
 }) {
@@ -543,6 +568,31 @@ export function ProfileWorkspace({
   const isOnboarding = variant === "onboarding";
   const phase =
     phaseOverride ?? (active ? "review" : "sources");
+
+  useEffect(() => {
+    if (!initialFix || isOnboarding) return;
+    if (initialFix === "sources") {
+      setSourcesOpen(true);
+      setShowMoreSources(true);
+      setPhaseOverride("sources");
+      requestAnimationFrame(() => {
+        document
+          .getElementById("profile-workspace")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      return;
+    }
+    const tab = reviewTabFromFix(initialFix);
+    if (!tab) return;
+    setPhaseOverride(null);
+    setReviewTab(tab);
+    setSourcesOpen(false);
+    requestAnimationFrame(() => {
+      document
+        .getElementById("profile-workspace")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [initialFix, isOnboarding]);
 
   const [editingId, setEditingId] = useState<string | null>(draft?.id ?? null);
   const editable = useMemo(() => {
@@ -1570,7 +1620,7 @@ export function ProfileWorkspace({
   const pageSourcesOpen = sourcesOpen || !active;
 
   return (
-    <div className="space-y-8">
+    <div id="profile-workspace" className="space-y-8 scroll-mt-20">
       {error ? <InlineAlert variant="error">{error}</InlineAlert> : null}
       {message ? <InlineAlert variant="info">{message}</InlineAlert> : null}
       {draft ? (

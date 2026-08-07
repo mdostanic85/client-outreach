@@ -16,48 +16,51 @@ import { JobListItem } from "@/components/job-list-item";
 import { Stagger, StaggerItem } from "@/components/motion";
 import { PageHeader, Surface } from "@/components/page-shell";
 import {
-  SearchProgressModal,
+  SearchExperience,
   type LiveSearchProgress,
-} from "@/components/search-progress-modal";
+  type SearchResultSummary,
+} from "@/components/search-experience";
 import { SegmentedControl } from "@/components/segmented-control";
 import { Button } from "@/components/ui/button";
 import type { JobPipelineStats } from "@/modules/jobs/pipeline";
 import type { JobSearchProgress } from "@/modules/jobs/progress";
-import type { RemoteFit } from "@/modules/matching/remote-fit";
+import type { JobTriageRow } from "@/modules/jobs/triage-row";
+import type { SearchLiveStats } from "@/modules/search-experience/stages";
 import {
   STRONG_MATCH_MIN,
   WORTH_A_LOOK_MIN,
   matchTierForScore,
 } from "@/modules/matching/tiers";
+import { timezoneOverlapVaries } from "@/modules/matching/remote-fit";
 
 type SearchStreamEvent =
   | { type: "progress"; progress: JobSearchProgress }
   | { type: "done"; stats: JobPipelineStats }
   | { type: "error"; error: string };
 
-export type JobTriageRow = {
-  jobId: string;
-  title: string;
-  companyName: string;
-  location: string | null;
-  remotePolicy: string | null;
-  employmentType: string | null;
-  source: string;
-  sourceUrl: string;
-  matchScore: number | null;
-  eligibility: string | null;
-  recommendation: string | null;
-  matchingReasons: string[];
-  concerns: string[];
-  remoteFit: RemoteFit;
-  mainRisk: string | null;
-  missingRequirements: string[];
-  remoteRequired: boolean;
-  postedAt: string | null;
-  triageState: string;
-};
+const SLOW_MS = 90_000;
+const RESOLVE_HOLD_MS = 1_400;
+
+export type { JobTriageRow };
 
 type InboxTab = "strong" | "worth_a_look" | "all";
+
+function formatJobSearchError(err: unknown): string {
+  if (err instanceof DOMException && err.name === "AbortError") {
+    return "Job search was cancelled.";
+  }
+  // Browser dropped the stream (tab sleep, offline, proxy) — not a pipeline bug.
+  if (
+    err instanceof TypeError &&
+    /failed to fetch|networkerror|load failed/i.test(err.message)
+  ) {
+    return "Connection lost during search. Click Find jobs again.";
+  }
+  if (err instanceof Error && err.message.trim()) {
+    return err.message.slice(0, 400);
+  }
+  return "Job search failed. Click Find jobs again.";
+}
 
 function formatPipelineMessage(stats: {
   skipped?: string;
@@ -110,7 +113,17 @@ function readPersistedStatus(): PersistedStatus {
   if (typeof window === "undefined") return {};
   try {
     const raw = sessionStorage.getItem(STATUS_KEY);
-    return raw ? (JSON.parse(raw) as PersistedStatus) : {};
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as PersistedStatus;
+    // Drop the old overly-broad HMR remap — it masked real pipeline errors.
+    if (
+      typeof parsed.error === "string" &&
+      /dev server reloaded mid-run/i.test(parsed.error)
+    ) {
+      parsed.error = null;
+      writePersistedStatus(parsed);
+    }
+    return parsed;
   } catch {
     return {};
   }
@@ -141,12 +154,23 @@ export function JobsInbox({
   const [liveProgress, setLiveProgress] = useState<LiveSearchProgress | null>(
     null,
   );
+  const [resultSummary, setResultSummary] =
+    useState<SearchResultSummary | null>(null);
+  const [slow, setSlow] = useState(false);
   const cancelledRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  const statsAccRef = useRef<SearchLiveStats>({});
 
   useEffect(() => {
     onSearchingChange?.(searching);
   }, [searching, onSearchingChange]);
+
+  useEffect(() => {
+    if (!searching || resultSummary) return;
+    const id = window.setTimeout(() => setSlow(true), SLOW_MS);
+    return () => window.clearTimeout(id);
+  }, [searching, resultSummary]);
+
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
@@ -180,6 +204,9 @@ export function JobsInbox({
     abortRef.current?.abort();
     const abort = new AbortController();
     abortRef.current = abort;
+    statsAccRef.current = {};
+    setResultSummary(null);
+    setSlow(false);
     setLiveProgress({
       percent: 0,
       stepId: "collect",
@@ -220,10 +247,17 @@ export function JobsInbox({
               continue;
             }
             if (event.type === "progress") {
+              if (event.progress.stats) {
+                statsAccRef.current = {
+                  ...statsAccRef.current,
+                  ...event.progress.stats,
+                };
+              }
               setLiveProgress({
                 percent: event.progress.percent,
                 stepId: event.progress.stepId,
                 detail: event.progress.detail ?? event.progress.label,
+                stats: { ...statsAccRef.current },
               });
             } else if (event.type === "done") {
               finalStats = event.stats;
@@ -231,6 +265,7 @@ export function JobsInbox({
                 percent: 100,
                 stepId: "publish",
                 detail: "Finishing up…",
+                stats: { ...statsAccRef.current },
               });
             } else if (event.type === "error") {
               throw new Error(event.error);
@@ -254,27 +289,40 @@ export function JobsInbox({
             : (stats.publishedStrong ?? 0) > 0
               ? ("strong" as const)
               : tab;
+        const message = formatPipelineMessage(stats);
+        const strong = stats.publishedStrong ?? 0;
+        const worth = stats.publishedWorthALook ?? 0;
+        const published = stats.published ?? strong + worth;
+
+        setResultSummary({
+          title:
+            published === 0
+              ? "No strong matches found"
+              : strong > 0
+                ? `Found ${strong} strong match${strong === 1 ? "" : "es"}`
+                : `Found ${worth} worth a look`,
+          detail: message,
+          strong: published > 0 ? strong : undefined,
+          secondary: published > 0 ? worth : undefined,
+          empty: published === 0,
+        });
+
         persistStatus({
           error: null,
-          message: formatPipelineMessage(stats),
+          message,
           tab: nextTab,
         });
         router.refresh();
-        await new Promise((r) => window.setTimeout(r, 450));
+        await new Promise((r) => window.setTimeout(r, RESOLVE_HOLD_MS));
       } catch (err) {
         if (cancelledRef.current || abort.signal.aborted) return;
-        const text =
-          err instanceof Error
-            ? err.message
-            : "Job search was interrupted (server reload). Click Find jobs again.";
         persistStatus({
-          error: /fetch|network|abort|interrupt|reload/i.test(text)
-            ? "Job search was interrupted (dev server reloaded mid-run). Click Find jobs again."
-            : text,
+          error: formatJobSearchError(err),
         });
       } finally {
         abortRef.current = null;
         setLiveProgress(null);
+        setResultSummary(null);
         if (!cancelledRef.current) setSearching(false);
       }
     })();
@@ -285,6 +333,8 @@ export function JobsInbox({
     abortRef.current?.abort();
     abortRef.current = null;
     setLiveProgress(null);
+    setResultSummary(null);
+    setSlow(false);
     setSearching(false);
   };
 
@@ -329,6 +379,12 @@ export function JobsInbox({
     if (tab === "worth_a_look") return worthRows;
     return [...strongRows, ...worthRows];
   }, [tab, strongRows, worthRows]);
+
+  const showTimezoneChip = useMemo(
+    () =>
+      timezoneOverlapVaries(listed.map((row) => row.remoteFit.timezoneOverlap)),
+    [listed],
+  );
 
   useEffect(() => {
     if (searching) return;
@@ -380,11 +436,13 @@ export function JobsInbox({
 
   return (
     <div className="space-y-5">
-      <SearchProgressModal
+      <SearchExperience
         open={searching}
         mode="jobs"
         onCancel={cancelSearch}
         live={liveProgress}
+        resultSummary={resultSummary}
+        slow={slow}
       />
 
       <PageHeader
@@ -521,6 +579,7 @@ export function JobsInbox({
                     pending={pending}
                     rejecting={rejectingId === row.jobId}
                     rejectReason={rejectReason}
+                    showTimezoneChip={showTimezoneChip}
                     onToggle={() =>
                       setExpandedId(
                         expandedId === row.jobId ? null : row.jobId,

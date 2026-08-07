@@ -3,6 +3,7 @@ import { getDb } from "@/db/client";
 import { settings, structuredProfiles } from "@/db/schema";
 import { nowIso } from "@/lib/ids";
 import { logger } from "@/lib/logging/logger";
+import { invalidateMarketFitOpenCount } from "@/modules/profile/market-fit";
 import { derivePositioningSummary, parseStructuredProfile } from "./schemas";
 
 /**
@@ -63,6 +64,8 @@ export async function approveStructuredProfile(profileId: string): Promise<{
     { profileId, version: row.version, syncedPositioning },
     "structured profile approved",
   );
+
+  invalidateMarketFitOpenCount();
 
   return { version: row.version, syncedPositioning };
 }

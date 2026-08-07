@@ -25,9 +25,11 @@ function sourceBadge(source: SecretSource) {
 function SecretField({
   secret,
   onChanged,
+  compact = false,
 }: {
   secret: SecretRow;
   onChanged: () => void;
+  compact?: boolean;
 }) {
   const [value, setValue] = useState("");
   const [revealed, setRevealed] = useState(false);
@@ -83,26 +85,34 @@ function SecretField({
   };
 
   return (
-    <li className="border-border space-y-4 border-b py-6 first:pt-0 last:border-b-0 last:pb-0">
+    <li
+      className={
+        compact
+          ? "space-y-3 py-5 first:pt-4 last:pb-4"
+          : "border-border space-y-4 border-b py-6 first:pt-0 last:border-b-0 last:pb-0"
+      }
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-medium text-[15px]">{secret.label}</p>
             {sourceBadge(secret.source)}
           </div>
-          <p className="text-muted-foreground text-[15px] leading-relaxed">
-            {secret.purpose} · {secret.requiredFor}
+          <p className="text-muted-foreground text-[14px] leading-relaxed">
+            {secret.purpose}
           </p>
-          <p className="text-muted-foreground font-mono text-[14px]">
-            {secret.name}
-          </p>
+          {!compact ? (
+            <p className="text-muted-foreground font-mono text-[14px]">
+              {secret.name}
+            </p>
+          ) : null}
         </div>
         {secret.docsUrl ? (
           <a
             href={secret.docsUrl}
             target="_blank"
             rel="noreferrer"
-            className="text-muted-foreground inline-flex items-center gap-1.5 text-[15px] underline-offset-4 hover:underline"
+            className="text-muted-foreground inline-flex items-center gap-1.5 text-[14px] underline-offset-4 hover:underline"
           >
             Get key
             <ExternalLink className="size-3.5" />
@@ -112,7 +122,7 @@ function SecretField({
 
       <div className="space-y-2">
         <Label htmlFor={`secret-${secret.name}`}>
-          {secret.present ? "Replace value" : "API key / value"}
+          {secret.present ? "Replace" : "Paste key"}
         </Label>
         <div className="flex flex-wrap gap-2">
           <div className="relative min-w-0 flex-1 basis-[220px]">
@@ -156,13 +166,14 @@ function SecretField({
               </button>
             ) : null}
           </div>
-          <Button type="button" disabled={!canSave} onClick={save}>
+          <Button type="button" size="sm" disabled={!canSave} onClick={save}>
             {secret.present ? "Update" : "Save"}
           </Button>
           {secret.present ? (
             <Button
               type="button"
               variant="outline"
+              size="sm"
               disabled={pending}
               onClick={clear}
             >
@@ -171,10 +182,10 @@ function SecretField({
           ) : null}
         </div>
         {error ? (
-          <p className="text-destructive text-[15px]">{error}</p>
+          <p className="text-destructive text-[14px]">{error}</p>
         ) : null}
         {message ? (
-          <p className="text-muted-foreground text-[15px]">{message}</p>
+          <p className="text-muted-foreground text-[14px]">{message}</p>
         ) : null}
       </div>
     </li>
@@ -184,9 +195,11 @@ function SecretField({
 export function SecretsStatus({
   initialSecrets,
   service,
+  compact = false,
 }: {
   initialSecrets: SecretRow[];
   service: string;
+  compact?: boolean;
 }) {
   const router = useRouter();
   const secrets = initialSecrets;
@@ -194,20 +207,27 @@ export function SecretsStatus({
   const configured = secrets.length - missing;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <p className="text-muted-foreground max-w-2xl text-[14px] leading-relaxed">
-          Paste keys here. Values go to macOS Keychain (service{" "}
-          <code className="text-[14px]">{service}</code>) when available, or{" "}
-          <code className="text-[14px]">.env</code> as a local fallback — never
-          SQLite, backups, or exports. Existing values are never shown.
+    <div className="space-y-5">
+      {!compact ? (
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <p className="text-muted-foreground max-w-2xl text-[14px] leading-relaxed">
+            Paste keys here. Values go to macOS Keychain (service{" "}
+            <code className="text-[14px]">{service}</code>) when available, or{" "}
+            <code className="text-[14px]">.env</code> as a local fallback — never
+            SQLite, backups, or exports. Existing values are never shown.
+          </p>
+          <p className="text-muted-foreground text-[15px] tabular-nums">
+            {configured}/{secrets.length} configured
+          </p>
+        </div>
+      ) : (
+        <p className="text-muted-foreground text-[14px]">
+          {configured}/{secrets.length} configured · Keychain /{" "}
+          <code className="text-[13px]">.env</code>
         </p>
-        <p className="text-muted-foreground text-[15px] tabular-nums">
-          {configured}/{secrets.length} configured
-        </p>
-      </div>
+      )}
 
-      {missing > 0 ? (
+      {!compact && missing > 0 ? (
         <div className="border-border bg-muted/30 rounded-xl border px-4 py-3 text-[15px]">
           <span className="font-medium">
             {missing} credential{missing === 1 ? "" : "s"} missing
@@ -217,17 +237,14 @@ export function SecretsStatus({
             — pipeline steps that need them will fail until saved.
           </span>
         </div>
-      ) : (
-        <div className="border-border rounded-xl border px-4 py-3 text-[15px]">
-          All tracked credentials are present.
-        </div>
-      )}
+      ) : null}
 
-      <ul>
+      <ul className={compact ? "border-border divide-border divide-y rounded-2xl border px-5" : undefined}>
         {secrets.map((secret) => (
           <SecretField
             key={secret.name}
             secret={secret}
+            compact={compact}
             onChanged={() => router.refresh()}
           />
         ))}

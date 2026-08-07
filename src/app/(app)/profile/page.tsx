@@ -1,6 +1,10 @@
+import { MarketFitPanel } from "@/components/market-fit-panel";
 import { MatchingSourcesPanel } from "@/components/matching-sources-panel";
 import { ProfileImportReview } from "@/components/profile-import-review";
-import { ProfileWorkspace } from "@/components/profile-workspace";
+import {
+  ProfileWorkspace,
+  type ProfileFixTarget,
+} from "@/components/profile-workspace";
 import { PageHeader, PageShell } from "@/components/page-shell";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,6 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 import { ensureDb } from "@/db/ensure";
 import { diffStructuredProfiles } from "@/modules/profile/diff";
+import { getMarketFitReport } from "@/modules/profile/market-fit";
 import { getMatchingSourcesConfig } from "@/modules/profile/matching-sources";
 import {
   getApprovedProfile,
@@ -19,9 +24,33 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function ProfilePage() {
+const FIX_TARGETS = new Set<ProfileFixTarget>([
+  "sources",
+  "essentials",
+  "skills",
+  "preferences",
+  "evidence",
+  "advanced",
+]);
+
+function parseFixParam(
+  value: string | string[] | undefined,
+): ProfileFixTarget | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (!raw || !FIX_TARGETS.has(raw as ProfileFixTarget)) return null;
+  return raw as ProfileFixTarget;
+}
+
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ fix?: string | string[] }>;
+}) {
   await ensureDb();
+  const params = await searchParams;
+  const initialFix = parseFixParam(params.fix);
   const matchingConfig = await getMatchingSourcesConfig();
+  const marketFit = await getMarketFitReport();
   const sources = (await listProfileSources()).map((s) => ({
     id: s.id,
     type: s.type,
@@ -51,9 +80,15 @@ export default async function ProfilePage() {
     <PageShell width="setup">
       <PageHeader
         title="Profile"
-        description="Add sources, review what Optra knows, then approve the version used for job matching."
+        description="See what’s holding you back for more companies, then tighten sources and the approved profile used for matching."
         meta={
           <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">Fit {marketFit.score}</Badge>
+            {marketFit.openHighImpactCount > 0 ? (
+              <Badge variant="outline">
+                {marketFit.openHighImpactCount} to fix
+              </Badge>
+            ) : null}
             {approved ? (
               <Tooltip>
                 <TooltipTrigger
@@ -79,6 +114,8 @@ export default async function ProfilePage() {
         }
       />
 
+      <MarketFitPanel report={marketFit} />
+
       {showImportReview && draft ? (
         <ProfileImportReview draftId={draft.id} items={importDiff!.items} />
       ) : null}
@@ -86,6 +123,7 @@ export default async function ProfilePage() {
       <ProfileWorkspace
         sources={sources}
         usePortfolioInMatching={matchingConfig.portfolioProjects}
+        initialFix={initialFix}
         draft={
           draft
             ? {

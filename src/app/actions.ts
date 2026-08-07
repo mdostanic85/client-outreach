@@ -712,6 +712,58 @@ export async function clearSecretAction(
   }
 }
 
+export async function saveGoogleOauthClientAction(
+  clientId: string,
+  clientSecret: string,
+): Promise<ActionResult> {
+  try {
+    const { setSecret } = await import("@/lib/security/secrets");
+    setSecret("GOOGLE_OAUTH_CLIENT_ID", clientId);
+    setSecret("GOOGLE_OAUTH_CLIENT_SECRET", clientSecret);
+    revalidatePath("/admin");
+    revalidatePath("/queue");
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function saveOtherMailboxAction(input: {
+  email: string;
+  password: string;
+  smtpHost: string;
+  imapHost: string;
+  smtpPort?: string;
+  imapPort?: string;
+}): Promise<ActionResult> {
+  try {
+    const { savePasswordMailboxConnection } = await import(
+      "@/modules/mail/oauth-google"
+    );
+    savePasswordMailboxConnection({
+      ...input,
+      provider: "custom",
+    });
+    revalidatePath("/admin");
+    revalidatePath("/queue");
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function disconnectMailboxAction(): Promise<ActionResult> {
+  try {
+    const { disconnectMailbox } = await import("@/modules/mail/oauth-google");
+    disconnectMailbox();
+    revalidatePath("/admin");
+    revalidatePath("/queue");
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
 export async function updateOpsChecklistAction(input: {
   productValidated?: boolean;
   dedicatedMailbox?: boolean;
@@ -1141,6 +1193,25 @@ export async function approveSearchProfileAction(
   }
 }
 
+export async function createSearchDraftFromApprovedAction(
+  params?: import("@/modules/search-profile/schemas").JobSearchParams,
+): Promise<ActionResult<{ id: string; version: number }>> {
+  try {
+    await ensureDb();
+    const { createDraftFromApprovedSearchProfile } = await import(
+      "@/modules/search-profile/generate"
+    );
+    const result = await createDraftFromApprovedSearchProfile(
+      params ? { params } : undefined,
+    );
+    revalidatePath("/search-criteria");
+    revalidatePath("/onboarding");
+    return { ok: true, data: result };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
 export async function runJobPipelineAction(): Promise<
   ActionResult<{ stats: import("@/modules/jobs/pipeline").JobPipelineStats }>
 > {
@@ -1346,6 +1417,180 @@ export async function reactivateSearchStrategyAction(
     revalidatePath("/learning");
     revalidatePath("/search-criteria");
     revalidatePath("/");
+    return { ok: true, data: result };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function generateApplicationPackageAction(input: {
+  jobId: string;
+  market?: "us" | "europe";
+  marketConfirmed?: boolean;
+}): Promise<ActionResult<{ packageId: string; jobId: string }>> {
+  try {
+    await ensureDb();
+    const { generatePackageForJob } = await import(
+      "@/modules/applications/packages"
+    );
+    const pkg = await generatePackageForJob(input);
+    revalidatePath("/interested");
+    revalidatePath(`/interested/${input.jobId}/package`);
+    return { ok: true, data: { packageId: pkg.id, jobId: pkg.jobId } };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function savePackageCvAction(input: {
+  packageId: string;
+  cv: import("@/modules/applications/schemas").TailoredCv;
+}): Promise<ActionResult> {
+  try {
+    await ensureDb();
+    const { savePackageCv } = await import("@/modules/applications/packages");
+    const pkg = await savePackageCv(input.packageId, input.cv);
+    revalidatePath(`/interested/${pkg.jobId}/package`);
+    revalidatePath("/interested");
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function savePackageLetterAction(input: {
+  packageId: string;
+  letter: import("@/modules/applications/schemas").CoverLetter;
+}): Promise<ActionResult> {
+  try {
+    await ensureDb();
+    const { savePackageLetter } = await import(
+      "@/modules/applications/packages"
+    );
+    const pkg = await savePackageLetter(input.packageId, input.letter);
+    revalidatePath(`/interested/${pkg.jobId}/package`);
+    revalidatePath("/interested");
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function savePackageEmailAction(input: {
+  packageId: string;
+  email: import("@/modules/applications/application-email").ApplicationEmailDraft;
+}): Promise<ActionResult> {
+  try {
+    await ensureDb();
+    const { savePackageEmail } = await import(
+      "@/modules/applications/packages"
+    );
+    const pkg = await savePackageEmail(input.packageId, input.email);
+    revalidatePath(`/interested/${pkg.jobId}/package`);
+    revalidatePath("/interested");
+    revalidatePath("/queue");
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function sendApplicationPackageAction(input: {
+  packageId: string;
+  email: import("@/modules/applications/application-email").ApplicationEmailDraft;
+}): Promise<ActionResult<{ jobId: string }>> {
+  try {
+    await ensureDb();
+    const { sendApplicationPackage } = await import(
+      "@/modules/applications/send"
+    );
+    const result = await sendApplicationPackage(input);
+    if (!result.ok) throw new Error(result.reason);
+    revalidatePath(`/interested/${result.jobId}/package`);
+    revalidatePath("/interested");
+    revalidatePath("/queue");
+    return { ok: true, data: { jobId: result.jobId } };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function markApplicationGotReplyAction(
+  packageId: string,
+): Promise<ActionResult> {
+  try {
+    await ensureDb();
+    const { markApplicationGotReply } = await import(
+      "@/modules/applications/send"
+    );
+    const result = await markApplicationGotReply(packageId);
+    revalidatePath(`/interested/${result.jobId}/package`);
+    revalidatePath("/interested");
+    revalidatePath("/queue");
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function regeneratePackageSlotAction(input: {
+  packageId: string;
+  slot: "summary" | "letter";
+}): Promise<ActionResult> {
+  try {
+    await ensureDb();
+    const { regeneratePackageSlot } = await import(
+      "@/modules/applications/packages"
+    );
+    const pkg = await regeneratePackageSlot(input);
+    revalidatePath(`/interested/${pkg.jobId}/package`);
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function approvePackageAction(
+  packageId: string,
+): Promise<ActionResult> {
+  try {
+    await ensureDb();
+    const { approvePackage } = await import("@/modules/applications/packages");
+    const pkg = await approvePackage(packageId);
+    revalidatePath(`/interested/${pkg.jobId}/package`);
+    revalidatePath("/interested");
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function markPackagePreparedAction(
+  packageId: string,
+): Promise<ActionResult> {
+  try {
+    await ensureDb();
+    const { markPackagePrepared } = await import(
+      "@/modules/applications/packages"
+    );
+    const pkg = await markPackagePrepared(packageId);
+    revalidatePath(`/interested/${pkg.jobId}/package`);
+    revalidatePath("/interested");
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function exportPackageTextAction(
+  packageId: string,
+): Promise<ActionResult<{ text: string; filename: string }>> {
+  try {
+    await ensureDb();
+    const { exportPackageText } = await import(
+      "@/modules/applications/packages"
+    );
+    const result = await exportPackageText(packageId);
     return { ok: true, data: result };
   } catch (err) {
     return fail(err);

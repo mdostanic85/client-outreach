@@ -561,3 +561,41 @@ export const jobMatches = pgTable(
     ),
   ],
 );
+
+/**
+ * Company-specific application package (tailored CV + cover letter).
+ * One active package per job; regenerates supersede prior rows.
+ */
+export const applicationPackages = pgTable("application_packages", {
+  id: text("id").primaryKey(),
+  jobId: text("job_id")
+    .notNull()
+    .references(() => jobs.id),
+  companyId: text("company_id").references(() => companies.id),
+  profileVersion: integer("profile_version").notNull(),
+  /** us | europe */
+  market: text("market").notNull().default("europe"),
+  /** draft | approved | prepared | superseded */
+  state: text("state").notNull().default("draft"),
+  version: integer("version").notNull().default(1),
+  contentHash: text("content_hash"),
+  analysisJson: text("analysis_json").notNull().default("{}"),
+  cvJson: text("cv_json").notNull().default("{}"),
+  letterGenerated: text("letter_generated").notNull().default(""),
+  letterFinal: text("letter_final").notNull().default(""),
+  groundingJson: text("grounding_json").notNull().default("{}"),
+  warningsJson: text("warnings_json").notNull().default("[]"),
+  model: text("model"),
+  promptVersion: text("prompt_version"),
+  approvedAt: text("approved_at"),
+  /** Application outbound email (persisted from Email tab / Send modal). */
+  emailTo: text("email_to"),
+  emailSubject: text("email_subject"),
+  emailBody: text("email_body"),
+  /** none | sent | waiting | follow_up | closed */
+  mailStatus: text("mail_status").notNull().default("none"),
+  sentAt: text("sent_at"),
+  repliedAt: text("replied_at"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});

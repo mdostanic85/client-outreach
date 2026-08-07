@@ -13,7 +13,7 @@ import { newId, nowIso } from "@/lib/ids";
 import { logger } from "@/lib/logging/logger";
 import { pauseMailbox } from "./approvals";
 import { classifyReply } from "./classify";
-import { requireGmailCredentials } from "./credentials";
+import { getMailAccessToken, requireMailCredentials } from "./credentials";
 import { cancelFollowUps } from "./followups";
 import { evaluateBounceHealth } from "./policy";
 import { suppressEmail } from "./suppression";
@@ -214,17 +214,24 @@ async function handleInbound(input: {
   return { skipped: false as const, classification, messageId };
 }
 
-/** Sync INBOX via IMAP using app password. Cursor-based UID fetch. */
+/** Sync INBOX via IMAP. Cursor-based UID fetch. */
 export async function syncInbox(folder = "INBOX") {
-  const creds = requireGmailCredentials();
+  const creds = requireMailCredentials();
+  const auth =
+    creds.authMode === "oauth"
+      ? {
+          user: creds.user,
+          accessToken: await getMailAccessToken(creds),
+        }
+      : {
+          user: creds.user,
+          pass: creds.password!,
+        };
   const client = new ImapFlow({
-    host: "imap.gmail.com",
-    port: 993,
-    secure: true,
-    auth: {
-      user: creds.user,
-      pass: creds.appPassword,
-    },
+    host: creds.imap.host,
+    port: creds.imap.port,
+    secure: creds.imap.secure,
+    auth,
     logger: false,
   });
 
