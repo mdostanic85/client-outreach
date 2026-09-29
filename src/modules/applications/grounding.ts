@@ -118,17 +118,18 @@ export function validateGrounding(input: {
     }
   }
 
-  const letterText = normalize(
-    [input.letter.opening, input.letter.body, input.letter.closing].join(" "),
-  );
-  // Crude metric invention check: percentages / "$X" not present in corpus
-  const metricHits =
-    letterText.match(
-      /\b\d{1,3}%\b|\$\d[\d,.]*\b|\b\d+x\b|\b\d+\s*(?:users|customers|mrr|arr)\b/gi,
-    ) ?? [];
-  for (const m of metricHits) {
-    if (!corpus.includes(normalize(m))) {
-      rejected.push(`Unverified metric in cover letter: ${m}`);
+  const texts = {
+    "cover letter": [input.letter.opening, input.letter.body, input.letter.closing].join(" "),
+    "CV": [input.cv.summary,
+      ...input.cv.experience.filter(e => e.included).flatMap(e => e.bullets),
+      ...(input.cv.includeProjects ? input.cv.projects.filter(p => p.included).flatMap(p => [p.summary ?? "", ...p.outcomes]) : []),
+    ].join(" "),
+  };
+  const metricPattern = /\b\d+(?:[.,]\d+)?%|[$€£]\d[\d,.]*\b|\b\d+(?:[.,]\d+)?x\b|\b\d[\d,.]*\s*(?:users|customers|mrr|arr)\b/gi;
+  const approvedMetrics = new Set((corpus.match(metricPattern) ?? []).map(normalize));
+  for (const [label, text] of Object.entries(texts)) {
+    for (const metric of normalize(text).match(metricPattern) ?? []) {
+      if (!approvedMetrics.has(normalize(metric))) rejected.push(`Unverified metric in ${label}: ${metric}`);
     }
   }
 
@@ -188,7 +189,7 @@ export function buildPackageWarnings(input: {
     warnings.push({
       code: "grounding_failed",
       message: `Grounding rejected ${input.grounding.rejectedClaims.length} claim(s). Review Evidence tab.`,
-      severity: "warn",
+      severity: "block",
     });
   }
   if (!input.marketConfirmed) {

@@ -133,6 +133,7 @@ export async function runJobDiscoveryPipeline(options?: {
     .where(
       and(
         eq(jobs.status, "active"),
+        inArray(jobs.id, persisted.jobIds),
         inArray(jobs.triageState, ["discovered", "published", "saved"]),
       ),
     ))
@@ -159,7 +160,7 @@ export async function runJobDiscoveryPipeline(options?: {
   );
   const setting = (await db.select().from(settings).limit(1))[0];
   const limit = setting?.dailyJobCount ?? 20;
-  const published = await publishDailyJobList(limit);
+  const published = await publishDailyJobList(limit, evalResult.evaluatedJobIds, evalResult.matchIds);
 
   const stats: JobPipelineStats = {
     raw: collected.raw.length,
