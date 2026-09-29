@@ -439,7 +439,7 @@ export function SettingsForm({ initial }: { initial: FormInitial }) {
 
       <Surface>
         <details className="group">
-          <summary className="border-border flex cursor-pointer list-none items-center justify-between gap-3 border-b px-8 py-6 font-medium select-none [&::-webkit-details-marker]:hidden">
+          <summary className="border-border flex cursor-pointer list-none items-center justify-between gap-3 border-b px-5 py-5 font-medium sm:px-8 sm:py-6 select-none [&::-webkit-details-marker]:hidden">
             <div className="space-y-1">
               <p className="font-display text-[16px] font-semibold tracking-tight">
                 Advanced

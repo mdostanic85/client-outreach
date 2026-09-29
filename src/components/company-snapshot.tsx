@@ -204,7 +204,7 @@ function CompanyDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full gap-0 p-0 sm:max-w-md"
+        className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md"
         showCloseButton
       >
         <SheetHeader className="border-b">

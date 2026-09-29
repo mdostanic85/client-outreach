@@ -230,7 +230,7 @@ function SearchExperienceInner({
             : `${mode === "jobs" ? "Finding jobs" : "Finding companies"}, ${currentStage.label}`}
         </h2>
 
-        <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-14 px-6 py-20 sm:gap-16 sm:px-10">
+        <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-10 px-6 pt-20 pb-10 sm:gap-16 sm:px-10 sm:py-20">
           <ol aria-label="Search stages" className="flex flex-wrap items-center justify-center gap-y-3">
             {SEARCH_UX_STAGES.map((stage, index) => {
               const done = index < activeIdx || resolving;
@@ -240,7 +240,7 @@ function SearchExperienceInner({
                   {index > 0 ? (
                     <span
                       className={cn(
-                        "mx-3 h-px w-6 sm:mx-5 sm:w-12",
+                        "mx-2 h-px w-4 sm:mx-5 sm:w-12",
                         done ? "bg-primary/45" : "bg-border",
                       )}
                       aria-hidden
@@ -260,6 +260,8 @@ function SearchExperienceInner({
                     <span
                       className={cn(
                         "text-[14px] sm:text-[15px]",
+                        // Phones keep only the current label so the steps fit one row.
+                        !current && "hidden sm:inline",
                         current && "text-foreground font-medium",
                         done && "text-muted-foreground",
                         !done && !current && "text-muted-foreground/45",
@@ -325,8 +327,10 @@ function useRadarSize() {
   const [size, setSize] = useState(440);
   useEffect(() => {
     const measure = () => {
-      const next = Math.min(540, window.innerWidth * 0.72, window.innerHeight * 0.5);
-      setSize(Math.max(280, Math.round(next)));
+      // Phones use the full width minus the page gutter; wider screens keep breathing room.
+      const width = window.innerWidth < 640 ? window.innerWidth - 48 : window.innerWidth * 0.72;
+      const next = Math.min(540, width, window.innerHeight * 0.5);
+      setSize(Math.max(200, Math.round(next)));
     };
     measure();
     window.addEventListener("resize", measure);

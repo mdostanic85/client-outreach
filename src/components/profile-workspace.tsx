@@ -997,7 +997,7 @@ export function ProfileWorkspace({
 
   function renderTabChrome(actions?: React.ReactNode) {
     return (
-      <div className="border-border space-y-3 border-b px-8 py-6">
+      <div className="border-border space-y-3 border-b px-5 py-5 sm:px-8 sm:py-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <nav
             aria-label="Profile sections"
@@ -1043,7 +1043,7 @@ export function ProfileWorkspace({
                   </span>
                 ) : null}
               </p>
-              <p className="text-muted-foreground text-[14px]">
+              <p className="text-muted-foreground text-[14px] wrap-anywhere">
                 {s.textLength.toLocaleString()} chars
                 {s.sourceUrl ? ` · ${s.sourceUrl}` : ""}
                 {s.lastSyncedAt
@@ -1334,7 +1334,7 @@ export function ProfileWorkspace({
 
       {!active ? (
         <Surface>
-          <div className="flex flex-col items-center justify-center gap-5 px-8 py-14 text-center">
+          <div className="flex flex-col items-center justify-center gap-5 px-6 py-12 text-center sm:px-8 sm:py-14">
             <p className="font-display text-[20px] font-semibold">No profile yet</p>
             <p className="text-muted-foreground mx-auto max-w-sm text-[15px] leading-relaxed">
               {sources.length === 0
@@ -1442,7 +1442,7 @@ export function ProfileWorkspace({
 
 function SummaryRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1 px-6 py-4 sm:flex-row sm:gap-6">
+    <div className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:gap-6 sm:px-6">
       <dt className="text-muted-foreground w-36 shrink-0 text-[14px]">{label}</dt>
       <dd className="min-w-0 flex-1 text-[15px] leading-relaxed text-[var(--card-foreground)]">
         {children}
@@ -1486,8 +1486,8 @@ function ProfileSummaryCard({
 
   return (
     <Surface>
-      <div className="flex items-start justify-between gap-4 px-6 py-5">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-5 sm:px-6">
+        <div className="min-w-0">
           <p className="font-display text-[20px] font-semibold tracking-tight text-[var(--card-foreground)]">
             {headline || "Your profile"}
           </p>

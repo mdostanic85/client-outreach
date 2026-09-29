@@ -130,7 +130,7 @@ export function CvScore({
             {DIMENSIONS.map((d) => {
               const value = review.dimensions[d.id];
               return (
-                <div key={d.id} className="grid grid-cols-[8.5rem_1fr_2.5rem] items-center gap-3">
+                <div key={d.id} className="grid grid-cols-[6.5rem_1fr_2rem] items-center gap-2 sm:grid-cols-[8.5rem_1fr_2.5rem] sm:gap-3">
                   <dt className="text-[14px]">{d.label}</dt>
                   <div className="bg-border h-1.5 overflow-hidden rounded-full">
                     <div

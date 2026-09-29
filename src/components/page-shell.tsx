@@ -20,7 +20,7 @@ export function PageShell({
   return (
     <main
       className={cn(
-        "animate-enter mx-auto flex w-full flex-1 flex-col gap-8 px-4 py-8 sm:px-6 lg:gap-8 lg:px-12 lg:py-14",
+        "animate-enter mx-auto flex w-full flex-1 flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-8 lg:px-12 lg:py-14",
         width === "wide" && "max-w-[1320px]",
         isWorkspace && "max-w-6xl",
         width === "form" && "max-w-2xl",
@@ -46,8 +46,8 @@ export function PageHeader({
   breadcrumb?: React.ReactNode;
 }) {
   return (
-    <header className="flex items-start justify-between gap-6">
-      <div className="flex min-w-0 flex-1 flex-col gap-3 pb-6">
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+      <div className="flex min-w-0 flex-1 flex-col gap-3 sm:pb-6">
         {breadcrumb ? (
           <div className="text-muted-foreground text-[13px] font-medium tracking-wide">
             {breadcrumb}
@@ -58,17 +58,17 @@ export function PageHeader({
             {meta}
           </div>
         ) : null}
-        <h1 className="font-display text-[34px] leading-[39px] font-semibold tracking-[-0.85px] text-balance text-[var(--card-foreground)]">
+        <h1 className="font-display text-[28px] leading-[33px] font-semibold tracking-[-0.7px] break-words sm:text-[34px] sm:leading-[39px] sm:tracking-[-0.85px] text-balance text-[var(--card-foreground)]">
           {title}
         </h1>
         {description ? (
-          <p className="text-muted-foreground text-[17px] leading-[1.625]">
+          <p className="text-muted-foreground text-[15px] leading-[1.6] sm:text-[17px] sm:leading-[1.625]">
             {description}
           </p>
         ) : null}
       </div>
       {actions ? (
-        <div className="flex shrink-0 flex-wrap items-center gap-4 pt-1">
+        <div className="flex flex-wrap items-center gap-3 pb-2 sm:shrink-0 sm:gap-4 sm:pt-1 sm:pb-0">
           {actions}
         </div>
       ) : null}
@@ -149,7 +149,7 @@ export function PanelHeader({
   return (
     <div
       className={cn(
-        "border-border flex flex-wrap items-center gap-4 border-b px-8 py-6",
+        "border-border flex flex-wrap items-center gap-4 border-b px-5 py-5 sm:px-8 sm:py-6",
         className,
       )}
     >
@@ -166,6 +166,6 @@ export function PanelBody({
   className?: string;
 }) {
   return (
-    <div className={cn("space-y-6 px-8 py-8", className)}>{children}</div>
+    <div className={cn("space-y-6 px-5 py-6 sm:px-8 sm:py-8", className)}>{children}</div>
   );
 }

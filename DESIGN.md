@@ -44,6 +44,7 @@ Page: `px-8 py-8`, section gap `24–32`. Prefer airy over cramped.
 - Topbar **56px**, sticky (page context + Interested + budget + account)
 - Content max ~1320px boxed feel for lists
 - Control height ~38–44px
+- Phones (< 640px): 16px page gutter, 20px panel padding, page header stacks title above actions, side sheets go full width
 
 ## Signature
 Verdigris accent wash on active nav + left accent bar on row hover.

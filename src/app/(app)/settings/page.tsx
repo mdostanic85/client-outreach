@@ -88,8 +88,8 @@ export default async function SettingsPage() {
           <h2 className="text-muted-foreground mb-3 text-[13px] font-medium tracking-[0.12em] uppercase">
             Account
           </h2>
-          <div className="border-border flex items-center justify-between gap-4 rounded-2xl border px-5 py-4">
-            <span className="text-[15px]">{user?.email}</span>
+          <div className="border-border flex flex-wrap items-center justify-between gap-4 rounded-2xl border px-5 py-4">
+            <span className="min-w-0 text-[15px] break-all">{user?.email}</span>
             <form action={signOutAction}>
               <Button type="submit" variant="outline">
                 Sign out
