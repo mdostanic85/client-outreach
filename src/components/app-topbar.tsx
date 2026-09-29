@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LogOut, Menu } from "lucide-react";
+import { AlertTriangle, LogOut, Menu } from "lucide-react";
 import { AppSidebarNav } from "@/components/app-sidebar";
 import {
   Sheet,
@@ -35,10 +35,6 @@ type BudgetMeter = {
   alert?: string;
 };
 
-/**
- * Topbar utilities only — Linear-style quiet chrome.
- * Page H1 lives in PageHeader; no duplicate titles here.
- */
 export function AppTopbar({
   budget,
   userEmail,
@@ -60,16 +56,14 @@ export function AppTopbar({
     budget && budget.budgetUsd > 0
       ? budget.spentUsd / budget.budgetUsd
       : 0;
-  const budgetTone = budget?.hardStopped
-    ? "critical"
-    : ratio >= 0.75
-      ? "warn"
-      : "ok";
-
-  const budgetTip = budget?.hardStopped
-    ? `AI budget hard-stopped. Spent $${budget.spentUsd.toFixed(0)} of $${budget.budgetUsd}. New AI calls are blocked until next month or you raise the limit in Admin.`
+  const showBudgetWarning = Boolean(
+    budget && (budget.hardStopped || budget.alert || ratio >= 0.75),
+  );
+  const budgetCritical = Boolean(budget?.hardStopped);
+  const budgetTip = budgetCritical
+    ? `AI budget reached. Spent $${budget!.spentUsd.toFixed(0)} of $${budget!.budgetUsd}. New AI calls are blocked until the limit resets or is changed.`
     : budget
-      ? `Estimated LLM spend this month: $${budget.spentUsd.toFixed(0)} of $${budget.budgetUsd}.${budget.alert ? ` ${budget.alert}` : ""} Hard stop blocks new AI calls when reached.`
+      ? `AI usage is getting close to the monthly limit: $${budget.spentUsd.toFixed(0)} of $${budget.budgetUsd}.${budget.alert ? ` ${budget.alert}` : ""}`
       : "";
 
   return (
@@ -106,42 +100,24 @@ export function AppTopbar({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-        {budget ? (
+        {showBudgetWarning && budget ? (
           <Tooltip>
             <TooltipTrigger
               render={
                 <div
                   className={cn(
-                    "inline-flex h-8 cursor-help items-center gap-2 rounded-full px-2.5 text-[13px]",
-                    budgetTone === "critical" &&
-                      "bg-destructive/12 text-destructive",
-                    budgetTone === "warn" &&
-                      "bg-[color-mix(in_oklab,var(--warn)_14%,transparent)] text-[var(--warn)]",
-                    budgetTone === "ok" && "bg-secondary text-muted-foreground",
+                    "inline-flex h-8 cursor-help items-center gap-2 rounded-full px-2.5 text-[13px] font-medium",
+                    budgetCritical
+                      ? "bg-destructive/12 text-destructive"
+                      : "bg-[color-mix(in_oklab,var(--warn)_14%,transparent)] text-[var(--warn)]",
                   )}
                 />
               }
             >
-              <span
-                aria-hidden
-                className={cn(
-                  "size-1.5 shrink-0 rounded-full",
-                  budgetTone === "critical" && "bg-destructive",
-                  budgetTone === "warn" && "bg-[var(--warn)]",
-                  budgetTone === "ok" && "bg-[var(--success)]",
-                )}
-              />
-              <span className="hidden font-medium tracking-wide uppercase sm:inline">
-                AI
-              </span>
+              <AlertTriangle className="size-3.5" />
+              <span>AI limit</span>
               <span className="tabular text-[var(--card-foreground)]">
-                <span className="font-medium">
-                  ${budget.spentUsd.toFixed(0)}
-                </span>
-                <span className="text-muted-foreground">
-                  {" "}
-                  / ${budget.budgetUsd}
-                </span>
+                ${budget.spentUsd.toFixed(0)} / ${budget.budgetUsd}
               </span>
             </TooltipTrigger>
             <TooltipContent className="max-w-xs text-left leading-relaxed">
@@ -152,10 +128,12 @@ export function AppTopbar({
 
         {userEmail ? (
           <>
-            <span
-              aria-hidden
-              className="bg-border mx-1 hidden h-5 w-px sm:block"
-            />
+            {showBudgetWarning ? (
+              <span
+                aria-hidden
+                className="bg-border mx-1 hidden h-5 w-px sm:block"
+              />
+            ) : null}
             <div className="flex items-center gap-1">
               <Tooltip>
                 <TooltipTrigger
@@ -167,16 +145,13 @@ export function AppTopbar({
                 </TooltipTrigger>
                 <TooltipContent>{userEmail}</TooltipContent>
               </Tooltip>
-              <span className="text-muted-foreground hidden max-w-[160px] truncate text-[13px] xl:inline">
-                {userEmail}
-              </span>
               <form action={signOutAction}>
                 <Tooltip>
                   <TooltipTrigger
                     render={
                       <button
                         type="submit"
-                        className="text-muted-foreground hover:bg-secondary hover:text-foreground inline-flex size-8 items-center justify-center rounded-full transition-colors duration-150 ease-[var(--ease-out-soft)]"
+                        className="text-muted-foreground hover:bg-secondary hover:text-foreground inline-flex size-8 items-center justify-center rounded-full transition-colors duration-150"
                       />
                     }
                   >
