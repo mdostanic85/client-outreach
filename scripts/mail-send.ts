@@ -7,14 +7,16 @@
  */
 import { ensureDb } from "../src/db/ensure";
 import { processSendQueue } from "../src/modules/mail/send";
+import { runAsOwner } from "../src/modules/auth/current-user";
 
 async function main() {
   await ensureDb();
   const args = process.argv.slice(2);
   const limitIdx = args.indexOf("--limit");
   const limit = limitIdx >= 0 ? Number(args[limitIdx + 1]) : undefined;
-  const result = await processSendQueue(
-    Number.isFinite(limit) ? limit : undefined,
+  // The mailbox belongs to the workspace owner.
+  const result = await runAsOwner(() =>
+    processSendQueue(Number.isFinite(limit) ? limit : undefined),
   );
   console.log(JSON.stringify(result, null, 2));
 }

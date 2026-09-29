@@ -93,6 +93,7 @@ export function ApplicationPackageWorkspace({
   initialPackage,
   hasApprovedProfile,
   mailboxConnected,
+  canEmail = true,
   mailboxEmail,
   openSendOnMount = false,
 }: {
@@ -104,6 +105,8 @@ export function ApplicationPackageWorkspace({
   initialPackage: ApplicationPackageView | null;
   hasApprovedProfile: boolean;
   mailboxConnected: boolean;
+  /** Sending from the app uses the owner's mailbox; everyone else downloads and applies. */
+  canEmail?: boolean;
   mailboxEmail: string | null;
   openSendOnMount?: boolean;
 }) {
@@ -201,14 +204,12 @@ export function ApplicationPackageWorkspace({
       };
     }
     if (!alreadySent && (pkg.state === "approved" || pkg.state === "prepared")) {
-      return {
-        id: "send" as const,
-        label: "Send",
-        icon: Check,
-      };
+      return canEmail
+        ? { id: "send" as const, label: "Send", icon: Check }
+        : { id: "download" as const, label: "Download", icon: Download };
     }
     return null;
-  }, [pkg, dirty, emailDirty, pending, alreadySent]);
+  }, [pkg, dirty, emailDirty, pending, alreadySent, canEmail]);
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>) => {
     setError(null);
@@ -299,7 +300,11 @@ export function ApplicationPackageWorkspace({
       const res = await approvePackageAction(pkg.id);
       if (res.ok) {
         setPkg((p) => (p ? { ...p, state: "approved" } : p));
-        setInfo("Approved — ready to Send.");
+        setInfo(
+          canEmail
+            ? "Approved — ready to Send."
+            : "Approved. Download it and apply on the company's site.",
+        );
         setEmailDirty(false);
       }
       return res;
@@ -358,6 +363,7 @@ export function ApplicationPackageWorkspace({
     if (primary.id === "save") saveAll();
     else if (primary.id === "approve") approve();
     else if (primary.id === "send") setSendOpen(true);
+    else if (primary.id === "download") exportText();
   };
 
   const regenerateSummary = () => {
@@ -592,10 +598,12 @@ export function ApplicationPackageWorkspace({
                       Mark prepared
                     </DropdownMenuItem>
                   ) : null}
-                  <DropdownMenuItem disabled={pending} onClick={exportText}>
-                    <Download className="size-4" />
-                    Export .txt
-                  </DropdownMenuItem>
+                  {primary?.id !== "download" ? (
+                    <DropdownMenuItem disabled={pending} onClick={exportText}>
+                      <Download className="size-4" />
+                      Export .txt
+                    </DropdownMenuItem>
+                  ) : null}
                   <DropdownMenuItem
                     disabled={!letter}
                     onClick={() => void copyLetter()}

@@ -30,7 +30,7 @@ function parseJsonLoose(text: string): unknown {
 }
 
 export async function researchCompany(companyId: string) {
-  assertPublicBudgetAllows("researchAndScore");
+  await assertPublicBudgetAllows("researchAndScore");
 
   const db = getDb();
   const company = (await db.select().from(companies).where(eq(companies.id, companyId)).limit(1))[0];

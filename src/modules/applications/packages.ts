@@ -7,7 +7,6 @@ import {
   jobs,
   jobMatches,
   researchBriefs,
-  settings,
 } from "@/db/schema";
 import { newId, nowIso } from "@/lib/ids";
 import { getSessionUser } from "@/modules/auth/session";
@@ -45,6 +44,8 @@ import {
   type PackageAnalysis,
   type PackageWarning,
 } from "./schemas";
+import { getUserSettings } from "@/modules/settings/user-settings";
+import { currentUserId, owned } from "@/modules/auth/current-user";
 
 export type ApplicationPackageRow = typeof applicationPackages.$inferSelect;
 
@@ -80,7 +81,7 @@ function parseJsonSafe<T>(raw: string, fallback: T): T {
 
 async function resolveContactHeader(): Promise<ContactHeader> {
   const user = await getSessionUser();
-  const setting = (await getDb().select().from(settings).limit(1))[0];
+  const setting = (await getUserSettings());
   const links: string[] = [];
   // Prefer explicit links later; for now leave empty — user can edit in UI.
   return {
@@ -100,7 +101,7 @@ export async function getActivePackageForJob(
     .select()
     .from(applicationPackages)
     .where(
-      and(
+      and(await owned(applicationPackages),
         eq(applicationPackages.jobId, jobId),
         ne(applicationPackages.state, "superseded"),
       ),
@@ -117,7 +118,7 @@ export async function getPackageById(
   const row = (await getDb()
     .select()
     .from(applicationPackages)
-    .where(eq(applicationPackages.id, id))
+    .where(and(await owned(applicationPackages), eq(applicationPackages.id, id)))
     .limit(1))[0];
   if (!row) return null;
   return toView(row);
@@ -145,7 +146,7 @@ export async function listPackageMetaForJobs(
 ): Promise<Record<string, PackageListMeta>> {
   if (jobIds.length === 0) return {};
   const db = getDb();
-  const rows = await db.select().from(applicationPackages);
+  const rows = await db.select().from(applicationPackages).where(await owned(applicationPackages));
   const out: Record<string, PackageListMeta> = {};
   for (const jobId of jobIds) {
     const active = rows
@@ -165,7 +166,7 @@ export async function listPackageMetaForJobs(
 }
 
 async function toView(row: ApplicationPackageRow): Promise<ApplicationPackageView> {
-  const job = (await getDb().select().from(jobs).where(eq(jobs.id, row.jobId)).limit(1))[0];
+  const job = (await getDb().select().from(jobs).where(and(await owned(jobs), eq(jobs.id, row.jobId))).limit(1))[0];
   let companyName = "Company";
   if (row.companyId) {
     const company = (await getDb()
@@ -256,7 +257,7 @@ export async function generatePackageForJob(input: {
   const match = (await db
     .select()
     .from(jobMatches)
-    .where(eq(jobMatches.jobId, input.jobId))
+    .where(and(await owned(jobMatches), eq(jobMatches.jobId, input.jobId)))
     .orderBy(desc(jobMatches.createdAt))
     .limit(1))[0];
 
@@ -333,7 +334,7 @@ export async function generatePackageForJob(input: {
   const prior = await db
     .select()
     .from(applicationPackages)
-    .where(eq(applicationPackages.jobId, input.jobId));
+    .where(and(await owned(applicationPackages), eq(applicationPackages.jobId, input.jobId)));
   const nextVersion =
     prior.reduce((max, r) => Math.max(max, r.version), 0) + 1;
   for (const row of prior) {
@@ -341,13 +342,14 @@ export async function generatePackageForJob(input: {
       await db
         .update(applicationPackages)
         .set({ state: "superseded", updatedAt: now })
-        .where(eq(applicationPackages.id, row.id));
+        .where(and(await owned(applicationPackages), eq(applicationPackages.id, row.id)));
     }
   }
 
   const letterJson = serializeCoverLetter(personalized.letter);
   const id = newId("apkg");
   await db.insert(applicationPackages).values({
+      userId: await currentUserId(),
     id,
     jobId: input.jobId,
     companyId: job.companyId,
@@ -388,7 +390,7 @@ export async function savePackageCv(
   const row = (await db
     .select()
     .from(applicationPackages)
-    .where(eq(applicationPackages.id, packageId))
+    .where(and(await owned(applicationPackages), eq(applicationPackages.id, packageId)))
     .limit(1))[0];
   if (!row) throw new Error("Package not found");
   if (row.state === "superseded") throw new Error("Package was superseded");
@@ -404,7 +406,7 @@ export async function savePackageCv(
       approvedAt: null,
       updatedAt: now,
     })
-    .where(eq(applicationPackages.id, packageId));
+    .where(and(await owned(applicationPackages), eq(applicationPackages.id, packageId)));
 
   const view = await getPackageById(packageId);
   if (!view) throw new Error("Package not found after save");
@@ -419,7 +421,7 @@ export async function savePackageLetter(
   const row = (await db
     .select()
     .from(applicationPackages)
-    .where(eq(applicationPackages.id, packageId))
+    .where(and(await owned(applicationPackages), eq(applicationPackages.id, packageId)))
     .limit(1))[0];
   if (!row) throw new Error("Package not found");
   if (row.state === "superseded") throw new Error("Package was superseded");
@@ -435,7 +437,7 @@ export async function savePackageLetter(
       approvedAt: null,
       updatedAt: now,
     })
-    .where(eq(applicationPackages.id, packageId));
+    .where(and(await owned(applicationPackages), eq(applicationPackages.id, packageId)));
 
   const view = await getPackageById(packageId);
   if (!view) throw new Error("Package not found after save");
@@ -450,7 +452,7 @@ export async function savePackageEmail(
   const row = (await db
     .select()
     .from(applicationPackages)
-    .where(eq(applicationPackages.id, packageId))
+    .where(and(await owned(applicationPackages), eq(applicationPackages.id, packageId)))
     .limit(1))[0];
   if (!row) throw new Error("Package not found");
   if (row.state === "superseded") throw new Error("Package was superseded");
@@ -471,7 +473,7 @@ export async function savePackageEmail(
       emailBody: email.body.trim(),
       updatedAt: now,
     })
-    .where(eq(applicationPackages.id, packageId));
+    .where(and(await owned(applicationPackages), eq(applicationPackages.id, packageId)));
 
   const view = await getPackageById(packageId);
   if (!view) throw new Error("Package not found after save");
@@ -509,7 +511,7 @@ export async function approvePackage(
       approvedAt: now,
       updatedAt: now,
     })
-    .where(eq(applicationPackages.id, packageId));
+    .where(and(await owned(applicationPackages), eq(applicationPackages.id, packageId)));
 
   const next = await getPackageById(packageId);
   if (!next) throw new Error("Package not found after approve");
@@ -538,7 +540,7 @@ export async function markPackagePrepared(
       approvedAt: view.approvedAt ?? now,
       updatedAt: now,
     })
-    .where(eq(applicationPackages.id, packageId));
+    .where(and(await owned(applicationPackages), eq(applicationPackages.id, packageId)));
 
   const next = await getPackageById(packageId);
   if (!next) throw new Error("Package not found after prepare");
@@ -578,7 +580,7 @@ export async function regeneratePackageSlot(input: {
   const job = (await getDb()
     .select()
     .from(jobs)
-    .where(eq(jobs.id, view.jobId))
+    .where(and(await owned(jobs), eq(jobs.id, view.jobId)))
     .limit(1))[0];
   if (!job) throw new Error("Job not found");
 

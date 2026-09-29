@@ -14,10 +14,12 @@ import { ensureDb } from "@/db/ensure";
 import { getLearningDashboard } from "@/modules/learning/queries";
 import { labelLeadState } from "@/lib/ui-labels";
 import { cn } from "@/lib/utils";
+import { requireOwnerPage } from "@/modules/auth/page-guards";
 
 export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
+  await requireOwnerPage();
   await ensureDb();
   const { funnel, source } = await getLearningDashboard();
 

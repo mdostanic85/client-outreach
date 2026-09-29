@@ -64,7 +64,7 @@ export function FileDropzone({
           takeFile(e.dataTransfer.files?.[0]);
         }}
         className={cn(
-          "border-border bg-muted/20 flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed px-6 py-8 text-center transition-[border-color,background-color,transform,box-shadow] duration-200 ease-[var(--ease-out-soft)] hover:-translate-y-0.5 hover:border-primary/50 hover:bg-muted/35 hover:shadow-[var(--shadow-card)]",
+          "border-border bg-muted/20 flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed px-6 py-8 text-center transition-[border-color,background-color,transform] duration-200 ease-[var(--ease-out-soft)] hover:-translate-y-0.5 hover:border-primary/50 hover:bg-muted/35",
           "focus-within:border-ring focus-within:ring-ring/40 focus-within:ring-3",
           dragging && "border-primary bg-accent/40",
           disabled && "pointer-events-none opacity-50",

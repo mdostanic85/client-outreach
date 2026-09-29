@@ -6,6 +6,7 @@ import { getDb } from "@/db/client";
 import { profileSources } from "@/db/schema";
 import { newId, nowIso } from "@/lib/ids";
 import { logger } from "@/lib/logging/logger";
+import { currentUserId, owned } from "@/modules/auth/current-user";
 import type { ProfileSourceType } from "./schemas";
 
 function hashContent(text: string): string {
@@ -25,12 +26,74 @@ async function loadRetrievePage() {
   return retrievePage;
 }
 
+type PdfTextItem = {
+  str: string;
+  transform: number[];
+  width: number;
+  height: number;
+  hasEOL?: boolean;
+};
+
+/**
+ * Joins pdf.js text items line by line. A wide horizontal gap becomes a tab so
+ * column layouts ("2019–2023 ⇥ Company ⇥ Role", tool lists) keep their cells.
+ */
+export function joinPdfTextItems(items: PdfTextItem[]): string {
+  let out = "";
+  let lineEndX: number | null = null;
+  let lineY: number | null = null;
+  let lastSize = 0;
+  for (const item of items) {
+    const x = item.transform[4] ?? 0;
+    const y = item.transform[5] ?? 0;
+    const size = Math.abs(item.height) || Math.abs(item.transform[3] ?? 0) || 10;
+    if (lineY != null && Math.abs(y - lineY) > size * 0.5 && !out.endsWith("\n")) {
+      out += "\n";
+      lineEndX = null;
+    }
+    if (item.str.trim().length > 0) {
+      if (lineEndX != null && !out.endsWith("\n")) {
+        const gap = x - lineEndX;
+        const small = Math.min(size, lastSize);
+        // A jump in font size marks a new cell too ("Company" in large type, then "Role").
+        const sizeJump = Math.max(size, lastSize) / small > 1.3;
+        if (gap > small * 1.5 || (sizeJump && gap > small * 0.3)) {
+          out = out.replace(/[ \t]+$/, "") + "\t";
+        } else if (gap > small * 0.15 && !/\s$/.test(out)) {
+          out += " ";
+        }
+      }
+      out += item.str;
+      lineEndX = x + item.width;
+      lineY = y;
+      lastSize = size;
+    } else if (item.str.length > 0 && lineEndX != null) {
+      lineEndX = x + item.width;
+    }
+    if (item.hasEOL) {
+      out += "\n";
+      lineEndX = null;
+    }
+  }
+  return out
+    .split("\n")
+    .map((line) => line.replace(/ {2,}/g, " ").trimEnd())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
+// Design-tool exports (Figma, Canva) embed Type 3 fonts; older pdf.js builds return no text for them.
 async function extractPdfText(buffer: Buffer): Promise<string> {
-  const pdfParse = (await import("pdf-parse")).default as (
-    data: Buffer,
-  ) => Promise<{ text: string }>;
-  const result = await pdfParse(buffer);
-  return (result.text ?? "").trim();
+  const { getDocumentProxy } = await import("unpdf");
+  const pdf = await getDocumentProxy(new Uint8Array(buffer));
+  const pages: string[] = [];
+  for (let n = 1; n <= pdf.numPages; n++) {
+    const page = await pdf.getPage(n);
+    const content = await page.getTextContent();
+    const items = content.items.flatMap((i) => ("str" in i ? [i as PdfTextItem] : []));
+    pages.push(joinPdfTextItems(items));
+  }
+  return pages.join("\n\n").trim();
 }
 
 async function findActiveByHash(contentHash: string) {
@@ -39,6 +102,7 @@ async function findActiveByHash(contentHash: string) {
     .from(profileSources)
     .where(
       and(
+        await owned(profileSources),
         eq(profileSources.contentHash, contentHash),
         isNull(profileSources.deletedAt),
       ),
@@ -61,7 +125,7 @@ export async function ingestTextSource(input: {
     const syncedAt = nowIso();
     await db.update(profileSources)
       .set({ lastSyncedAt: syncedAt })
-      .where(eq(profileSources.id, existing.id));
+      .where(and(await owned(profileSources), eq(profileSources.id, existing.id)));
     return { id: existing.id, reused: true };
   }
 
@@ -70,6 +134,7 @@ export async function ingestTextSource(input: {
   await db.insert(profileSources)
     .values({
       id,
+      userId: await currentUserId(),
       type: input.type,
       label: input.label ?? null,
       rawText,
@@ -136,7 +201,7 @@ export async function ingestFileUpload(input: {
       const syncedAt = nowIso();
       await db.update(profileSources)
         .set({ lastSyncedAt: syncedAt })
-        .where(eq(profileSources.id, existing.id));
+        .where(and(await owned(profileSources), eq(profileSources.id, existing.id)));
       return {
         id: existing.id,
         reused: true,
@@ -148,6 +213,7 @@ export async function ingestFileUpload(input: {
     await db.insert(profileSources)
       .values({
         id,
+        userId: await currentUserId(),
         type,
         label: input.label ?? input.filename,
         rawText,
@@ -182,23 +248,77 @@ export async function ingestCvUpload(input: {
   return await ingestFileUpload({ ...input, type: "cv" });
 }
 
+const MAX_SITE_PAGES = 8;
+const MAX_PAGE_CHARS = 8_000;
+const MAX_SITE_CHARS = 48_000;
+
+/** Pages that describe the person's work rank first; boilerplate is skipped. */
+function rankSitePath(pathname: string): number {
+  const p = pathname.toLowerCase();
+  if (/\.(pdf|jpe?g|png|gif|svg|webp|mp4|zip|xml|json|css|js)$/.test(p)) return -1;
+  if (/(privacy|terms|legal|imprint|impressum|cookie|login|signin|signup|cart|checkout|tag\/|category\/|feed|rss|wp-)/.test(p)) return -1;
+  if (/(case|work|project|portfolio|studies|study|selected|client)/.test(p)) return 3;
+  if (/(about|bio|cv|resume|experience|services|process)/.test(p)) return 2;
+  if (/(blog|posts?|articles?|writing|notes)\//.test(p)) return 0;
+  return 1;
+}
+
+/**
+ * Reads a personal site or portfolio: the given page plus its most relevant
+ * same-site pages (case studies, projects, about). Stored as one source so
+ * the profile extract sees the whole body of work.
+ */
+export async function crawlPortfolio(url: string): Promise<{
+  text: string;
+  title: string | null;
+  finalUrl: string;
+  pages: number;
+}> {
+  const retrievePage = await loadRetrievePage();
+  const root = await retrievePage(url);
+  if (root.status !== "ok" || !root.extractedText?.trim()) {
+    throw new Error(root.error ?? "Failed to fetch portfolio page");
+  }
+  const rootUrl = root.finalUrl || url;
+  const candidates = (root.links ?? [])
+    .filter((link) => link !== rootUrl && link.replace(/\/$/, "") !== rootUrl.replace(/\/$/, ""))
+    .map((link) => ({ link, rank: rankSitePath(new URL(link).pathname) }))
+    .filter((c) => c.rank >= 0)
+    .sort((a, b) => b.rank - a.rank)
+    .slice(0, MAX_SITE_PAGES)
+    .map((c) => c.link);
+
+  const subpages = await Promise.all(candidates.map((link) => retrievePage(link)));
+  const sections = [root, ...subpages]
+    .filter((page) => page.status === "ok" && page.extractedText?.trim())
+    .map((page) => {
+      const heading = page.title ? `${page.title} (${page.finalUrl})` : page.finalUrl;
+      return `## ${heading}\n${page.extractedText!.slice(0, MAX_PAGE_CHARS)}`;
+    });
+
+  return {
+    text: sections.join("\n\n").slice(0, MAX_SITE_CHARS),
+    title: root.title,
+    finalUrl: rootUrl,
+    pages: sections.length,
+  };
+}
+
 export async function ingestPortfolioUrl(
   url: string,
-): Promise<{ id: string; reused: boolean; textLength: number }> {
-  const retrievePage = await loadRetrievePage();
-  const page = await retrievePage(url);
-  if (page.status !== "ok" || !page.extractedText?.trim()) {
-    throw new Error(page.error ?? "Failed to fetch portfolio page");
-  }
+): Promise<{ id: string; reused: boolean; textLength: number; pages: number }> {
+  const site = await crawlPortfolio(url);
   const result = await ingestTextSource({
     type: "portfolio_url",
-    text: page.extractedText,
-    label: page.title ?? url,
-    sourceUrl: page.finalUrl || url,
+    text: site.text,
+    label: site.title ?? url,
+    sourceUrl: site.finalUrl,
   });
+  logger.info({ url: site.finalUrl, pages: site.pages }, "portfolio site ingested");
   return {
     ...result,
-    textLength: page.extractedText.length,
+    textLength: site.text.length,
+    pages: site.pages,
   };
 }
 
@@ -210,26 +330,22 @@ export async function refreshProfileSource(
   const row = (await db
     .select()
     .from(profileSources)
-    .where(and(eq(profileSources.id, id), isNull(profileSources.deletedAt))).limit(1))[0];
+    .where(and(await owned(profileSources), eq(profileSources.id, id), isNull(profileSources.deletedAt))).limit(1))[0];
   if (!row) throw new Error("Source not found");
 
   if (row.type === "portfolio_url") {
     if (!row.sourceUrl) throw new Error("Portfolio source has no URL to refresh");
-    const retrievePage = await loadRetrievePage();
-    const page = await retrievePage(row.sourceUrl);
-    if (page.status !== "ok" || !page.extractedText?.trim()) {
-      throw new Error(page.error ?? "Failed to refresh portfolio page");
-    }
+    const site = await crawlPortfolio(row.sourceUrl);
     const syncedAt = nowIso();
     await db.update(profileSources)
       .set({
-        rawText: page.extractedText,
-        label: page.title ?? row.label,
-        contentHash: hashContent(`portfolio_url:${page.extractedText}`),
+        rawText: site.text,
+        label: site.title ?? row.label,
+        contentHash: hashContent(`portfolio_url:${site.text}`),
         lastSyncedAt: syncedAt,
       })
-      .where(eq(profileSources.id, id));
-    return { id, textLength: page.extractedText.length };
+      .where(and(await owned(profileSources), eq(profileSources.id, id)));
+    return { id, textLength: site.text.length };
   }
 
   if (row.type === "github") {
@@ -249,7 +365,7 @@ export async function refreshProfileSource(
         contentHash: hashContent(`github:${corpus.text}`),
         lastSyncedAt: syncedAt,
       })
-      .where(eq(profileSources.id, id));
+      .where(and(await owned(profileSources), eq(profileSources.id, id)));
     return { id, textLength: corpus.text.length };
   }
 
@@ -281,11 +397,11 @@ export async function setProfileSourceMatchingEnabled(
   const row = (await db
     .select()
     .from(profileSources)
-    .where(and(eq(profileSources.id, id), isNull(profileSources.deletedAt))).limit(1))[0];
+    .where(and(await owned(profileSources), eq(profileSources.id, id), isNull(profileSources.deletedAt))).limit(1))[0];
   if (!row) throw new Error("Source not found");
   await db.update(profileSources)
     .set({ enabledForMatching: enabled ? 1 : 0 })
-    .where(eq(profileSources.id, id));
+    .where(and(await owned(profileSources), eq(profileSources.id, id)));
 }
 
 /**
@@ -297,14 +413,14 @@ export async function softDeleteProfileSource(id: string): Promise<void> {
   const row = (await db
     .select()
     .from(profileSources)
-    .where(and(eq(profileSources.id, id), isNull(profileSources.deletedAt))).limit(1))[0];
+    .where(and(await owned(profileSources), eq(profileSources.id, id), isNull(profileSources.deletedAt))).limit(1))[0];
   if (!row) return;
   await db.update(profileSources)
     .set({
       deletedAt: nowIso(),
       enabledForMatching: 0,
     })
-    .where(eq(profileSources.id, id));
+    .where(and(await owned(profileSources), eq(profileSources.id, id)));
   logger.info({ id, type: row.type }, "profile source soft-deleted");
 }
 

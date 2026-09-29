@@ -46,8 +46,8 @@ export function PageHeader({
   breadcrumb?: React.ReactNode;
 }) {
   return (
-    <header className="border-border flex flex-wrap items-start justify-between gap-6 border-b pb-8">
-      <div className="min-w-0 max-w-3xl space-y-4">
+    <header className="flex items-start justify-between gap-6">
+      <div className="flex min-w-0 flex-1 flex-col gap-3 pb-6">
         {breadcrumb ? (
           <div className="text-muted-foreground text-[13px] font-medium tracking-wide">
             {breadcrumb}
@@ -58,11 +58,11 @@ export function PageHeader({
             {meta}
           </div>
         ) : null}
-        <h1 className="font-display text-[34px] leading-[1.15] font-semibold tracking-tight text-balance text-[var(--card-foreground)]">
+        <h1 className="font-display text-[34px] leading-[39px] font-semibold tracking-[-0.85px] text-balance text-[var(--card-foreground)]">
           {title}
         </h1>
         {description ? (
-          <p className="text-muted-foreground max-w-2xl text-[17px] leading-relaxed">
+          <p className="text-muted-foreground text-[17px] leading-[1.625]">
             {description}
           </p>
         ) : null}
@@ -129,7 +129,7 @@ export function Surface({
   return (
     <div
       className={cn(
-        "bg-card border-border overflow-hidden rounded-[18px] border shadow-[var(--shadow-card)]",
+        "bg-card border-border overflow-hidden rounded-[18px] border",
         interactive && "interactive-lift",
         className,
       )}

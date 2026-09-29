@@ -12,6 +12,7 @@ import {
   listProfileSources,
   type ProfileSourceRow,
 } from "@/modules/profile/queries";
+import { currentUserId, owned } from "@/modules/auth/current-user";
 
 export type MarketFitFixTarget =
   | "sources"
@@ -639,6 +640,7 @@ export async function loadRecentMatchGaps(
       scoreJson: jobMatches.scoreJson,
     })
     .from(jobMatches)
+    .where(await owned(jobMatches))
     .orderBy(desc(jobMatches.createdAt))
     .limit(limit);
 
@@ -677,20 +679,22 @@ export const getMarketFitReport = cache(async (): Promise<MarketFitReport> => {
 
 /** Short TTL so nav badges don't rebuild the full report on every click. */
 const OPEN_COUNT_TTL_MS = 30_000;
-let openCountCache: { at: number; count: number } | null = null;
+const openCountCache = new Map<string, { at: number; count: number }>();
 
 /** Count open high-impact actions for sidebar badge. */
 export async function getMarketFitOpenCount(): Promise<number> {
+  const userId = await currentUserId();
   const now = Date.now();
-  if (openCountCache && now - openCountCache.at < OPEN_COUNT_TTL_MS) {
-    return openCountCache.count;
+  const cached = openCountCache.get(userId);
+  if (cached && now - cached.at < OPEN_COUNT_TTL_MS) {
+    return cached.count;
   }
   const report = await getMarketFitReport();
-  openCountCache = { at: now, count: report.openHighImpactCount };
+  openCountCache.set(userId, { at: now, count: report.openHighImpactCount });
   return report.openHighImpactCount;
 }
 
 /** Call after profile/source edits so the badge can refresh immediately. */
 export function invalidateMarketFitOpenCount() {
-  openCountCache = null;
+  openCountCache.clear();
 }

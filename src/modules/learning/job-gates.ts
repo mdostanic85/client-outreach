@@ -1,5 +1,6 @@
 import { getDb } from "@/db/client";
 import { jobOutcomeEvents, jobs } from "@/db/schema";
+import { owned } from "@/modules/auth/current-user";
 
 export type JobLearningGates = {
   triageDecisions: number;
@@ -19,8 +20,8 @@ const CYCLE_TARGET_APPLICATIONS = 30;
 
 export async function getJobLearningGates(): Promise<JobLearningGates> {
   const db = getDb();
-  const allJobs = await db.select().from(jobs);
-  const events = await db.select().from(jobOutcomeEvents);
+  const allJobs = await db.select().from(jobs).where(await owned(jobs));
+  const events = await db.select().from(jobOutcomeEvents).where(await owned(jobOutcomeEvents));
 
   const triageDecisions = allJobs.filter((j) =>
     ["interested", "saved", "rejected", "applied"].includes(j.triageState),

@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, type MouseEvent, type ReactNode } from "react";
+import { useState, type MouseEvent } from "react";
 import {
   AlertTriangle,
   Check,
   ChevronRight,
   Clock,
-  ExternalLink,
   Globe2,
   X,
 } from "lucide-react";
@@ -14,7 +13,6 @@ import {
   Sheet,
   SheetContent,
   SheetDescription,
-  SheetFooter,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
@@ -26,6 +24,10 @@ import {
   timezoneLabel,
   type RemoteFit,
 } from "@/modules/matching/remote-fit";
+import {
+  topMatchDimensions,
+  type MatchDimensions,
+} from "@/modules/matching/score";
 
 const PREVIEW_REASON_COUNT = 3;
 
@@ -49,11 +51,14 @@ export function MatchConstraintChips({
   remoteFit,
   onOpen,
   showTimezone = true,
+  interactive = true,
 }: {
   remoteFit: RemoteFit;
   onOpen: () => void;
   /** Hide when every card in the list shares the same overlap. */
   showTimezone?: boolean;
+  /** When false, chips are display-only (e.g. inside an open detail sheet). */
+  interactive?: boolean;
 }) {
   const tz = showTimezone ? timezoneLabel(remoteFit.timezoneOverlap) : null;
 
@@ -63,41 +68,60 @@ export function MatchConstraintChips({
     onOpen();
   };
 
+  const remoteClass = cn(
+    "inline-flex h-full items-center gap-1 rounded-[14px] px-2 py-1 text-[13px] font-medium",
+    interactive && "transition-colors hover:brightness-110",
+    remoteFit.status === "pass" && "bg-primary/15 text-primary",
+    remoteFit.status === "fail" && "bg-destructive/15 text-destructive",
+    remoteFit.status === "unclear" &&
+      "bg-amber-500/12 text-amber-900 dark:text-amber-100",
+  );
+
+  const tzClass = cn(
+    "inline-flex h-full items-center gap-1 rounded-[14px] px-2 py-1 text-[13px] font-medium",
+    interactive && "transition-colors hover:brightness-110",
+    remoteFit.timezoneOverlap === "full" && "bg-primary/10 text-primary",
+    remoteFit.timezoneOverlap === "partial" &&
+      "bg-amber-500/10 text-amber-900 dark:text-amber-100",
+    remoteFit.timezoneOverlap === "poor" &&
+      "bg-destructive/10 text-destructive",
+  );
+
   return (
     <div className="flex h-7 flex-wrap items-center gap-1.5">
-      <button
-        type="button"
-        onClick={open}
-        className={cn(
-          "inline-flex h-full items-center gap-1 rounded-[14px] px-2 py-1 text-[13px] font-medium transition-colors hover:brightness-110",
-          remoteFit.status === "pass" && "bg-primary/15 text-primary",
-          remoteFit.status === "fail" && "bg-destructive/15 text-destructive",
-          remoteFit.status === "unclear" &&
-            "bg-amber-500/12 text-amber-900 dark:text-amber-100",
-        )}
-        title={remoteFit.summary}
-      >
-        <Globe2 className="size-3.5 opacity-80" />
-        {remoteStatusLabel(remoteFit.status)}
-      </button>
-      {tz ? (
+      {interactive ? (
         <button
           type="button"
           onClick={open}
-          className={cn(
-            "inline-flex h-full items-center gap-1 rounded-[14px] px-2 py-1 text-[13px] font-medium transition-colors hover:brightness-110",
-            remoteFit.timezoneOverlap === "full" &&
-              "bg-primary/10 text-primary",
-            remoteFit.timezoneOverlap === "partial" &&
-              "bg-amber-500/10 text-amber-900 dark:text-amber-100",
-            remoteFit.timezoneOverlap === "poor" &&
-              "bg-destructive/10 text-destructive",
-          )}
-          title="Timezone overlap vs your profile"
+          className={remoteClass}
+          title={remoteFit.summary}
         >
-          <Clock className="size-3.5 opacity-80" />
-          {tz}
+          <Globe2 className="size-3.5 opacity-80" />
+          {remoteStatusLabel(remoteFit.status)}
         </button>
+      ) : (
+        <span className={remoteClass} title={remoteFit.summary}>
+          <Globe2 className="size-3.5 opacity-80" />
+          {remoteStatusLabel(remoteFit.status)}
+        </span>
+      )}
+      {tz ? (
+        interactive ? (
+          <button
+            type="button"
+            onClick={open}
+            className={tzClass}
+            title="Timezone overlap vs your profile"
+          >
+            <Clock className="size-3.5 opacity-80" />
+            {tz}
+          </button>
+        ) : (
+          <span className={tzClass} title="Timezone overlap vs your profile">
+            <Clock className="size-3.5 opacity-80" />
+            {tz}
+          </span>
+        )
       ) : null}
     </div>
   );
@@ -114,44 +138,82 @@ function RemoteDecisionCard({
   location: string | null;
   remotePolicy: string | null;
   remoteRequired: boolean;
-  onOpen: () => void;
+  onOpen?: () => void;
 }) {
   const posted = remotePolicy?.trim() || location?.trim() || "Not stated";
+  const interactive = Boolean(onOpen);
+  const className = cn(
+    "w-full rounded-xl px-3.5 py-3 text-left ring-1",
+    interactive && "transition-colors hover:bg-white/3",
+    statusTone(remoteFit.status),
+  );
+
+  const body = (
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex min-w-0 items-start gap-2">
+        <StatusIcon status={remoteFit.status} />
+        <div className="min-w-0">
+          <p className="text-[15px] font-medium leading-snug">
+            {remoteRequired ? "Can you work remote?" : "Remote / location fit"}
+          </p>
+          <p className="mt-1 text-[14px] leading-snug opacity-90">
+            {remoteFit.summary}
+          </p>
+          <p className="mt-1.5 text-[13px] opacity-70">
+            Posted: {posted}
+            {" · "}
+            {policyLabel(remoteFit.policy)}
+            {remoteFit.timezoneOverlap !== "unknown"
+              ? ` · ${timezoneLabel(remoteFit.timezoneOverlap)}`
+              : ""}
+          </p>
+        </div>
+      </div>
+      {interactive ? (
+        <ChevronRight className="mt-0.5 size-4 shrink-0 opacity-70" />
+      ) : null}
+    </div>
+  );
+
+  if (!interactive) {
+    return <div className={className}>{body}</div>;
+  }
 
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={cn(
-        "w-full rounded-xl px-3.5 py-3 text-left ring-1 transition-colors hover:bg-white/3",
-        statusTone(remoteFit.status),
-      )}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-2">
-          <StatusIcon status={remoteFit.status} />
-          <div className="min-w-0">
-            <p className="text-[15px] font-medium leading-snug">
-              {remoteRequired
-                ? "Can you work remote?"
-                : "Remote / location fit"}
-            </p>
-            <p className="mt-1 text-[14px] leading-snug opacity-90">
-              {remoteFit.summary}
-            </p>
-            <p className="mt-1.5 text-[13px] opacity-70">
-              Posted: {posted}
-              {" · "}
-              {policyLabel(remoteFit.policy)}
-              {remoteFit.timezoneOverlap !== "unknown"
-                ? ` · ${timezoneLabel(remoteFit.timezoneOverlap)}`
-                : ""}
-            </p>
-          </div>
-        </div>
-        <ChevronRight className="mt-0.5 size-4 shrink-0 opacity-70" />
-      </div>
+    <button type="button" onClick={onOpen} className={className}>
+      {body}
     </button>
+  );
+}
+
+function DimensionBreakdown({
+  dimensions,
+  limit,
+}: {
+  dimensions: MatchDimensions;
+  limit?: number;
+}) {
+  const rows = topMatchDimensions(dimensions, limit ?? 9);
+  if (rows.length === 0) return null;
+
+  return (
+    <ul className="space-y-2">
+      {rows.map((row) => (
+        <li key={row.key} className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[15px] font-medium leading-snug">{row.label}</p>
+            {row.evidence ? (
+              <p className="text-muted-foreground mt-0.5 text-[13px] leading-snug">
+                {row.evidence}
+              </p>
+            ) : null}
+          </div>
+          <span className="font-mono tabular text-[14px] font-semibold shrink-0">
+            {Number.isInteger(row.score) ? row.score : row.score.toFixed(1)}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -215,14 +277,13 @@ function MatchRationaleSheet({
   companyName,
   location,
   remotePolicy,
-  sourceUrl,
   remoteFit,
   remoteRequired,
   matchingReasons,
   concerns,
   mainRisk,
   missingRequirements,
-  primaryAction,
+  matchDimensions,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -230,14 +291,13 @@ function MatchRationaleSheet({
   companyName: string;
   location: string | null;
   remotePolicy: string | null;
-  sourceUrl: string;
   remoteFit: RemoteFit;
   remoteRequired: boolean;
   matchingReasons: string[];
   concerns: string[];
   mainRisk: string | null;
   missingRequirements: string[];
-  primaryAction?: ReactNode;
+  matchDimensions: MatchDimensions | null;
 }) {
   const posted = remotePolicy?.trim() || location?.trim() || "Not stated";
 
@@ -307,6 +367,15 @@ function MatchRationaleSheet({
             ) : null}
           </section>
 
+          {matchDimensions ? (
+            <section>
+              <h3 className="text-muted-foreground mb-2 text-[14px] font-medium">
+                Score breakdown
+              </h3>
+              <DimensionBreakdown dimensions={matchDimensions} />
+            </section>
+          ) : null}
+
           {matchingReasons.length > 0 ? (
             <section>
               <h3 className="text-muted-foreground mb-2 text-[14px] font-medium">
@@ -350,18 +419,6 @@ function MatchRationaleSheet({
           ) : null}
         </div>
 
-        <SheetFooter className="border-t sm:flex-row sm:items-center">
-          {primaryAction}
-          <a
-            href={sourceUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="border-border hover:bg-muted inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border px-3 text-[14px]"
-          >
-            Open posting
-            <ExternalLink className="size-3.5" />
-          </a>
-        </SheetFooter>
       </SheetContent>
     </Sheet>
   );
@@ -373,18 +430,18 @@ export type JobMatchInsightsProps = {
   companyName: string;
   location: string | null;
   remotePolicy: string | null;
-  sourceUrl: string;
   remoteFit: RemoteFit;
   remoteRequired: boolean;
   matchingReasons: string[];
   concerns: string[];
   mainRisk: string | null;
   missingRequirements: string[];
-  /** Shown in the rationale sheet footer (e.g. Interested). */
-  sheetPrimaryAction?: ReactNode;
+  matchDimensions?: MatchDimensions | null;
   /** Controlled rationale sheet — use when chips live in the card header. */
   rationaleOpen?: boolean;
   onRationaleOpenChange?: (open: boolean) => void;
+  /** When false, render insights inline only (no nested rationale sheet). */
+  enableRationaleSheet?: boolean;
 };
 
 /**
@@ -397,22 +454,24 @@ export function JobMatchInsights({
   companyName,
   location,
   remotePolicy,
-  sourceUrl,
   remoteFit,
   remoteRequired,
   matchingReasons,
   concerns,
   mainRisk,
   missingRequirements,
-  sheetPrimaryAction,
+  matchDimensions = null,
   rationaleOpen,
   onRationaleOpenChange,
+  enableRationaleSheet = true,
 }: JobMatchInsightsProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const open = rationaleOpen ?? uncontrolledOpen;
   const setOpen = onRationaleOpenChange ?? setUncontrolledOpen;
   const hasReasons = matchingReasons.length > 0;
   const hasWatch = concerns.length > 0;
+  const hasDims = Boolean(matchDimensions);
+  const canOpenSheet = enableRationaleSheet;
 
   return (
     <>
@@ -423,8 +482,31 @@ export function JobMatchInsights({
             location={location}
             remotePolicy={remotePolicy}
             remoteRequired={remoteRequired}
-            onOpen={() => setOpen(true)}
+            onOpen={canOpenSheet ? () => setOpen(true) : undefined}
           />
+
+          {hasDims && matchDimensions ? (
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-muted-foreground text-[14px] font-medium">
+                  Score breakdown
+                </p>
+                {canOpenSheet ? (
+                  <button
+                    type="button"
+                    onClick={() => setOpen(true)}
+                    className="text-primary text-[13px] font-medium hover:underline"
+                  >
+                    Full rationale
+                  </button>
+                ) : null}
+              </div>
+              <DimensionBreakdown
+                dimensions={matchDimensions}
+                limit={canOpenSheet ? 3 : undefined}
+              />
+            </div>
+          ) : null}
 
           {hasReasons ? (
             <div>
@@ -432,17 +514,19 @@ export function JobMatchInsights({
                 <p className="text-muted-foreground text-[14px] font-medium">
                   Why it matches
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setOpen(true)}
-                  className="text-primary text-[13px] font-medium hover:underline"
-                >
-                  Full rationale
-                </button>
+                {canOpenSheet && !hasDims ? (
+                  <button
+                    type="button"
+                    onClick={() => setOpen(true)}
+                    className="text-primary text-[13px] font-medium hover:underline"
+                  >
+                    Full rationale
+                  </button>
+                ) : null}
               </div>
               <HighlightList
                 reasons={matchingReasons}
-                limit={PREVIEW_REASON_COUNT}
+                limit={canOpenSheet ? PREVIEW_REASON_COUNT : undefined}
               />
             </div>
           ) : null}
@@ -452,28 +536,55 @@ export function JobMatchInsights({
               <p className="text-muted-foreground mb-2 text-[14px] font-medium">
                 Things to watch
               </p>
-              <WatchList concerns={concerns.slice(0, 3)} />
+              <WatchList
+                concerns={canOpenSheet ? concerns.slice(0, 3) : concerns}
+              />
+            </div>
+          ) : null}
+
+          {!canOpenSheet && mainRisk ? (
+            <div className="rounded-xl bg-amber-500/10 px-3.5 py-3 ring-1 ring-amber-500/25">
+              <h3 className="text-[14px] font-medium text-amber-900 dark:text-amber-100">
+                Main risk
+              </h3>
+              <p className="mt-1 text-[14px] leading-snug opacity-90">
+                {mainRisk}
+              </p>
+            </div>
+          ) : null}
+
+          {!canOpenSheet && missingRequirements.length > 0 ? (
+            <div>
+              <p className="text-muted-foreground mb-2 text-[14px] font-medium">
+                Missing / unclear
+              </p>
+              <ul className="text-muted-foreground list-disc space-y-1 pl-5 text-[14px]">
+                {missingRequirements.map((m) => (
+                  <li key={m}>{m}</li>
+                ))}
+              </ul>
             </div>
           ) : null}
         </div>
       ) : null}
 
-      <MatchRationaleSheet
-        open={open}
-        onOpenChange={setOpen}
-        title={title}
-        companyName={companyName}
-        location={location}
-        remotePolicy={remotePolicy}
-        sourceUrl={sourceUrl}
-        remoteFit={remoteFit}
-        remoteRequired={remoteRequired}
-        matchingReasons={matchingReasons}
-        concerns={concerns}
-        mainRisk={mainRisk}
-        missingRequirements={missingRequirements}
-        primaryAction={sheetPrimaryAction}
-      />
+      {canOpenSheet ? (
+        <MatchRationaleSheet
+          open={open}
+          onOpenChange={setOpen}
+          title={title}
+          companyName={companyName}
+          location={location}
+          remotePolicy={remotePolicy}
+          remoteFit={remoteFit}
+          remoteRequired={remoteRequired}
+          matchingReasons={matchingReasons}
+          concerns={concerns}
+          mainRisk={mainRisk}
+          missingRequirements={missingRequirements}
+          matchDimensions={matchDimensions}
+        />
+      ) : null}
     </>
   );
 }

@@ -69,14 +69,18 @@ type SearchStreamEvent =
 const SLOW_MS = 90_000;
 const RESOLVE_HOLD_MS = 1_400;
 
+const NETWORK_ERROR_PATTERN =
+  /failed to fetch|network\s*error|networkerror|load failed|err_internet_disconnected|err_network|err_connection|net::err/i;
+
 function formatCompanySearchError(err: unknown): string {
   if (err instanceof DOMException && err.name === "AbortError") {
     return "Company search was cancelled.";
   }
-  if (
-    err instanceof TypeError &&
-    /failed to fetch|networkerror|load failed/i.test(err.message)
-  ) {
+  // Browser dropped the connection, OR the server relayed a network failure
+  // from an upstream call — either way this isn't a pipeline bug. Errors
+  // relayed via the NDJSON `error` event become plain `Error`s, not
+  // `TypeError`s, so this check must not require `instanceof TypeError`.
+  if (err instanceof Error && NETWORK_ERROR_PATTERN.test(err.message)) {
     return "Connection lost during search. Click Find companies again.";
   }
   if (err instanceof Error && err.message.trim()) {
@@ -239,8 +243,6 @@ export function TriageInbox({
               ? "No strong companies found"
               : `Found ${published} compan${published === 1 ? "y" : "ies"}`,
           detail: summary,
-          strong: published > 0 ? published : undefined,
-          empty: published === 0,
         });
         setMessage(summary);
         router.refresh();
@@ -302,14 +304,14 @@ export function TriageInbox({
   };
 
   const hasRows = rows.length > 0;
-  const findLabel = pending || searching ? "Finding…" : hasRows ? "Refresh companies" : "Find companies";
+  const findLabel = pending || searching ? "Finding…" : "Refresh companies";
 
-  const headerActions = (
+  const headerActions = hasRows ? (
     <div className="flex flex-wrap items-center gap-2">
       <Button
         id="today-primary-action"
         size="lg"
-        variant={hasRows ? "outline" : "default"}
+        variant="outline"
         disabled={pending || searching}
         onClick={findCompanies}
       >
@@ -323,7 +325,7 @@ export function TriageInbox({
         {showDiscover ? "Hide" : "Add company"}
       </Button>
     </div>
-  );
+  ) : null;
 
   const body = (
     <>

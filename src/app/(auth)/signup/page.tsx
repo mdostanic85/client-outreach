@@ -1,6 +1,11 @@
 import { AuthShell } from "@/components/auth/auth-shell";
 import { SignUpForm } from "@/components/auth/auth-forms";
+import {
+  AuthDivider,
+  GoogleSignInButton,
+} from "@/components/auth/google-sign-in";
 import { ProductPanel } from "@/components/auth/product-panel";
+import { googleSignInEnabled } from "@/modules/auth/auth";
 import { noWidow } from "@/lib/utils";
 
 export default function SignUpPage() {
@@ -15,6 +20,12 @@ export default function SignUpPage() {
             "Private workspace. Next, we'll build your profile so matches stay accurate.",
           )}
         </p>
+        {googleSignInEnabled() ? (
+          <div className="mb-4 flex flex-col gap-4">
+            <GoogleSignInButton />
+            <AuthDivider />
+          </div>
+        ) : null}
         <SignUpForm />
       </div>
     </AuthShell>

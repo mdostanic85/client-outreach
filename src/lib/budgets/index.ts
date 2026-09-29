@@ -1,7 +1,9 @@
-import { and, gte, sql } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { apiUsage, settings } from "@/db/schema";
+import { apiUsage } from "@/db/schema";
 import { logger } from "@/lib/logging/logger";
+import { currentUserId, owned } from "@/modules/auth/current-user";
+import { getUserSettings } from "@/modules/settings/user-settings";
 
 export type BudgetStatus = {
   spentUsd: number;
@@ -24,13 +26,18 @@ export async function getMonthSpendUsd(): Promise<number> {
       total: sql<number>`coalesce(sum(${apiUsage.estimatedCost}), 0)`,
     })
     .from(apiUsage)
-    .where(gte(apiUsage.occurredAt, monthStartIso())).limit(1))[0];
+    .where(
+      and(await owned(apiUsage),
+        eq(apiUsage.userId, await currentUserId()),
+        gte(apiUsage.occurredAt, monthStartIso()),
+      ),
+    ).limit(1))[0];
   return Number(row?.total ?? 0);
 }
 
 export async function getBudgetStatus(): Promise<BudgetStatus> {
   const [setting, spentUsd] = await Promise.all([
-    getDb().select().from(settings).limit(1).then((rows) => rows[0]),
+    getUserSettings(),
     getMonthSpendUsd(),
   ]);
   const budgetUsd = setting?.aiBudgetUsd ?? 8;

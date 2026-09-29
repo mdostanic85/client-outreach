@@ -8,6 +8,7 @@ import { listStrategyVersions, type StrategyCohort } from "./job-cohorts";
 import { getJobLearningGates } from "./job-gates";
 import { listAppliedJobs } from "./job-outcomes";
 import { buildFunnelAnalytics, buildSourcePerformance } from "./reports";
+import { owned } from "@/modules/auth/current-user";
 
 export async function getLearningDashboard() {
   const db = await ensureDb();
@@ -18,13 +19,13 @@ export async function getLearningDashboard() {
     await db
       .select()
       .from(learningProposals)
-      .orderBy(desc(learningProposals.createdAt))
+      .where(await owned(learningProposals)).orderBy(desc(learningProposals.createdAt))
   ).slice(0, 20);
   const reports = (
     await db
       .select()
       .from(learningReports)
-      .orderBy(desc(learningReports.createdAt))
+      .where(await owned(learningReports)).orderBy(desc(learningReports.createdAt))
   ).slice(0, 20);
 
   return { gates, source, funnel, proposals, reports };
@@ -74,12 +75,12 @@ export async function getJobLearningDashboard(): Promise<JobLearningDashboard> {
   const proposals = await db
     .select()
     .from(learningProposals)
-    .orderBy(desc(learningProposals.createdAt));
+    .where(await owned(learningProposals)).orderBy(desc(learningProposals.createdAt));
 
   const reports = await db
     .select()
     .from(learningReports)
-    .orderBy(desc(learningReports.createdAt));
+    .where(await owned(learningReports)).orderBy(desc(learningReports.createdAt));
 
   const weeklyReports = reports.filter((r) => r.kind === "job_weekly_insights");
   const pendingStrategyProposals = proposals.filter(

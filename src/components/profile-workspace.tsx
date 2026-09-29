@@ -2,21 +2,21 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { Check, ChevronDown, FileText, FolderGit2, Link2, X } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import {
   approveProfileAction,
   createProfileDraftFromApprovedAction,
   deleteProfileSourceAction,
   extractProfileAction,
+  setMatchingSourcesConfigAction,
+  setProfileSourceMatchingEnabledAction,
   ingestCvAction,
   ingestGithubAction,
   ingestManualNotesAction,
   ingestPortfolioUrlAction,
   ingestTextSourceAction,
   saveProfileDraftAction,
-  setUsePortfolioInMatchingAction,
 } from "@/app/actions";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,12 +26,14 @@ import { FileDropzone } from "@/components/file-dropzone";
 import { InlineAlert } from "@/components/inline-alert";
 import { PanelBody, Surface } from "@/components/page-shell";
 import { StickyFormActions } from "@/components/sticky-form-actions";
+import type { MatchingSourcesConfig } from "@/modules/profile/matching-sources-core";
 import type { StructuredProfile } from "@/modules/profile/schemas";
 import {
   COMPENSATION_CURRENCIES,
   EMPTY_STRUCTURED_PROFILE,
   formatCompensation,
   resolveCompensation,
+  roleWithLevel,
   type CompensationExpectation,
 } from "@/modules/profile/schemas";
 import { cn } from "@/lib/utils";
@@ -66,6 +68,14 @@ const SOURCE_LABELS: Record<string, string> = {
   manual: "About you",
   document: "Document",
   github: "GitHub",
+};
+
+/** Category switch that the per-source checkbox replaces. */
+const SOURCE_MATCH_CATEGORY: Partial<Record<string, keyof MatchingSourcesConfig>> = {
+  cv: "cv",
+  linkedin_text: "linkedin",
+  manual: "manual",
+  github: "github",
 };
 
 type ReviewTab = "essentials" | "skills" | "preferences" | "advanced";
@@ -489,49 +499,18 @@ function ChipListField({
   );
 }
 
-function ListField({
-  label,
-  value,
-  onChange,
-  disabled,
-  rows = 3,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  disabled?: boolean;
-  rows?: number;
-}) {
-  return (
-    <Field label={label}>
-      <Textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        rows={rows}
-        className="min-h-[72px]"
-        placeholder="One per line"
-      />
-    </Field>
-  );
-}
-
 export function ProfileWorkspace({
   sources,
+  matchingConfig,
   draft,
   approved,
-  usePortfolioInMatching = true,
-  variant = "page",
   initialFix = null,
   children,
 }: {
   sources: SourceView[];
+  matchingConfig: MatchingSourcesConfig;
   draft: ProfileView | null;
   approved: ProfileView | null;
-  /** When true, portfolio-sourced projects feed job match scoring. */
-  usePortfolioInMatching?: boolean;
-  /** Phased UX for onboarding wizard. */
-  variant?: "page" | "onboarding";
   /** Market fit deep-link (`?fix=`). */
   initialFix?: ProfileFixTarget | null;
   /** Extra setup sections (e.g. Matching) — rendered above sticky approve. */
@@ -548,51 +527,73 @@ export function ProfileWorkspace({
   const [aboutYou, setAboutYou] = useState("");
   const [linkedinPaste, setLinkedinPaste] = useState("");
   const [showLinkedinPaste, setShowLinkedinPaste] = useState(false);
-  const [showMoreSources, setShowMoreSources] = useState(false);
-  const [phaseOverride, setPhaseOverride] = useState<"sources" | "review" | null>(
-    null,
+  // `?fix=` deep links from "Worth improving" open the right place on first render.
+  const [reviewTab, setReviewTab] = useState<ReviewTab>(
+    () => reviewTabFromFix(initialFix) ?? "essentials",
   );
-  const [reviewTab, setReviewTab] = useState<ReviewTab>("essentials");
-  const [sourcesOpen, setSourcesOpen] = useState(false);
-  const [portfolioInMatching, setPortfolioInMatching] = useState(
-    usePortfolioInMatching,
-  );
+  const [sourcesOpen, setSourcesOpen] = useState(initialFix === "sources");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [matchingOverride, setMatchingOverride] = useState<Record<string, boolean>>({});
+  const matchKey = `${sources
+    .map((s) => `${s.id}:${s.enabledForMatching ? 1 : 0}`)
+    .join("|")}|${JSON.stringify(matchingConfig)}`;
+  const [seenMatchKey, setSeenMatchKey] = useState(matchKey);
+  if (matchKey !== seenMatchKey) {
+    setSeenMatchKey(matchKey);
+    setMatchingOverride({});
+  }
 
-  useEffect(() => {
-    setPortfolioInMatching(usePortfolioInMatching);
-  }, [usePortfolioInMatching]);
+  function sourceUsedForMatching(source: SourceView) {
+    if (source.id in matchingOverride) return matchingOverride[source.id]!;
+    const category = SOURCE_MATCH_CATEGORY[source.type];
+    const categoryOn = category ? matchingConfig[category] : true;
+    return source.enabledForMatching !== false && categoryOn;
+  }
+
+  function toggleSourceMatching(source: SourceView, enabled: boolean) {
+    const category = SOURCE_MATCH_CATEGORY[source.type];
+    const othersOn = sources.some((other) => {
+      if (other.id === source.id || other.type !== source.type) return false;
+      if (other.id in matchingOverride) return matchingOverride[other.id];
+      return other.enabledForMatching !== false;
+    });
+    setMatchingOverride((prev) => ({ ...prev, [source.id]: enabled }));
+    setError(null);
+    startTransition(async () => {
+      const result = await setProfileSourceMatchingEnabledAction(source.id, enabled);
+      if (!result.ok) {
+        setMatchingOverride((prev) => {
+          const next = { ...prev };
+          delete next[source.id];
+          return next;
+        });
+        setError(result.error ?? "Could not update source");
+        return;
+      }
+      if (category && (enabled || !othersOn)) {
+        const categoryResult = await setMatchingSourcesConfigAction({
+          [category]: enabled,
+        });
+        if (!categoryResult.ok) {
+          setError(categoryResult.error ?? "Could not update matching");
+          return;
+        }
+      }
+      router.refresh();
+    });
+  }
 
   const active = draft ?? approved;
   const canEdit = Boolean(draft) && !pending;
-  const isOnboarding = variant === "onboarding";
-  const phase =
-    phaseOverride ?? (active ? "review" : "sources");
 
   useEffect(() => {
-    if (!initialFix || isOnboarding) return;
-    if (initialFix === "sources") {
-      setSourcesOpen(true);
-      setShowMoreSources(true);
-      setPhaseOverride("sources");
-      requestAnimationFrame(() => {
-        document
-          .getElementById("profile-workspace")
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-      return;
-    }
-    const tab = reviewTabFromFix(initialFix);
-    if (!tab) return;
-    setPhaseOverride(null);
-    setReviewTab(tab);
-    setSourcesOpen(false);
+    if (!initialFix) return;
     requestAnimationFrame(() => {
       document
         .getElementById("profile-workspace")
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
-  }, [initialFix, isOnboarding]);
+  }, [initialFix]);
 
   const [editingId, setEditingId] = useState<string | null>(draft?.id ?? null);
   const editable = useMemo(() => {
@@ -675,10 +676,6 @@ export function ProfileWorkspace({
     setRolesAboveLevel(listToLines(p.rolesAboveLevel));
     setLanguages(listToLines(p.languages));
     setProjectsJson(JSON.stringify(p.relevantProjects ?? [], null, 2));
-    if (draft && phaseOverride === "sources") {
-      setPhaseOverride(null);
-      setReviewTab("essentials");
-    }
   }
 
   function run(
@@ -753,18 +750,7 @@ export function ProfileWorkspace({
     formData.set("type", kind);
     run(
       kind === "cv" ? "CV added" : "LinkedIn PDF added",
-      async () => {
-        const ingested = await ingestCvAction(formData);
-        if (!ingested.ok) return ingested;
-        if (isOnboarding) {
-          const extracted = await extractProfileAction();
-          if (!extracted.ok) return extracted;
-          setPhaseOverride(null);
-          setReviewTab("essentials");
-          return { ok: true as const };
-        }
-        return ingested;
-      },
+      () => ingestCvAction(formData),
     );
   }
 
@@ -810,23 +796,15 @@ export function ProfileWorkspace({
     value: string,
     onChange: (v: string) => void,
     placeholder?: string,
-  ) =>
-    isOnboarding ? (
-      <ChipListField
-        label={label}
-        value={value}
-        onChange={onChange}
-        disabled={!canEdit}
-        placeholder={placeholder}
-      />
-    ) : (
-      <ListField
-        label={label}
-        value={value}
-        onChange={onChange}
-        disabled={!canEdit}
-      />
-    );
+  ) => (
+    <ChipListField
+      label={label}
+      value={value}
+      onChange={onChange}
+      disabled={!canEdit}
+      placeholder={placeholder}
+    />
+  );
 
   const essentialsFields = (
     <div className="space-y-4">
@@ -993,7 +971,7 @@ export function ProfileWorkspace({
             value={projectsJson}
             onChange={(e) => setProjectsJson(e.target.value)}
             disabled={!canEdit}
-            rows={isOnboarding ? 6 : 10}
+            rows={10}
             className="font-mono text-[15px]"
           />
         </Field>
@@ -1053,8 +1031,8 @@ export function ProfileWorkspace({
   const sourceList = sources.length > 0 ? (
     <ul className="divide-border divide-y">
       {sources.map((s) => (
-        <li key={s.id} className="space-y-2 py-2">
-          <div className="flex items-center justify-between gap-3">
+        <li key={s.id} className="space-y-2 py-3">
+          <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-[15px] font-medium">
                 {SOURCE_LABELS[s.type] ?? s.type}
@@ -1072,6 +1050,18 @@ export function ProfileWorkspace({
                   ? ` · synced ${new Date(s.lastSyncedAt).toLocaleDateString()}`
                   : ""}
               </p>
+              {confirmDeleteId === s.id ? null : (
+                <label className="text-muted-foreground mt-2 flex items-center gap-2 text-[13px]">
+                  <input
+                    type="checkbox"
+                    className="border-input size-4 rounded"
+                    checked={sourceUsedForMatching(s)}
+                    disabled={pending}
+                    onChange={(e) => toggleSourceMatching(s, e.target.checked)}
+                  />
+                  Use for matching
+                </label>
+              )}
             </div>
             {confirmDeleteId === s.id ? null : (
               <Button
@@ -1081,7 +1071,7 @@ export function ProfileWorkspace({
                 disabled={pending}
                 onClick={() => setConfirmDeleteId(s.id)}
               >
-                Remove source
+                Remove
               </Button>
             )}
           </div>
@@ -1212,12 +1202,6 @@ export function ProfileWorkspace({
                   if (!result.ok) return result;
                   setLinkedinPaste("");
                   setShowLinkedinPaste(false);
-                  if (isOnboarding) {
-                    const extracted = await extractProfileAction();
-                    if (!extracted.ok) return extracted;
-                    setPhaseOverride(null);
-                    setReviewTab("essentials");
-                  }
                   return { ok: true as const };
                 })
               }
@@ -1259,47 +1243,6 @@ export function ProfileWorkspace({
             Fetch
           </Button>
         </div>
-        <label className="flex cursor-pointer items-start gap-2.5 text-[14px] leading-snug">
-          <input
-            type="checkbox"
-            className="border-input bg-background text-foreground mt-0.5 size-4 shrink-0 rounded"
-            checked={portfolioInMatching}
-            disabled={pending}
-            title="Include portfolio project evidence in job match scores. Turning this off never deletes your portfolio or Professional Profile."
-            onChange={(e) => {
-              const next = e.target.checked;
-              const prev = portfolioInMatching;
-              setPortfolioInMatching(next);
-              setError(null);
-              setMessage(null);
-              startTransition(async () => {
-                const result = await setUsePortfolioInMatchingAction(next);
-                if (!result.ok) {
-                  setPortfolioInMatching(prev);
-                  setError(result.error ?? "Something went wrong");
-                  return;
-                }
-                setMessage(
-                  next
-                    ? "Portfolio projects included in match scores. Nothing was re-imported."
-                    : "Portfolio projects excluded from match scores. Your portfolio and Professional Profile were not deleted.",
-                );
-                router.refresh();
-              });
-            }}
-          />
-          <span>
-            <span className="font-medium text-[var(--card-foreground)]">
-              Use portfolio projects for job matching
-            </span>
-            <span className="text-muted-foreground mt-0.5 block text-[13px]">
-              Include skills, responsibilities, industries, and experience
-              demonstrated in your portfolio projects when calculating job match
-              scores. Turning this off will not delete your portfolio or
-              professional profile.
-            </span>
-          </span>
-        </label>
       </div>
 
       <div className="space-y-2">
@@ -1330,12 +1273,6 @@ export function ProfileWorkspace({
                 const result = await ingestGithubAction(githubInput.trim());
                 if (!result.ok) return result;
                 setGithubInput("");
-                if (isOnboarding) {
-                  const extracted = await extractProfileAction();
-                  if (!extracted.ok) return extracted;
-                  setPhaseOverride(null);
-                  setReviewTab("essentials");
-                }
                 return { ok: true as const };
               })
             }
@@ -1353,7 +1290,7 @@ export function ProfileWorkspace({
           id="about-you"
           value={aboutYou}
           onChange={(e) => setAboutYou(e.target.value)}
-          rows={isOnboarding ? 2 : 4}
+          rows={4}
           disabled={pending}
           placeholder="Target roles, remote/EU, rate, what to skip…"
         />
@@ -1375,276 +1312,74 @@ export function ProfileWorkspace({
     </div>
   );
 
-  if (isOnboarding && phase === "sources") {
-    return (
-      <div className="space-y-5">
-        {error ? <p className="text-destructive text-[14px]">{error}</p> : null}
-        {message ? (
-          <p className="text-muted-foreground text-[14px]">{message}</p>
-        ) : null}
-
-        <Surface>
-          <PanelBody className="space-y-6 px-6 py-7 sm:px-8 sm:py-8">
-            <div className="space-y-2">
-              <p className="font-display text-[20px] font-semibold tracking-tight sm:text-[22px]">
-                Start with a recent CV
-              </p>
-              <p className="text-muted-foreground max-w-2xl text-[15px] leading-relaxed">
-                You can also add LinkedIn, GitHub, a portfolio site, or notes. We
-                draft a profile in seconds. You review and approve. Claims stay
-                tied to your sources.
-              </p>
-            </div>
-
-            <FileDropzone
-              disabled={pending}
-              label="Drop your CV here, or click to browse"
-              hint="PDF, TXT, or MD · stays on your machine"
-              onFile={(file) => ingestFile(file, "cv")}
-              className="[&_label]:py-14 sm:[&_label]:py-16"
-            />
-
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[14px]">
-              <button
-                type="button"
-                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 underline-offset-2 hover:underline"
-                onClick={() => {
-                  setFileKind("linkedin_text");
-                  setShowMoreSources(true);
-                }}
-              >
-                <FileText className="size-4" aria-hidden />
-                LinkedIn PDF instead
-              </button>
-              <button
-                type="button"
-                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 underline-offset-2 hover:underline"
-                onClick={() => setShowMoreSources(true)}
-              >
-                <FolderGit2 className="size-4" aria-hidden />
-                Add GitHub
-              </button>
-              <button
-                type="button"
-                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 underline-offset-2 hover:underline"
-                onClick={() => setShowMoreSources((v) => !v)}
-              >
-                <Link2 className="size-4" aria-hidden />
-                Website or notes
-                <ChevronDown
-                  className={cn(
-                    "size-4 transition-transform",
-                    showMoreSources && "rotate-180",
-                  )}
-                  aria-hidden
-                />
-              </button>
-            </div>
-
-            {showMoreSources ? (
-              <div className="border-border space-y-4 border-t pt-5">
-                {moreSourcesPanel}
-              </div>
-            ) : null}
-
-            {sourceList ? (
-              <div className="border-border space-y-3 border-t pt-5">
-                <p className="text-muted-foreground text-[15px] font-medium tracking-wide uppercase">
-                  Sources · {sources.length}
-                </p>
-                {sourceList}
-              </div>
-            ) : null}
-
-            {sources.length > 0 && !pending ? (
-              <div className="flex flex-wrap items-center gap-3 pt-1">
-                <Button
-                  type="button"
-                  size="lg"
-                  className="h-11 px-5 text-[15px]"
-                  disabled={pending}
-                  onClick={() =>
-                    run("Profile drafted", async () => {
-                      const result = await extractProfileAction();
-                      if (result.ok) {
-                        setPhaseOverride(null);
-                        setReviewTab("essentials");
-                      }
-                      return result;
-                    })
-                  }
-                >
-                  Draft profile from sources
-                </Button>
-                <p className="text-muted-foreground text-[14px]">
-                  Or drop another file — CV upload extracts automatically.
-                </p>
-              </div>
-            ) : null}
-
-            {pending ? (
-              <p className="text-muted-foreground text-[14px]">
-                Working… extracting stays grounded in your sources.
-              </p>
-            ) : null}
-          </PanelBody>
-        </Surface>
-      </div>
-    );
-  }
-
-  if (isOnboarding && phase === "review") {
-    return (
-      <div className="space-y-5">
-        {error ? <p className="text-destructive text-[14px]">{error}</p> : null}
-        {message ? (
-          <p className="text-muted-foreground text-[14px]">{message}</p>
-        ) : null}
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {approved ? (
-              <Badge className="h-7 px-2.5 text-[15px]">
-                <Check className="size-3.5" aria-hidden />
-                Approved v{approved.version}
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="h-7 px-2.5 text-[15px]">
-                Review draft
-              </Badge>
-            )}
-            {draft ? (
-              <Badge variant="secondary" className="h-7 px-2.5 text-[15px]">
-                Draft v{draft.version}
-              </Badge>
-            ) : null}
-          </div>
-          <button
-            type="button"
-            className="text-muted-foreground hover:text-foreground text-[14px] underline-offset-2 hover:underline"
-            onClick={() => setPhaseOverride("sources")}
-          >
-            Sources ({sources.length})
-          </button>
-        </div>
-
-        {!active ? (
-          <Surface>
-            <PanelBody className="px-6 py-7 sm:px-8">
-              <p className="text-muted-foreground text-[15px]">
-                Extract a profile from your sources to edit it here.
-              </p>
-              <Button
-                className="mt-4 h-11 px-5 text-[15px]"
-                type="button"
-                size="lg"
-                onClick={() => setPhaseOverride("sources")}
-              >
-                Add sources
-              </Button>
-            </PanelBody>
-          </Surface>
-        ) : (
-          <Surface>
-            {renderTabChrome(
-              draft ? (
-                <div className="flex flex-wrap gap-2.5">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="lg"
-                    className="h-10 px-4 text-[14px]"
-                    disabled={pending}
-                    onClick={saveDraft}
-                  >
-                    Save
-                  </Button>
-                  <Button
-                    type="button"
-                    size="lg"
-                    className="h-10 px-4 text-[14px]"
-                    disabled={pending}
-                    onClick={approveDraft}
-                  >
-                    Approve
-                  </Button>
-                </div>
-              ) : approved ? (
-                <Button
-                  type="button"
-                  size="lg"
-                  className="h-10 px-4 text-[14px]"
-                  disabled={pending}
-                  onClick={() =>
-                    run("Ready to edit", () =>
-                      createProfileDraftFromApprovedAction(),
-                    )
-                  }
-                >
-                  Edit profile
-                </Button>
-              ) : (
-                <p className="text-muted-foreground text-[14px]">
-                  Extract again to edit.
-                </p>
-              ),
-            )}
-            <PanelBody className="space-y-5 px-5 py-6 sm:px-6 sm:py-7">
-              {!draft && approved ? (
-                <div className="border-border bg-muted/30 rounded-xl border px-4 py-3 text-[14px]">
-                  <p className="text-foreground font-medium">
-                    This version is approved and locked.
-                  </p>
-                  <p className="text-muted-foreground mt-1 leading-relaxed">
-                    Tap <span className="text-foreground">Edit profile</span> to
-                    change job prefs, pay range, or anything else — then approve
-                    again.
-                  </p>
-                </div>
-              ) : null}
-              {renderReviewFields()}
-              {draft && reviewTab === "essentials" ? (
-                <p className="text-muted-foreground text-[14px] leading-relaxed">
-                  Essentials are enough to continue. Other tabs are optional
-                  polish.
-                </p>
-              ) : null}
-            </PanelBody>
-          </Surface>
-        )}
-      </div>
-    );
-  }
-
-  // Full page — same tabbed review as onboarding, sources collapsed when draft exists
   const pageSourcesOpen = sourcesOpen || !active;
 
+  const editButton = (
+    <Button
+      type="button"
+      variant="outline"
+      disabled={pending}
+      onClick={() =>
+        run("Ready to edit", () => createProfileDraftFromApprovedAction())
+      }
+    >
+      {pending ? "Opening…" : "Edit"}
+    </Button>
+  );
+
   return (
-    <div id="profile-workspace" className="space-y-8 scroll-mt-20">
+    <div id="profile-workspace" className="space-y-6 scroll-mt-20">
       {error ? <InlineAlert variant="error">{error}</InlineAlert> : null}
       {message ? <InlineAlert variant="info">{message}</InlineAlert> : null}
-      {draft ? (
-        <InlineAlert variant="info">
-          Review this draft before approving. Approving saves it for job
-          matching — matching toggles never delete what you approve.
-        </InlineAlert>
-      ) : null}
+
+      {!active ? (
+        <Surface>
+          <div className="flex flex-col items-center justify-center gap-5 px-8 py-14 text-center">
+            <p className="font-display text-[20px] font-semibold">No profile yet</p>
+            <p className="text-muted-foreground mx-auto max-w-sm text-[15px] leading-relaxed">
+              {sources.length === 0
+                ? "Add your CV below. Optra reads it and builds your profile."
+                : "Build your profile from the sources you added."}
+            </p>
+            {sources.length > 0 ? (
+              <Button
+                type="button"
+                size="lg"
+                className="h-12 min-w-[12rem] rounded-xl px-6 text-[16px]"
+                disabled={pending}
+                onClick={() => run("Profile drafted", () => extractProfileAction())}
+              >
+                {pending ? "Building…" : "Build my profile"}
+              </Button>
+            ) : null}
+          </div>
+        </Surface>
+      ) : draft ? (
+        <Surface>
+          {renderTabChrome()}
+          <PanelBody className="space-y-6">{renderReviewFields()}</PanelBody>
+        </Surface>
+      ) : (
+        <ProfileSummaryCard profile={active.profile} action={editButton} />
+      )}
 
       <Surface>
         <button
           type="button"
-          className="border-border flex w-full items-center justify-between gap-3 border-b px-8 py-6 text-left"
+          className="flex w-full items-center justify-between gap-3 px-6 py-5 text-left"
           onClick={() => setSourcesOpen((v) => !v)}
           aria-expanded={pageSourcesOpen}
         >
-          <div className="space-y-1">
+          <div>
             <p className="font-display text-[16px] font-semibold tracking-tight text-[var(--card-foreground)]">
               Sources
             </p>
-            <p className="text-muted-foreground text-[15px]">
-              {sources.length > 0
-                ? `${sources.length} added · CV, LinkedIn, portfolio, notes`
-                : "Add a CV or LinkedIn to draft your profile"}
+            <p className="text-muted-foreground mt-0.5 text-[14px]">
+              {sources.length === 0
+                ? "Nothing added yet"
+                : pageSourcesOpen
+                  ? `${sources.length} connected`
+                  : sources.map((s) => SOURCE_LABELS[s.type] ?? s.type).join(" · ")}
             </p>
           </div>
           <ChevronDown
@@ -1656,108 +1391,37 @@ export function ProfileWorkspace({
           />
         </button>
         {pageSourcesOpen ? (
-          <PanelBody className="space-y-6">
+          <PanelBody className="border-border space-y-6 border-t">
+            {sourceList}
+            {sources.length > 0 && active ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => run("New draft ready to review", () => extractProfileAction())}
+                >
+                  {pending ? "Reading…" : "Rebuild profile from sources"}
+                </Button>
+                <p className="text-muted-foreground text-[14px]">
+                  Use after adding or updating a source.
+                </p>
+              </div>
+            ) : null}
+            <Separator />
             {moreSourcesPanel}
-            {sourceList ? (
+            {children ? (
               <>
                 <Separator />
-                {sourceList}
+                {children}
               </>
             ) : null}
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <Button
-                type="button"
-                size="lg"
-                disabled={pending || sources.length === 0}
-                onClick={() =>
-                  run("Profile drafted", () => extractProfileAction())
-                }
-              >
-                {active ? "Re-draft from sources" : "Draft profile from sources"}
-              </Button>
-              {sources.length === 0 ? (
-                <p className="text-muted-foreground text-[15px]">
-                  Add at least one source first.
-                </p>
-              ) : null}
-            </div>
           </PanelBody>
         ) : null}
       </Surface>
 
-      {!active ? (
-        <Surface>
-          <div className="flex flex-col items-center justify-center gap-5 px-8 py-16 text-center">
-            <div
-              aria-hidden
-              className="border-border bg-muted/40 text-muted-foreground grid size-14 place-items-center rounded-2xl border"
-            >
-              <FileText className="size-6 opacity-70" strokeWidth={1.5} />
-            </div>
-            <div className="space-y-2">
-              <p className="font-display text-[20px] font-semibold">
-                No profile draft yet
-              </p>
-              <p className="text-muted-foreground mx-auto max-w-sm text-[15px] leading-relaxed">
-                Add a source above, then draft a profile to review essentials,
-                skills, and job prefs.
-              </p>
-            </div>
-            <Button
-              type="button"
-              size="lg"
-              disabled={pending || sources.length === 0}
-              onClick={() => {
-                if (sources.length === 0) {
-                  setSourcesOpen(true);
-                  return;
-                }
-                run("Profile drafted", () => extractProfileAction());
-              }}
-            >
-              {sources.length === 0 ? "Add a source" : "Draft profile"}
-            </Button>
-          </div>
-        </Surface>
-      ) : (
-        <Surface>
-          {renderTabChrome(
-            !draft && approved ? (
-              <Button
-                type="button"
-                size="lg"
-                disabled={pending}
-                onClick={() =>
-                  run("Ready to edit", () =>
-                    createProfileDraftFromApprovedAction(),
-                  )
-                }
-              >
-                Edit profile
-              </Button>
-            ) : null,
-          )}
-          <PanelBody className="space-y-6">
-            {!draft && approved ? (
-              <div className="border-border bg-muted/30 rounded-xl border px-4 py-3 text-[14px]">
-                <p className="text-foreground font-medium">
-                  Approved and locked
-                </p>
-                <p className="text-muted-foreground mt-1 leading-relaxed">
-                  Tap <span className="text-foreground">Edit profile</span> to
-                  change prefs or pay range, then approve again.
-                </p>
-              </div>
-            ) : null}
-            {renderReviewFields()}
-          </PanelBody>
-        </Surface>
-      )}
-
-      {children}
-
       {draft ? (
-        <StickyFormActions message="Save anytime — approve when the draft looks right.">
+        <StickyFormActions message="Matching keeps using your approved profile until you approve this one.">
           <Button
             type="button"
             variant="outline"
@@ -1773,5 +1437,104 @@ export function ProfileWorkspace({
         </StickyFormActions>
       ) : null}
     </div>
+  );
+}
+
+function SummaryRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1 px-6 py-4 sm:flex-row sm:gap-6">
+      <dt className="text-muted-foreground w-36 shrink-0 text-[14px]">{label}</dt>
+      <dd className="min-w-0 flex-1 text-[15px] leading-relaxed text-[var(--card-foreground)]">
+        {children}
+      </dd>
+    </div>
+  );
+}
+
+function Chips({ items }: { items: string[] }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {items.map((item) => (
+        <span key={item} className="bg-secondary rounded-full px-2.5 py-1 text-[13px]">
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** Read-only view of the approved profile — editing is one click away. */
+function ProfileSummaryCard({
+  profile,
+  action,
+}: {
+  profile: StructuredProfile;
+  action: React.ReactNode;
+}) {
+  const headline = roleWithLevel(
+    profile.seniority,
+    profile.targetRoles[0] ?? profile.currentRole,
+  );
+  const projects = profile.relevantProjects.slice(0, 6);
+  const wants = [
+    profile.preferredEmploymentTypes.join(", "),
+    profile.preferredLocations.join(", "),
+    formatCompensation(profile.compensation) ?? profile.salaryOrRateExpectations,
+    profile.availability,
+  ].filter((v): v is string => Boolean(v?.trim()));
+  const domains = [...profile.industries, ...profile.productTypes].slice(0, 8);
+
+  return (
+    <Surface>
+      <div className="flex items-start justify-between gap-4 px-6 py-5">
+        <div>
+          <p className="font-display text-[20px] font-semibold tracking-tight text-[var(--card-foreground)]">
+            {headline || "Your profile"}
+          </p>
+          {profile.yearsExperience ? (
+            <p className="text-muted-foreground mt-0.5 text-[14px]">
+              {profile.yearsExperience} years of experience
+            </p>
+          ) : null}
+        </div>
+        {action}
+      </div>
+      <dl className="border-border divide-border divide-y border-t">
+        {profile.professionalSummary ? (
+          <SummaryRow label="Summary">{profile.professionalSummary}</SummaryRow>
+        ) : null}
+        {profile.strongestSkills.length ? (
+          <SummaryRow label="Skills">
+            <Chips items={profile.strongestSkills.slice(0, 12)} />
+          </SummaryRow>
+        ) : null}
+        {projects.length ? (
+          <SummaryRow label="Work & projects">
+            <ul className="space-y-1.5">
+              {projects.map((project) => (
+                <li key={project.title}>
+                  <span className="font-medium">{project.title}</span>
+                  {project.organization || project.role ? (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · {[project.role, project.organization].filter(Boolean).join(", ")}
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </SummaryRow>
+        ) : null}
+        {domains.length ? (
+          <SummaryRow label="Industries">
+            <Chips items={domains} />
+          </SummaryRow>
+        ) : null}
+        {wants.length ? <SummaryRow label="Looking for">{wants.join(" · ")}</SummaryRow> : null}
+        {profile.languages.length ? (
+          <SummaryRow label="Languages">{profile.languages.join(", ")}</SummaryRow>
+        ) : null}
+      </dl>
+    </Surface>
   );
 }

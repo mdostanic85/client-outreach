@@ -1,47 +1,31 @@
-/** Human-readable search stages shared by jobs + companies experiences. */
-
+/**
+ * Human-readable search stages shared by jobs + companies experiences, in the
+ * order the pipelines actually run them.
+ */
 export const SEARCH_UX_STAGES = [
   {
-    id: "understand_profile",
-    label: "Understanding your profile",
-    jobsHint: "Reading skills, seniority, and preferences",
-    companiesHint: "Loading your targeting preferences",
-  },
-  {
-    id: "build_strategy",
-    label: "Building your search strategy",
-    jobsHint: "Titles, locations, and filters from your criteria",
-    companiesHint: "Industries, regions, and fit signals",
-  },
-  {
     id: "search_sources",
-    label: "Searching relevant sources",
-    jobsHint: "Job boards and ATS listings",
+    label: "Searching sources",
+    jobsHint: "Job boards, careers pages, and LinkedIn",
     companiesHint: "Company and hiring sources",
   },
   {
-    id: "review_matches",
-    label: "Reviewing potential matches",
-    jobsHint: "Reading roles against your profile",
-    companiesHint: "Qualifying companies for outreach",
+    id: "filter",
+    label: "Filtering results",
+    jobsHint: "Dropping duplicates and off-target roles",
+    companiesHint: "Dropping weak and duplicate companies",
   },
   {
-    id: "remove_weak",
-    label: "Removing weak and duplicate results",
-    jobsHint: "Dropping poor fits and duplicates",
-    companiesHint: "Filtering weak and duplicate companies",
-  },
-  {
-    id: "rank",
-    label: "Ranking the best opportunities",
-    jobsHint: "Scoring and ordering strong fits",
-    companiesHint: "Scoring research and outreach fit",
+    id: "score",
+    label: "Scoring matches",
+    jobsHint: "Reading each role against your profile",
+    companiesHint: "Researching fit for outreach",
   },
   {
     id: "prepare",
-    label: "Preparing your recommendations",
-    jobsHint: "Building today’s shortlist",
-    companiesHint: "Building today’s company list",
+    label: "Preparing your shortlist",
+    jobsHint: "Ranking the strongest fits",
+    companiesHint: "Ranking the strongest companies",
   },
 ] as const;
 
@@ -53,40 +37,35 @@ export type SearchLiveStats = {
   removed?: number;
   promising?: number;
   regionOrCategory?: string;
+  /** Openings collected so far across all sources. */
+  found?: number;
+  sourcesDone?: number;
+  sourcesTotal?: number;
+  /** Roles queued for AI scoring; `reviewed` counts the scored ones. */
+  toScore?: number;
+};
+
+/** One line in the live activity feed ("Stripe · Greenhouse · 12 found"). */
+export type SearchActivity = {
+  kind: "source" | "filter" | "score";
+  label: string;
+  meta?: string;
+  value?: string;
+  tone?: "strong" | "worth" | "weak" | "neutral" | "error";
 };
 
 /** Map jobs pipeline step → UX stage. */
-export function uxStageFromJobStep(
-  stepId: string,
-  percent: number,
-): SearchUxStageId {
-  if (stepId === "collect") {
-    if (percent < 4) return "understand_profile";
-    if (percent < 10) return "build_strategy";
-    return "search_sources";
-  }
-  if (stepId === "filter") return "remove_weak";
-  if (stepId === "evaluate") {
-    return percent < 78 ? "review_matches" : "rank";
-  }
+export function uxStageFromJobStep(stepId: string): SearchUxStageId {
+  if (stepId === "filter") return "filter";
+  if (stepId === "evaluate") return "score";
   if (stepId === "publish") return "prepare";
   return "search_sources";
 }
 
 /** Map company worker step → UX stage. */
-export function uxStageFromCompanyStep(
-  stepId: string,
-  percent: number,
-): SearchUxStageId {
-  if (stepId === "discover") {
-    if (percent < 8) return "understand_profile";
-    if (percent < 16) return "build_strategy";
-    return "search_sources";
-  }
-  if (stepId === "triage") {
-    return percent < 45 ? "review_matches" : "remove_weak";
-  }
-  if (stepId === "research") return "rank";
+export function uxStageFromCompanyStep(stepId: string): SearchUxStageId {
+  if (stepId === "triage") return "filter";
+  if (stepId === "research") return "score";
   if (stepId === "rank" || stepId === "publish") return "prepare";
   return "search_sources";
 }

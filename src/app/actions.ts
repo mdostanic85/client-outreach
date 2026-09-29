@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ensureDb } from "@/db/ensure";
 import { getDb } from "@/db/client";
 import { settings } from "@/db/schema";
@@ -32,6 +32,8 @@ import { researchCompany } from "@/modules/research/run";
 import { runWorkerPipeline } from "@/modules/tracking/worker";
 import { nowIso } from "@/lib/ids";
 import type { LeadState } from "@/modules/leads/states";
+import { getUserSettings } from "@/modules/settings/user-settings";
+import { owned, requireOwner } from "@/modules/auth/current-user";
 
 export type ActionResult<T = void> =
   | { ok: true; data: T }
@@ -45,6 +47,7 @@ export async function runVerticalSliceAction(): Promise<
   ActionResult<{ leadId: string; companyId: string }>
 > {
   try {
+    await requireOwner();
     await ensureDb();
     const persisted = await discoverAndPersistOne({ preferDomain: true });
     if (!persisted) {
@@ -70,6 +73,7 @@ export async function submitManualCompanyAction(input: {
   researchNow?: boolean;
 }): Promise<ActionResult<{ leadId: string; companyId: string }>> {
   try {
+    await requireOwner();
     await ensureDb();
     const persisted = await submitManualCompany(input);
     if (input.researchNow !== false) {
@@ -90,6 +94,7 @@ export async function runDailyPipelineAction(): Promise<
   ActionResult<{ runId: string }>
 > {
   try {
+    await requireOwner();
     await ensureDb();
     const result = await runWorkerPipeline();
     revalidatePath("/");
@@ -105,6 +110,7 @@ export async function researchLeadAction(
   leadId: string,
 ): Promise<ActionResult> {
   try {
+    await requireOwner();
     await ensureDb();
     await researchCompany(companyId);
     revalidatePath(`/leads/${leadId}`);
@@ -117,6 +123,7 @@ export async function researchLeadAction(
 
 export async function acceptLeadAction(leadId: string): Promise<ActionResult> {
   try {
+    await requireOwner();
     await ensureDb();
     await acceptLead(leadId);
     revalidatePath(`/leads/${leadId}`);
@@ -132,6 +139,7 @@ export async function rejectLeadAction(
   reason: string,
 ): Promise<ActionResult> {
   try {
+    await requireOwner();
     await ensureDb();
     await rejectLead(leadId, reason);
     revalidatePath(`/leads/${leadId}`);
@@ -144,6 +152,7 @@ export async function rejectLeadAction(
 
 export async function saveForLaterAction(leadId: string): Promise<ActionResult> {
   try {
+    await requireOwner();
     await ensureDb();
     await saveLeadForLater(leadId);
     revalidatePath(`/leads/${leadId}`);
@@ -156,6 +165,7 @@ export async function saveForLaterAction(leadId: string): Promise<ActionResult> 
 
 export async function markRepliedAction(leadId: string): Promise<ActionResult> {
   try {
+    await requireOwner();
     await ensureDb();
     markLeadReplied(leadId);
     revalidatePath(`/leads/${leadId}`);
@@ -171,6 +181,7 @@ export async function setFollowUpAction(
   followUpAt: string,
 ): Promise<ActionResult> {
   try {
+    await requireOwner();
     await ensureDb();
     await setFollowUpDate(leadId, followUpAt);
     revalidatePath(`/leads/${leadId}`);
@@ -185,6 +196,7 @@ export async function suppressLeadAction(
   reason: string,
 ): Promise<ActionResult> {
   try {
+    await requireOwner();
     await ensureDb();
     await suppressLead(leadId, reason);
     revalidatePath(`/leads/${leadId}`);
@@ -200,6 +212,7 @@ export async function setLeadStateAction(
   state: LeadState,
 ): Promise<ActionResult> {
   try {
+    await requireOwner();
     await ensureDb();
     await setLeadState(leadId, state);
     revalidatePath(`/leads/${leadId}`);
@@ -219,6 +232,7 @@ export async function addContactAction(input: {
   confidence: ContactConfidence;
 }): Promise<ActionResult<{ contactId: string }>> {
   try {
+    await requireOwner();
     await ensureDb();
     const contactId = await addManualContact(input);
     revalidatePath(`/leads/${input.leadId}`);
@@ -233,6 +247,7 @@ export async function confirmContactAction(
   leadId: string,
 ): Promise<ActionResult> {
   try {
+    await requireOwner();
     await ensureDb();
     await confirmContact(contactId, leadId);
     revalidatePath(`/leads/${leadId}`);
@@ -252,6 +267,7 @@ export async function harvestContactsAction(
   }>
 > {
   try {
+    await requireOwner();
     await ensureDb();
     const { harvestContactsForLead } = await import(
       "@/modules/contacts/harvest"
@@ -298,6 +314,7 @@ export async function suggestPatternsAction(input: {
   role?: string;
 }): Promise<ActionResult<{ suggestions: Array<{ email: string; pattern: string }> }>> {
   try {
+    await requireOwner();
     await ensureDb();
     const { suggestEmailPatterns } = await import(
       "@/modules/contacts/patterns"
@@ -316,6 +333,7 @@ export async function checkMxAction(
   domain: string,
 ): Promise<ActionResult<{ ok: boolean; hosts: string[]; error?: string }>> {
   try {
+    await requireOwner();
     const { checkDomainMx } = await import("@/modules/contacts/mx");
     const result = await checkDomainMx(domain);
     return { ok: true, data: result };
@@ -338,6 +356,7 @@ export async function generateDraftAction(
   }>
 > {
   try {
+    await requireOwner();
     await ensureDb();
     const result = await generateDraft(leadId, contactId, options);
     revalidatePath(`/leads/${leadId}`);
@@ -366,6 +385,7 @@ export async function inspectDraftQualityAction(
   ActionResult<{ ok: boolean; issues: Array<{ code: string; message: string }> }>
 > {
   try {
+    await requireOwner();
     await ensureDb();
     const quality = await inspectDraftQuality(draftId);
     revalidatePath(`/leads/${leadId}`);
@@ -391,6 +411,7 @@ export async function saveDraftAction(
   subject: string,
 ): Promise<ActionResult> {
   try {
+    await requireOwner();
     await ensureDb();
     await updateDraft(draftId, bodyFinal, subject);
     revalidatePath(`/leads/${leadId}`);
@@ -405,6 +426,7 @@ export async function markSentAction(
   draftId: string,
 ): Promise<ActionResult> {
   try {
+    await requireOwner();
     await ensureDb();
     await markDraftSent(draftId);
     revalidatePath(`/leads/${leadId}`);
@@ -420,6 +442,7 @@ export async function approveDraftAction(
   draftId: string,
 ): Promise<ActionResult<{ approvalId: string }>> {
   try {
+    await requireOwner();
     await ensureDb();
     const { approveDraft } = await import("@/modules/mail/approvals");
     const approvalId = await approveDraft(draftId);
@@ -435,6 +458,7 @@ export async function processSendQueueAction(): Promise<
   ActionResult<{ sent: number; processed: number; skipped: Array<{ id: string; reason: string }> }>
 > {
   try {
+    await requireOwner();
     await ensureDb();
     const { processSendQueue } = await import("@/modules/mail/send");
     const result = await processSendQueue();
@@ -450,6 +474,7 @@ export async function syncMailboxAction(): Promise<
   ActionResult<{ fetched: number; stored: number }>
 > {
   try {
+    await requireOwner();
     await ensureDb();
     const { syncInbox } = await import("@/modules/mail/sync");
     const result = await syncInbox();
@@ -466,11 +491,12 @@ export async function syncMailboxAction(): Promise<
 
 export async function resumeMailboxAction(): Promise<ActionResult> {
   try {
+    await requireOwner();
     await ensureDb();
     const { resumeMailbox } = await import("@/modules/mail/approvals");
     resumeMailbox();
     revalidatePath("/queue");
-    revalidatePath("/settings");
+    revalidatePath("/settings/voice");
     return { ok: true, data: undefined };
   } catch (err) {
     return fail(err);
@@ -481,6 +507,7 @@ export async function saveSourceReportAction(): Promise<
   ActionResult<{ reportId: string }>
 > {
   try {
+    await requireOwner();
     await ensureDb();
     const { saveSourcePerformanceReport } = await import(
       "@/modules/learning/proposals"
@@ -498,6 +525,7 @@ export async function proposeStyleAction(
   force = false,
 ): Promise<ActionResult<{ proposalId: string }>> {
   try {
+    await requireOwner();
     await ensureDb();
     const { proposeStyleUpdate } = await import("@/modules/learning/proposals");
     const proposalId = await proposeStyleUpdate(force);
@@ -512,6 +540,7 @@ export async function proposeScoringAction(
   force = false,
 ): Promise<ActionResult<{ proposalId: string }>> {
   try {
+    await requireOwner();
     await ensureDb();
     const { proposeScoringWeights } = await import(
       "@/modules/learning/proposals"
@@ -524,10 +553,27 @@ export async function proposeScoringAction(
   }
 }
 
+export async function proposeJobScoringAction(
+  force = false,
+): Promise<ActionResult<{ proposalId: string }>> {
+  try {
+    await ensureDb();
+    const { proposeJobScoringWeights } = await import(
+      "@/modules/learning/proposals"
+    );
+    const proposalId = await proposeJobScoringWeights(force);
+    revalidatePath("/learning");
+    return { ok: true, data: { proposalId } };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
 export async function generateMarketReportAction(
   force = false,
 ): Promise<ActionResult<{ reportId: string }>> {
   try {
+    await requireOwner();
     await ensureDb();
     const { generateMarketReport } = await import(
       "@/modules/learning/proposals"
@@ -544,6 +590,7 @@ export async function generatePositioningAction(
   force = false,
 ): Promise<ActionResult<{ reportId: string }>> {
   try {
+    await requireOwner();
     await ensureDb();
     const { generatePositioningRecs } = await import(
       "@/modules/learning/proposals"
@@ -564,7 +611,7 @@ export async function applyLearningProposalAction(
     const { applyProposal } = await import("@/modules/learning/proposals");
     await applyProposal(proposalId);
     revalidatePath("/learning");
-    revalidatePath("/settings");
+    revalidatePath("/settings/voice");
     revalidatePath("/search-criteria");
     revalidatePath("/");
     return { ok: true, data: undefined };
@@ -599,7 +646,7 @@ export async function updateSettingsAction(input: {
   try {
     await ensureDb();
     const db = getDb();
-    const row = (await db.select().from(settings).limit(1))[0];
+    const row = (await getUserSettings());
     if (!row) throw new Error("Settings not found");
 
     await db.update(settings)
@@ -613,9 +660,9 @@ export async function updateSettingsAction(input: {
         aiBudgetUsd: input.aiBudgetUsd ?? row.aiBudgetUsd,
         updatedAt: nowIso(),
       })
-      .where(eq(settings.id, row.id));
+      .where(and(await owned(settings), eq(settings.id, row.id)));
 
-    revalidatePath("/settings");
+    revalidatePath("/settings/voice");
     revalidatePath("/admin");
     revalidatePath("/queue");
     return { ok: true, data: undefined };
@@ -630,6 +677,7 @@ export async function exportPersonalDataAction(input?: {
   companyId?: string;
 }): Promise<ActionResult<{ path: string; bytes: number }>> {
   try {
+    await requireOwner();
     await ensureDb();
     const { writePersonalDataExport } = await import(
       "@/modules/privacy/export"
@@ -649,6 +697,7 @@ export async function deleteContactAction(
   force = false,
 ): Promise<ActionResult<{ deleted: boolean; reason?: string }>> {
   try {
+    await requireOwner();
     await ensureDb();
     const { deleteContactData } = await import("@/modules/privacy/delete");
     const result = await deleteContactData(contactId, { force });
@@ -671,6 +720,7 @@ export async function runRetentionPruneAction(
   }>
 > {
   try {
+    await requireOwner();
     await ensureDb();
     const { runRetentionPrune } = await import("@/modules/privacy/retention");
     const result = await runRetentionPrune({ dryRun });
@@ -686,6 +736,7 @@ export async function saveSecretAction(
   value: string,
 ): Promise<ActionResult<{ source: "keychain" | "env" }>> {
   try {
+    await requireOwner();
     const { setSecret } = await import("@/lib/security/secrets");
     const source = setSecret(name, value);
     revalidatePath("/admin");
@@ -701,6 +752,7 @@ export async function clearSecretAction(
   name: string,
 ): Promise<ActionResult> {
   try {
+    await requireOwner();
     const { clearSecret } = await import("@/lib/security/secrets");
     clearSecret(name);
     revalidatePath("/admin");
@@ -717,6 +769,7 @@ export async function saveGoogleOauthClientAction(
   clientSecret: string,
 ): Promise<ActionResult> {
   try {
+    await requireOwner();
     const { setSecret } = await import("@/lib/security/secrets");
     setSecret("GOOGLE_OAUTH_CLIENT_ID", clientId);
     setSecret("GOOGLE_OAUTH_CLIENT_SECRET", clientSecret);
@@ -737,10 +790,11 @@ export async function saveOtherMailboxAction(input: {
   imapPort?: string;
 }): Promise<ActionResult> {
   try {
+    await requireOwner();
     const { savePasswordMailboxConnection } = await import(
       "@/modules/mail/oauth-google"
     );
-    savePasswordMailboxConnection({
+    await savePasswordMailboxConnection({
       ...input,
       provider: "custom",
     });
@@ -754,6 +808,7 @@ export async function saveOtherMailboxAction(input: {
 
 export async function disconnectMailboxAction(): Promise<ActionResult> {
   try {
+    await requireOwner();
     const { disconnectMailbox } = await import("@/modules/mail/oauth-google");
     disconnectMailbox();
     revalidatePath("/admin");
@@ -774,9 +829,10 @@ export async function updateOpsChecklistAction(input: {
   notes?: string;
 }): Promise<ActionResult> {
   try {
+    await requireOwner();
     await ensureDb();
     const db = getDb();
-    const row = (await db.select().from(settings).limit(1))[0];
+    const row = (await getUserSettings());
     if (!row) throw new Error("Settings not found");
     const { parseOpsChecklist } = await import("@/modules/ops/readiness");
     const current = parseOpsChecklist(row.opsChecklistJson);
@@ -786,7 +842,7 @@ export async function updateOpsChecklistAction(input: {
         opsChecklistJson: JSON.stringify(next),
         updatedAt: nowIso(),
       })
-      .where(eq(settings.id, row.id));
+      .where(and(await owned(settings), eq(settings.id, row.id)));
     revalidatePath("/admin");
     return { ok: true, data: undefined };
   } catch (err) {
@@ -848,7 +904,9 @@ export async function ingestTextSourceAction(input: {
 
 export async function ingestPortfolioUrlAction(
   url: string,
-): Promise<ActionResult<{ id: string; reused: boolean; textLength: number }>> {
+): Promise<
+  ActionResult<{ id: string; reused: boolean; textLength: number; pages: number }>
+> {
   try {
     await ensureDb();
     const { ingestPortfolioUrl } = await import("@/modules/profile/ingest");
@@ -1132,7 +1190,7 @@ export async function approveProfileAction(
 
     revalidatePath("/profile");
     revalidatePath("/search-criteria");
-    revalidatePath("/settings");
+    revalidatePath("/settings/voice");
     return {
       ok: true,
       data: { ...result, searchProfileDraftId },
@@ -1410,7 +1468,7 @@ export async function reactivateSearchStrategyAction(
     const row = (await getDb()
       .select()
       .from(jobSearchProfiles)
-      .where(eq(jobSearchProfiles.version, version))
+      .where(and(await owned(jobSearchProfiles), eq(jobSearchProfiles.version, version)))
       .orderBy(desc(jobSearchProfiles.createdAt)).limit(1))[0];
     if (!row) throw new Error(`No search profile for version ${version}`);
     const result = await reactivateSearchProfile(row.id);
@@ -1500,6 +1558,7 @@ export async function sendApplicationPackageAction(input: {
   email: import("@/modules/applications/application-email").ApplicationEmailDraft;
 }): Promise<ActionResult<{ jobId: string }>> {
   try {
+    await requireOwner();
     await ensureDb();
     const { sendApplicationPackage } = await import(
       "@/modules/applications/send"

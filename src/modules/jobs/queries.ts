@@ -1,6 +1,7 @@
-import { and, desc, eq, gte, inArray, isNotNull } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import {
+  collectorRuns,
   companies,
   jobMatches,
   jobs,
@@ -20,9 +21,12 @@ import {
   resolveRemoteFit,
   type RemoteFit,
 } from "@/modules/matching/remote-fit";
+import type { MatchDimensions } from "@/modules/matching/score";
 import { WORTH_A_LOOK_LIMIT } from "@/modules/matching/tiers";
 import type { ResearchAndScore } from "@/modules/research/schemas";
 import { getApprovedSearchProfile } from "@/modules/search-profile/queries";
+import { owned } from "@/modules/auth/current-user";
+import { getUserSettings } from "@/modules/settings/user-settings";
 
 export type JobTriageState =
   | "discovered"
@@ -41,6 +45,7 @@ export type DailyJobRow = {
   remoteFit: RemoteFit;
   mainRisk: string | null;
   missingRequirements: string[];
+  matchDimensions: MatchDimensions | null;
   remoteRequired: boolean;
   companySnapshot: CompanySnapshot;
 };
@@ -75,7 +80,7 @@ async function loadCompanySnapshotContext(companyIds: string[]) {
       })
       .from(jobs)
       .where(
-        and(
+        and(await owned(jobs),
           inArray(jobs.companyId, unique),
           eq(jobs.status, "active"),
           gte(jobs.createdAt, lookbackSince),
@@ -187,7 +192,7 @@ async function hydrateJobRows(
       (await db
         .select()
         .from(jobMatches)
-        .where(eq(jobMatches.jobId, job.id)))
+        .where(and(await owned(jobMatches), eq(jobMatches.jobId, job.id))))
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null;
 
     let matchingReasons: string[] = [];
@@ -220,6 +225,7 @@ async function hydrateJobRows(
       remoteFit,
       mainRisk: extras.mainRisk,
       missingRequirements: extras.missingRequirements,
+      matchDimensions: extras.dimensions,
       remoteRequired,
       companySnapshot: buildCompanySnapshot({
         job,
@@ -237,7 +243,7 @@ async function hydrateJobRows(
 
 export async function listDailyJobs(limit?: number): Promise<DailyJobRow[]> {
   const db = getDb();
-  const setting = (await db.select().from(settings).limit(1))[0];
+  const setting = (await getUserSettings());
   // Strong cap + secondary “Worth a look” band.
   const cap = limit ?? (setting?.dailyJobCount ?? 20) + WORTH_A_LOOK_LIMIT;
 
@@ -245,7 +251,7 @@ export async function listDailyJobs(limit?: number): Promise<DailyJobRow[]> {
     .select()
     .from(jobs)
     .where(
-      and(
+      and(await owned(jobs),
         eq(jobs.status, "active"),
         isNotNull(jobs.publishedAt),
         inArray(jobs.triageState, ["published", "saved", "discovered"]),
@@ -258,6 +264,39 @@ export async function listDailyJobs(limit?: number): Promise<DailyJobRow[]> {
   return hydrateJobRows(published);
 }
 
+export type JobSearchStatus = {
+  hasSearchProfile: boolean;
+  /** Last finished collector run of any source — a proxy for the last Find jobs run. */
+  lastRunAt: string | null;
+  /** Published today-list roles not yet reviewed (saved/interested/rejected move out). */
+  toReview: number;
+};
+
+/** Topbar status: two cheap aggregates, no row hydration. */
+export async function getJobSearchStatus(hasSearchProfile: boolean): Promise<JobSearchStatus> {
+  const db = getDb();
+  const [myRuns, myJobs] = await Promise.all([owned(collectorRuns), owned(jobs)]);
+  const [lastRun, review] = await Promise.all([
+    db
+      .select({ at: sql<string | null>`max(${collectorRuns.finishedAt})` })
+      .from(collectorRuns)
+      .where(myRuns),
+    db.select({ count: sql<number>`count(*)::int` }).from(jobs).where(
+      and(
+        myJobs,
+        eq(jobs.status, "active"),
+        isNotNull(jobs.publishedAt),
+        eq(jobs.triageState, "published"),
+      ),
+    ),
+  ]);
+  return {
+    hasSearchProfile,
+    lastRunAt: lastRun[0]?.at ?? null,
+    toReview: Number(review[0]?.count ?? 0),
+  };
+}
+
 /** Roles the user marked Interested — leaves Today until applied / rejected / moved back. */
 export async function listInterestedJobs(limit = 80): Promise<DailyJobRow[]> {
   const db = getDb();
@@ -265,7 +304,7 @@ export async function listInterestedJobs(limit = 80): Promise<DailyJobRow[]> {
     .select()
     .from(jobs)
     .where(
-      and(eq(jobs.status, "active"), eq(jobs.triageState, "interested")),
+      and(await owned(jobs), eq(jobs.status, "active"), eq(jobs.triageState, "interested")),
     )
     .orderBy(desc(jobs.updatedAt)))
     .slice(0, limit);
@@ -278,13 +317,13 @@ export async function countInterestedJobs(): Promise<number> {
     .select()
     .from(jobs)
     .where(
-      and(eq(jobs.status, "active"), eq(jobs.triageState, "interested")),
+      and(await owned(jobs), eq(jobs.status, "active"), eq(jobs.triageState, "interested")),
     )).length;
 }
 
 export async function getJobDetail(jobId: string): Promise<DailyJobRow | null> {
   const hydrated = await hydrateJobRows(
-    (await getDb().select().from(jobs).where(eq(jobs.id, jobId)).limit(1)),
+    (await getDb().select().from(jobs).where(and(await owned(jobs), eq(jobs.id, jobId))).limit(1)),
   );
   return hydrated[0] ?? null;
 }
@@ -295,7 +334,7 @@ export async function setJobTriageState(
   rejectReason?: string,
 ) {
   const db = getDb();
-  const row = (await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1))[0];
+  const row = (await db.select().from(jobs).where(and(await owned(jobs), eq(jobs.id, jobId))).limit(1))[0];
   if (!row) throw new Error("Job not found");
   const now = nowIso();
   await db.update(jobs)
@@ -305,7 +344,7 @@ export async function setJobTriageState(
       updatedAt: now,
       ...(state === "applied" ? { appliedAt: row.appliedAt ?? now } : {}),
     })
-    .where(eq(jobs.id, jobId));
+    .where(and(await owned(jobs), eq(jobs.id, jobId)));
 }
 
 export async function interestedJob(jobId: string) {
@@ -331,33 +370,33 @@ export async function markJobApplied(jobId: string) {
 
 export async function setTodayMode(mode: "jobs" | "clients") {
   const db = getDb();
-  const row = (await db.select().from(settings).limit(1))[0];
+  const row = (await getUserSettings());
   if (!row) throw new Error("Settings missing");
   await db.update(settings)
     .set({ todayMode: mode, updatedAt: nowIso() })
-    .where(eq(settings.id, row.id));
+    .where(and(await owned(settings), eq(settings.id, row.id)));
 }
 
 export async function getTodayMode(): Promise<"jobs" | "clients"> {
-  const row = (await getDb().select().from(settings).limit(1))[0];
+  const row = (await getUserSettings());
   return row?.todayMode === "clients" ? "clients" : "jobs";
 }
 
 export async function getAdaptiveJobRanking(): Promise<boolean> {
-  const row = (await getDb().select().from(settings).limit(1))[0];
+  const row = (await getUserSettings());
   return row?.adaptiveJobRanking !== 0;
 }
 
 export async function setAdaptiveJobRanking(enabled: boolean) {
   const db = getDb();
-  const row = (await db.select().from(settings).limit(1))[0];
+  const row = (await getUserSettings());
   if (!row) throw new Error("Settings missing");
   await db.update(settings)
     .set({
       adaptiveJobRanking: enabled ? 1 : 0,
       updatedAt: nowIso(),
     })
-    .where(eq(settings.id, row.id));
+    .where(and(await owned(settings), eq(settings.id, row.id)));
 }
 
 export {

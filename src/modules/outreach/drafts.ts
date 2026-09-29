@@ -9,7 +9,6 @@ import {
   drafts,
   leads,
   researchBriefs,
-  settings,
 } from "@/db/schema";
 import { anthropicProvider } from "@/lib/ai/anthropic";
 import { buildMessages } from "@/lib/ai/google";
@@ -28,6 +27,7 @@ import type { ContactConfidence } from "@/modules/leads/actions";
 import type { EvidenceItem, ResearchAndScore } from "@/modules/research/schemas";
 import { critiqueDraft } from "./critique";
 import { checkDraftQuality, type QualityIssue } from "./quality";
+import { getUserSettings } from "@/modules/settings/user-settings";
 
 const DraftOutputSchema = z.object({
   subject: z.string().min(1),
@@ -126,7 +126,7 @@ export async function generateDraft(
 
   const research = JSON.parse(brief.resultJson) as ResearchAndScore;
   const evidence = JSON.parse(brief.evidenceJson) as EvidenceItem[];
-  const setting = (await db.select().from(settings).limit(1))[0];
+  const setting = (await getUserSettings());
 
   const previous =
     kind !== "initial"

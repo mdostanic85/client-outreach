@@ -12,6 +12,7 @@ import {
   getValidationReadiness,
   parseOpsChecklist,
 } from "@/modules/ops/readiness";
+import { requireOwnerPage } from "@/modules/auth/page-guards";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ export default async function AdminPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireOwnerPage();
   await ensureDb();
   const params = (await searchParams) ?? {};
   const mailboxParam =

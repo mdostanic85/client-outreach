@@ -8,9 +8,9 @@ import {
   Bookmark,
   Inbox,
   LineChart,
-  PenLine,
   Search,
   Send,
+  Settings,
   Shield,
   Sparkles,
   UserRound,
@@ -18,7 +18,7 @@ import {
 import { MakerCredit } from "@/components/maker-credit";
 import { cn } from "@/lib/utils";
 
-type NavItem = {
+export type NavItem = {
   href: string;
   label: string;
   icon: ComponentType<{ className?: string }>;
@@ -82,55 +82,54 @@ function NavLink({
   );
 }
 
-function NavGroup({
-  label,
-  items,
-  activeHref,
-  onNavigate,
-}: {
-  label: string;
-  items: NavItem[];
-  activeHref: string;
-  onNavigate?: (href: string) => void;
-}) {
-  return (
-    <div className="space-y-1">
-      <p className="text-muted-foreground/80 px-3 pb-1.5 text-[11px] font-semibold tracking-[0.1em] uppercase">
-        {label}
-      </p>
-      {items.map((item) => (
-        <NavLink
-          key={item.href}
-          item={item}
-          active={isActive(activeHref, item.href)}
-          onNavigate={() => onNavigate?.(item.href)}
-        />
-      ))}
-    </div>
-  );
-}
-
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 /**
- * Sidebar — Linear / Twenty pattern (Mobbin):
- * brand, clear groups, left accent on active, badges for counts.
+ * Page context for the topbar breadcrumb. Covers routes reached from inside
+ * Profile or Settings too, not only the sidebar links.
+ */
+const PAGE_CONTEXT: { group: string; item: NavItem }[] = [
+  { group: "Daily", item: { href: "/", label: "Today", icon: Inbox } },
+  { group: "Daily", item: { href: "/interested", label: "Saved", icon: Bookmark } },
+  { group: "Daily", item: { href: "/queue", label: "Queue", icon: Send } },
+  { group: "Setup", item: { href: "/profile", label: "Profile", icon: UserRound } },
+  { group: "Setup", item: { href: "/search-criteria", label: "Search", icon: Search } },
+  { group: "Setup", item: { href: "/learning", label: "Improve", icon: Sparkles } },
+  { group: "Setup", item: { href: "/settings", label: "Settings", icon: Settings } },
+  { group: "System", item: { href: "/analytics", label: "Analytics", icon: LineChart } },
+  { group: "System", item: { href: "/admin", label: "Admin", icon: Shield } },
+];
+
+/** Nav group + item for a pathname (deepest match wins; "/" only matches itself). */
+export function navContextFor(pathname: string): { group: string; item: NavItem } | null {
+  let best: { group: string; item: NavItem } | null = null;
+  for (const entry of PAGE_CONTEXT) {
+    if (!isActive(pathname, entry.item.href)) continue;
+    if (!best || entry.item.href.length > best.item.href.length) best = entry;
+  }
+  return best;
+}
+
+/**
+ * Four destinations for everyone: Today, Saved, Profile, Settings.
+ * The owner also gets Queue (client outreach). Everything else lives inside
+ * Profile or Settings so the sidebar never grows.
  */
 export function AppSidebarNav({
-  leadsCount = 0,
   queueCount = 0,
   interestedCount = 0,
   profileFitCount = 0,
+  isOwner = false,
   onNavigate,
   className,
 }: {
-  leadsCount?: number;
   queueCount?: number;
   interestedCount?: number;
   profileFitCount?: number;
+  isOwner?: boolean;
   onNavigate?: () => void;
   className?: string;
 }) {
@@ -148,36 +147,15 @@ export function AppSidebarNav({
     onNavigate?.();
   };
 
-  const daily: NavItem[] = [
-    { href: "/", label: "Today", icon: Inbox, count: leadsCount },
-    {
-      href: "/interested",
-      label: "Interested",
-      icon: Bookmark,
-      count: interestedCount,
-    },
-    { href: "/queue", label: "Queue", icon: Send, count: queueCount },
+  const main: NavItem[] = [
+    { href: "/", label: "Today", icon: Inbox },
+    { href: "/interested", label: "Saved", icon: Bookmark, count: interestedCount },
+    ...(isOwner
+      ? [{ href: "/queue", label: "Queue", icon: Send, count: queueCount }]
+      : []),
+    { href: "/profile", label: "Profile", icon: UserRound, count: profileFitCount },
   ];
-  const setup: NavItem[] = [
-    {
-      href: "/profile",
-      label: "Profile",
-      icon: UserRound,
-      count: profileFitCount,
-    },
-    { href: "/search-criteria", label: "Search", icon: Search },
-    { href: "/learning", label: "Improve", icon: Sparkles },
-    {
-      href: "/settings",
-      label: "Voice",
-      icon: PenLine,
-      description: "Outreach voice & send volume",
-    },
-  ];
-  const system: NavItem[] = [
-    { href: "/analytics", label: "Analytics", icon: LineChart },
-    { href: "/admin", label: "Admin", icon: Shield },
-  ];
+  const settingsItem: NavItem = { href: "/settings", label: "Settings", icon: Settings };
 
   return (
     <aside
@@ -200,25 +178,20 @@ export function AppSidebarNav({
         </Link>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-7 overflow-y-auto px-2.5 pb-4">
-        <NavGroup
-          label="Daily"
-          items={daily}
-          activeHref={activeHref}
-          onNavigate={handleNavigate}
-        />
-        <NavGroup
-          label="Setup"
-          items={setup}
-          activeHref={activeHref}
-          onNavigate={handleNavigate}
-        />
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2.5 pt-2 pb-4">
+        {main.map((item) => (
+          <NavLink
+            key={item.href}
+            item={item}
+            active={isActive(activeHref, item.href)}
+            onNavigate={() => handleNavigate(item.href)}
+          />
+        ))}
         <div className="mt-auto space-y-4">
-          <NavGroup
-            label="System"
-            items={system}
-            activeHref={activeHref}
-            onNavigate={handleNavigate}
+          <NavLink
+            item={settingsItem}
+            active={isActive(activeHref, settingsItem.href)}
+            onNavigate={() => handleNavigate(settingsItem.href)}
           />
           <MakerCredit className="px-3 pb-2" />
         </div>
@@ -228,23 +201,23 @@ export function AppSidebarNav({
 }
 
 export function AppSidebar({
-  leadsCount = 0,
   queueCount = 0,
   interestedCount = 0,
   profileFitCount = 0,
+  isOwner = false,
 }: {
-  leadsCount?: number;
   queueCount?: number;
   interestedCount?: number;
   profileFitCount?: number;
+  isOwner?: boolean;
 }) {
   return (
     <div className="sticky top-0 hidden h-svh lg:block">
       <AppSidebarNav
-        leadsCount={leadsCount}
         queueCount={queueCount}
         interestedCount={interestedCount}
         profileFitCount={profileFitCount}
+        isOwner={isOwner}
         className="h-svh"
       />
     </div>

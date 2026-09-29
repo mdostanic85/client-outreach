@@ -3,6 +3,7 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { ensureDb } from "@/db/ensure";
 import { approvals, drafts, jobs, leads } from "@/db/schema";
 import { getMarketFitOpenCount } from "@/modules/profile/market-fit";
+import { currentUserId, isOwner, owned } from "@/modules/auth/current-user";
 
 async function countRows(
   query: Promise<{ count: number }[]>,
@@ -14,6 +15,7 @@ async function countRows(
 /** Sidebar/topbar badges — SQL counts only; market-fit is cached separately. */
 export const getNavCounts = cache(async () => {
   const db = await ensureDb();
+  const owner = await isOwner(await currentUserId());
 
   const [leadsCount, pendingDrafts, approvedWaiting, interestedCount, profileFitCount] =
     await Promise.all([
@@ -44,15 +46,17 @@ export const getNavCounts = cache(async () => {
           .select({ count: sql<number>`count(*)::int` })
           .from(jobs)
           .where(
-            and(eq(jobs.status, "active"), eq(jobs.triageState, "interested")),
+            and(await owned(jobs), eq(jobs.status, "active"), eq(jobs.triageState, "interested")),
           ),
       ),
       getMarketFitOpenCount(),
     ]);
 
+  // Outreach queues belong to the owner's mailbox.
   return {
-    leadsCount,
-    queueCount: pendingDrafts + approvedWaiting,
+    isOwner: owner,
+    leadsCount: owner ? leadsCount : 0,
+    queueCount: owner ? pendingDrafts + approvedWaiting : 0,
     interestedCount,
     profileFitCount,
   };

@@ -54,13 +54,24 @@ function containsAny(haystack: string, needles: string[]): string | null {
   return null;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Whole-word match: "Intern" must not exclude "International" or "Internal Audit". */
 function titleExcluded(title: string, excluded: string[]): boolean {
-  const t = title.toLowerCase();
   return excluded.some((ex) => {
-    const e = ex.trim().toLowerCase();
-    return e.length > 0 && t.includes(e);
+    const e = ex.trim();
+    if (!e) return false;
+    return new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegExp(e)}($|[^\\p{L}\\p{N}])`, "iu").test(title);
   });
 }
+
+/**
+ * Hard age cut. Boards keep good roles open for weeks, so "posted within"
+ * only narrows search queries; the filter never drops anything under 30 days.
+ */
+const MIN_MAX_AGE_HOURS = 30 * 24;
 
 function titleTokens(title: string): string[] {
   return title
@@ -138,12 +149,11 @@ export function filterRawJobs(
 
     const ageH = hoursAgo(job.postedAt);
     if (ageH == null) flags.push("unknown_posted_date");
-    if (ageH != null && ageH > params.postedWithinHours * 1.5) {
-      // Allow slightly older than postedWithinHours for free APIs that lag
-      if (ageH > Math.max(params.postedWithinHours, 72) * 2) {
-        dropped.push({ job, reason: "too_old" });
-        continue;
-      }
+    // ATS boards only list open roles; their first-publish date can be months old.
+    const liveBoard = job.source === "greenhouse" || job.source === "lever" || job.source === "ashby";
+    if (!liveBoard && ageH != null && ageH > Math.max(params.postedWithinHours, MIN_MAX_AGE_HOURS)) {
+      dropped.push({ job, reason: "too_old" });
+      continue;
     }
 
     if (containsAny(blob, params.excludedKeywords)) {

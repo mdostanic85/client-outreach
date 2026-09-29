@@ -22,6 +22,7 @@ import {
   pauseMailbox,
 } from "./approvals";
 import { requireMailCredentials } from "./credentials";
+import { describeMailError } from "./errors";
 import { scheduleFollowUps } from "./followups";
 import {
   checkDailyCap,
@@ -195,7 +196,7 @@ export async function sendApprovedDraft(approvalId: string): Promise<SendResult>
     logger.error({ err: err instanceof Error ? err.message : String(err) }, "SMTP send failed");
     return {
       ok: false,
-      reason: `SMTP failed: ${err instanceof Error ? err.message : String(err)}`,
+      reason: describeMailError(err, creds.smtp.host),
     };
   }
 

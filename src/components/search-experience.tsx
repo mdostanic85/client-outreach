@@ -2,10 +2,10 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Check, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Check, Minimize2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { SearchRadar, type RadarActivity } from "@/components/search-radar";
 import {
   SEARCH_UX_STAGES,
   stageIndex,
@@ -22,20 +22,21 @@ export type LiveSearchProgress = {
   stepId: string;
   detail?: string;
   stats?: SearchLiveStats;
+  /** Newest first. */
+  activity?: RadarActivity[];
 };
 
 export type SearchResultSummary = {
   title: string;
   detail?: string;
-  strong?: number;
-  secondary?: number;
-  empty?: boolean;
 };
 
 type SearchExperienceProps = {
   open: boolean;
   mode: SearchExperienceMode;
   onCancel: () => void;
+  /** Keep the run going and collapse it into the topbar. Escape minimizes when set. */
+  onMinimize?: () => void;
   live?: LiveSearchProgress | null;
   resultSummary?: SearchResultSummary | null;
   slow?: boolean;
@@ -47,15 +48,12 @@ type SpotlightFrame = {
   phase: "enter" | "idle" | "exit";
 };
 
-/**
- * Stage Spotlight — immersive sequential search UI.
- * Refs: Klaviyo welcome series, Remote resume upload, HubSpot brand voice,
- * Artlist hold-tight, Profound workflow progress — one large phase at a time.
- */
+/** Immersive search UI: stage rail, live radar, and activity feed. */
 export function SearchExperience({
   open,
   mode,
   onCancel,
+  onMinimize,
   live = null,
   resultSummary = null,
   slow = false,
@@ -76,12 +74,13 @@ export function SearchExperience({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        onCancel();
+        // A stray Escape must not throw away a multi-minute run.
+        (onMinimize ?? onCancel)();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onCancel]);
+  }, [open, onCancel, onMinimize]);
 
   if (!open || typeof document === "undefined") return null;
 
@@ -91,6 +90,7 @@ export function SearchExperience({
       titleId={titleId}
       mode={mode}
       onCancel={onCancel}
+      onMinimize={onMinimize}
       live={live}
       resultSummary={resultSummary}
       slow={slow}
@@ -99,10 +99,40 @@ export function SearchExperience({
   );
 }
 
+const STEP_SHORT: Record<SearchUxStageId, string> = {
+  search_sources: "Sources",
+  filter: "Filter",
+  score: "Score",
+  prepare: "Shortlist",
+};
+
+/** One activity line at a time. A new event shows immediately, then the line keeps moving. */
+function useRotatingActivity(activity: RadarActivity[], paused: boolean) {
+  const [index, setIndex] = useState(0);
+  const newestId = activity[0]?.id ?? null;
+
+  useEffect(() => {
+    setIndex(0);
+  }, [newestId]);
+
+  useEffect(() => {
+    if (paused || activity.length < 2) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const id = window.setInterval(() => {
+      setIndex((current) => (current + 1) % activity.length);
+    }, 2600);
+    return () => window.clearInterval(id);
+  }, [paused, activity.length, newestId]);
+
+  if (activity.length === 0) return null;
+  return activity[index % activity.length] ?? activity[0] ?? null;
+}
+
 function SearchExperienceInner({
   titleId,
   mode,
   onCancel,
+  onMinimize,
   live,
   resultSummary,
   slow,
@@ -110,6 +140,7 @@ function SearchExperienceInner({
   titleId: string;
   mode: SearchExperienceMode;
   onCancel: () => void;
+  onMinimize?: () => void;
   live: LiveSearchProgress | null;
   resultSummary: SearchResultSummary | null;
   slow: boolean;
@@ -123,14 +154,11 @@ function SearchExperienceInner({
   const targetStageId: SearchUxStageId = useMemo(() => {
     if (resolving) return "prepare";
     const stepId = live?.stepId ?? (mode === "jobs" ? "collect" : "discover");
-    const p = percent ?? 0;
-    return mode === "jobs"
-      ? uxStageFromJobStep(stepId, p)
-      : uxStageFromCompanyStep(stepId, p);
-  }, [live?.stepId, mode, percent, resolving]);
+    return mode === "jobs" ? uxStageFromJobStep(stepId) : uxStageFromCompanyStep(stepId);
+  }, [live?.stepId, mode, resolving]);
 
   const targetDetail = resolving
-    ? (resultSummary?.detail ?? "Preparing your recommendations…")
+    ? (resultSummary?.detail ?? "Preparing your shortlist…")
     : (live?.detail ??
       (mode === "jobs"
         ? SEARCH_UX_STAGES.find((s) => s.id === targetStageId)?.jobsHint
@@ -140,17 +168,18 @@ function SearchExperienceInner({
   const frame = useSpotlightChoreography(targetStageId, targetDetail);
   const activeIdx = stageIndex(frame.stageId);
   const currentStage = SEARCH_UX_STAGES[activeIdx] ?? SEARCH_UX_STAGES[0];
-  const stepLabel = String(activeIdx + 1).padStart(2, "0");
-  const stats = live?.stats ?? {};
+  const activity = live?.activity ?? [];
+  const [hoverId, setHoverId] = useState<number | null>(null);
+  const rotating = useRotatingActivity(activity, hoverId != null);
+  const activeId = hoverId ?? rotating?.id ?? null;
+  const shown = activity.find((item) => item.id === activeId) ?? null;
 
-  const headline = resolving
-    ? resultSummary?.empty
-      ? "No strong matches"
-      : (resultSummary?.title ?? "Ready")
-    : currentStage.label;
-
-  const liveDetail =
-    frame.phase === "exit" ? frame.detail : targetDetail;
+  const liveDetail = frame.phase === "exit" ? frame.detail : targetDetail;
+  const statusLine = resolving
+    ? (resultSummary?.title ?? "Ready")
+    : shown
+      ? null
+      : liveDetail;
 
   return (
     <div
@@ -161,24 +190,20 @@ function SearchExperienceInner({
       <div className="stage-spotlight-wash pointer-events-none absolute inset-0" aria-hidden />
       <div className="stage-spotlight-grid pointer-events-none absolute inset-0" aria-hidden />
 
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-busy={!resolving}
-        className="relative z-10 flex min-h-0 flex-1 flex-col"
-      >
-        {/* Chrome */}
-        <header className="flex shrink-0 items-center justify-between gap-4 px-5 pt-5 sm:px-10 sm:pt-7">
-          <div className="min-w-0">
-            <p className="font-display text-[15px] font-semibold tracking-tight text-[var(--card-foreground)] sm:text-[17px]">
-              {mode === "jobs" ? "Finding jobs" : "Finding companies"}
-            </p>
-            <p className="text-muted-foreground mt-0.5 text-[13px]">
-              Step {activeIdx + 1} of {SEARCH_UX_STAGES.length}
-              {slow && !resolving ? " · Taking longer than usual" : null}
-            </p>
-          </div>
+      {!resolving ? (
+        <div className="absolute top-0 right-0 z-20 flex items-center gap-2 p-5 sm:p-8">
+          {onMinimize ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={onMinimize}
+              className="gap-1.5"
+            >
+              <Minimize2 className="size-3.5" strokeWidth={2} />
+              Keep browsing
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"
@@ -189,267 +214,127 @@ function SearchExperienceInner({
             <X className="size-3.5" strokeWidth={2} />
             Cancel
           </Button>
-        </header>
+        </div>
+      ) : null}
 
-        {/* Body: rail + spotlight */}
-        <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-cols-1 gap-6 px-5 py-6 lg:grid-cols-[minmax(240px,280px)_1fr] lg:gap-10 lg:px-10 lg:py-8">
-          {/* Vertical phase rail — Profound / Klaviyo */}
-          <aside className="hidden min-h-0 lg:block" aria-label="Search stages">
-            <ol className="stage-rail relative flex h-full flex-col justify-center gap-0 py-2">
-              {SEARCH_UX_STAGES.map((stage, index) => {
-                const done = index < activeIdx || resolving;
-                const current = index === activeIdx && !resolving;
-                const upcoming = index > activeIdx && !resolving;
-                return (
-                  <li
-                    key={stage.id}
-                    className={cn(
-                      "stage-rail-item relative flex gap-3 py-2.5 pl-1",
-                      current && "stage-rail-item-active",
-                      done && "stage-rail-item-done",
-                    )}
-                  >
-                    <div className="relative flex w-7 shrink-0 flex-col items-center">
-                      <span
-                        className={cn(
-                          "relative z-10 flex size-7 items-center justify-center rounded-full border text-[11px] font-semibold transition-all duration-500",
-                          done &&
-                            "border-primary bg-primary text-primary-foreground",
-                          current &&
-                            "border-primary bg-primary/15 text-primary ring-primary/25 ring-4",
-                          upcoming &&
-                            "border-border bg-card text-muted-foreground/50",
-                        )}
-                      >
-                        {done ? (
-                          <Check className="size-3.5" strokeWidth={2.5} />
-                        ) : (
-                          index + 1
-                        )}
-                      </span>
-                      {index < SEARCH_UX_STAGES.length - 1 ? (
-                        <span
-                          className={cn(
-                            "absolute top-7 bottom-[-14px] w-px",
-                            done ? "bg-primary/50" : "bg-border",
-                          )}
-                          aria-hidden
-                        />
-                      ) : null}
-                    </div>
-                    <div className="min-w-0 pt-0.5">
-                      <p
-                        className={cn(
-                          "text-[13px] leading-snug font-medium transition-colors duration-400",
-                          current && "text-foreground",
-                          done && "text-muted-foreground",
-                          upcoming && "text-muted-foreground/45",
-                        )}
-                      >
-                        {stage.label}
-                      </p>
-                      {current ? (
-                        <p className="text-muted-foreground stage-rail-hint mt-1 text-[12px] leading-relaxed">
-                          {mode === "jobs" ? stage.jobsHint : stage.companiesHint}
-                        </p>
-                      ) : null}
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-          </aside>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-busy={!resolving}
+        className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto"
+      >
+        <h2 id={titleId} className="sr-only">
+          {resolving
+            ? (resultSummary?.title ?? "Search finished")
+            : `${mode === "jobs" ? "Finding jobs" : "Finding companies"}, ${currentStage.label}`}
+        </h2>
 
-          {/* Spotlight — one large phase */}
-          <div className="relative flex min-h-0 flex-col items-center justify-center text-center">
-            <div
-              className={cn(
-                "stage-spotlight-panel w-full max-w-2xl",
-                frame.phase === "enter" && "stage-spotlight-enter",
-                frame.phase === "exit" && "stage-spotlight-exit",
-                frame.phase === "idle" && "stage-spotlight-idle",
-              )}
-            >
-              {/* Square / Etsy — progress arc around the stage mark */}
-              <StageProgressRing percent={percent} resolving={resolving}>
-                <p
-                  className={cn(
-                    "stage-spotlight-num font-display tabular text-[72px] leading-none font-semibold tracking-tighter sm:text-[96px]",
-                    resolving ? "text-primary/50" : "text-primary/35",
-                  )}
-                  aria-hidden
-                >
-                  {resolving ? (
-                    <Check
-                      className="text-primary stage-spotlight-check mx-auto size-16 sm:size-20"
-                      strokeWidth={2}
+        <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-14 px-6 py-20 sm:gap-16 sm:px-10">
+          <ol aria-label="Search stages" className="flex flex-wrap items-center justify-center gap-y-3">
+            {SEARCH_UX_STAGES.map((stage, index) => {
+              const done = index < activeIdx || resolving;
+              const current = index === activeIdx && !resolving;
+              return (
+                <li key={stage.id} className="flex items-center">
+                  {index > 0 ? (
+                    <span
+                      className={cn(
+                        "mx-3 h-px w-6 sm:mx-5 sm:w-12",
+                        done ? "bg-primary/45" : "bg-border",
+                      )}
+                      aria-hidden
                     />
-                  ) : (
-                    stepLabel
-                  )}
-                </p>
-              </StageProgressRing>
-
-              <h2
-                id={titleId}
-                className="font-display mt-2 text-[32px] leading-[1.1] font-semibold tracking-tight text-[var(--card-foreground)] sm:mt-3 sm:text-[48px]"
-              >
-                {headline}
-              </h2>
-
-              <p
-                className="text-muted-foreground mx-auto mt-4 min-h-[3.5rem] max-w-xl text-[17px] leading-relaxed sm:text-[20px]"
-                aria-live="polite"
-              >
-                {liveDetail}
-              </p>
-
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-2.5">
-                {stats.reviewed != null ? (
-                  <Badge
-                    variant="outline"
-                    className="tabular h-9 px-3.5 text-[14px]"
-                  >
-                    {mode === "jobs" ? "Reviewed" : "Candidates"}{" "}
-                    {stats.reviewed}
-                  </Badge>
-                ) : null}
-                {stats.removed != null ? (
-                  <Badge
-                    variant="secondary"
-                    className="tabular h-9 px-3.5 text-[14px]"
-                  >
-                    Removed {stats.removed}
-                  </Badge>
-                ) : null}
-                {stats.promising != null ? (
-                  <Badge
-                    variant="default"
-                    className="tabular h-9 px-3.5 text-[14px]"
-                  >
-                    Promising {stats.promising}
-                  </Badge>
-                ) : null}
-                {stats.regionOrCategory ? (
-                  <Badge
-                    variant="ghost"
-                    className="h-auto max-w-full whitespace-normal px-3.5 py-1.5 text-center text-[14px] leading-snug"
-                  >
-                    {stats.regionOrCategory}
-                  </Badge>
-                ) : null}
-              </div>
-
-              {resolving && resultSummary ? (
-                <div
-                  className={cn(
-                    "search-result-banner mt-10 rounded-2xl border px-6 py-5 text-left",
-                    resultSummary.empty
-                      ? "border-border bg-muted/40"
-                      : "border-primary/30 bg-primary/10",
-                  )}
-                >
-                  <p className="font-display text-[20px] font-semibold tracking-tight text-[var(--card-foreground)]">
-                    {resultSummary.title}
-                  </p>
-                  {resultSummary.detail ? (
-                    <p className="text-muted-foreground mt-2 text-[15px] leading-relaxed">
-                      {resultSummary.detail}
-                    </p>
                   ) : null}
-                  {(resultSummary.strong != null ||
-                    resultSummary.secondary != null) && (
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {resultSummary.strong != null ? (
-                        <Badge variant="default" className="tabular h-8 px-3">
-                          {resultSummary.strong} strong
-                        </Badge>
-                      ) : null}
-                      {resultSummary.secondary != null ? (
-                        <Badge variant="outline" className="tabular h-8 px-3">
-                          {resultSummary.secondary} worth a look
-                        </Badge>
-                      ) : null}
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </div>
+                  <span className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "flex size-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold",
+                        done && "border-primary bg-primary text-primary-foreground",
+                        current && "border-primary text-primary",
+                        !done && !current && "border-border text-muted-foreground/40",
+                      )}
+                    >
+                      {done ? <Check className="size-3.5" strokeWidth={2.5} /> : index + 1}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-[14px] sm:text-[15px]",
+                        current && "text-foreground font-medium",
+                        done && "text-muted-foreground",
+                        !done && !current && "text-muted-foreground/45",
+                      )}
+                    >
+                      {STEP_SHORT[stage.id]}
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
 
-            {/* Mobile stage dots */}
-            <nav
-              className="mt-10 flex items-center justify-center gap-2 lg:hidden"
-              aria-label="Search stages"
-            >
-              {SEARCH_UX_STAGES.map((stage, index) => {
-                const done = index < activeIdx || resolving;
-                const current = index === activeIdx && !resolving;
-                return (
-                  <span
-                    key={stage.id}
-                    title={stage.label}
-                    className={cn(
-                      "size-2 rounded-full transition-all duration-500",
-                      done && "bg-primary",
-                      current && "bg-primary scale-150 ring-primary/40 ring-3",
-                      !done && !current && "bg-muted-foreground/25",
-                    )}
-                  />
-                );
-              })}
-            </nav>
+          <StageProgressRing percent={resolving ? 100 : percent} resolving={resolving}>
+            {resolving ? (
+              <Check
+                className="text-primary stage-spotlight-check size-16 sm:size-20"
+                strokeWidth={2}
+                aria-hidden
+              />
+            ) : (
+              <SearchRadar
+                activity={activity}
+                activeId={activeId}
+                onActiveChange={setHoverId}
+                value={percent != null ? `${percent}%` : "…"}
+              />
+            )}
+          </StageProgressRing>
+
+          <div className="flex h-12 w-full max-w-lg items-center justify-center px-2" aria-live="polite">
+            {shown && !resolving ? (
+              <p
+                key={shown.id}
+                className="search-activity-line flex max-w-full items-baseline justify-center gap-2 text-center text-[16px] sm:text-[17px]"
+              >
+                <span className="truncate text-[var(--card-foreground)]">{shown.label}</span>
+                {shown.meta ? (
+                  <span className="text-muted-foreground truncate">{shown.meta}</span>
+                ) : null}
+                {shown.value ? (
+                  <span className="font-mono tabular text-primary shrink-0 text-[14px]">
+                    {shown.value}
+                  </span>
+                ) : null}
+              </p>
+            ) : (
+              <p className="text-muted-foreground max-w-md text-center text-[16px] leading-relaxed sm:text-[17px]">
+                {slow && !resolving ? "Taking longer than usual" : statusLine}
+              </p>
+            )}
           </div>
         </div>
-
-        {/* Progress foot — Artlist / Employment Hero */}
-        <footer className="border-border/60 shrink-0 border-t px-5 py-5 sm:px-10 sm:py-6">
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 sm:flex-row sm:items-end sm:gap-8">
-            <div className="min-w-0 flex-1">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-muted-foreground text-[13px]">
-                  {resolving
-                    ? "Finishing up"
-                    : "Stay on this page until results are ready"}
-                </p>
-                <p className="font-display tabular text-primary text-[28px] leading-none font-semibold sm:hidden">
-                  {percent != null ? `${percent}%` : "…"}
-                </p>
-              </div>
-              <div
-                className="bg-muted/80 relative h-3 w-full overflow-hidden rounded-full"
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={percent ?? undefined}
-                aria-label="Search progress"
-              >
-                {percent != null ? (
-                  <span
-                    className="search-progress-fill absolute inset-y-0 left-0 rounded-full"
-                    style={{ width: `${percent}%` }}
-                  />
-                ) : (
-                  <span
-                    aria-hidden
-                    className="job-search-bar absolute inset-y-0 w-1/3 rounded-full bg-primary"
-                  />
-                )}
-              </div>
-            </div>
-            <p className="font-display tabular text-primary hidden text-[40px] leading-none font-semibold sm:block">
-              {percent != null ? `${percent}%` : "…"}
-            </p>
-          </div>
-        </footer>
       </div>
     </div>
   );
 }
 
 /**
- * Square / Etsy progress ring — determinate fill from percent,
- * indeterminate rotating arc while waiting (Brilliant / Square).
+ * Determinate fill from percent; indeterminate rotating arc while waiting.
  */
+function useRadarSize() {
+  const [size, setSize] = useState(440);
+  useEffect(() => {
+    const measure = () => {
+      const next = Math.min(540, window.innerWidth * 0.72, window.innerHeight * 0.5);
+      setSize(Math.max(280, Math.round(next)));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+  return size;
+}
+
 function StageProgressRing({
   percent,
   resolving,
@@ -459,7 +344,7 @@ function StageProgressRing({
   resolving: boolean;
   children: ReactNode;
 }) {
-  const size = 200;
+  const size = useRadarSize();
   const stroke = 2.5;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -474,6 +359,11 @@ function StageProgressRing({
     <div
       className="stage-progress-ring relative mx-auto"
       style={{ width: size, height: size }}
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={percent ?? undefined}
+      aria-label="Search progress"
     >
       <svg
         className="pointer-events-none absolute inset-0"
@@ -515,7 +405,7 @@ function StageProgressRing({
           />
         </g>
       </svg>
-      <div className="relative flex h-full items-center justify-center">
+      <div className="absolute inset-[8%] grid place-items-center">
         {children}
       </div>
     </div>
@@ -615,6 +505,3 @@ function useSpotlightChoreography(
 
   return frame;
 }
-
-/** @deprecated Use SearchExperience */
-export { SearchExperience as SearchProgressModal };

@@ -1,4 +1,4 @@
-import { MarketFitPanel } from "@/components/market-fit-panel";
+import { WorthImproving } from "@/components/worth-improving";
 import { MatchingSourcesPanel } from "@/components/matching-sources-panel";
 import { ProfileImportReview } from "@/components/profile-import-review";
 import {
@@ -6,16 +6,12 @@ import {
   type ProfileFixTarget,
 } from "@/components/profile-workspace";
 import { PageHeader, PageShell } from "@/components/page-shell";
-import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { ProfileOverview } from "@/components/profile-overview";
 import { ensureDb } from "@/db/ensure";
 import { diffStructuredProfiles } from "@/modules/profile/diff";
 import { getMarketFitReport } from "@/modules/profile/market-fit";
 import { getMatchingSourcesConfig } from "@/modules/profile/matching-sources";
+import { getLatestCvReview } from "@/modules/profile/cv-review";
 import {
   getApprovedProfile,
   getLatestDraftProfile,
@@ -63,6 +59,7 @@ export default async function ProfilePage({
   }));
   const draft = await getLatestDraftProfile();
   const approved = await getApprovedProfile();
+  const review = await getLatestCvReview();
 
   const importDiff =
     draft != null
@@ -80,41 +77,12 @@ export default async function ProfilePage({
     <PageShell width="setup">
       <PageHeader
         title="Profile"
-        description="See what’s holding you back for more companies, then tighten sources and the approved profile used for matching."
-        meta={
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">Fit {marketFit.score}</Badge>
-            {marketFit.openHighImpactCount > 0 ? (
-              <Badge variant="outline">
-                {marketFit.openHighImpactCount} to fix
-              </Badge>
-            ) : null}
-            {approved ? (
-              <Tooltip>
-                <TooltipTrigger
-                  render={<Badge className="cursor-help" />}
-                >
-                  Approved v{approved.version}
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs text-left leading-relaxed">
-                  Matching and job search use this version until you approve a
-                  newer draft.
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              <Badge variant="outline">Not approved yet</Badge>
-            )}
-            {draft ? (
-              <Badge variant="secondary">Draft v{draft.version}</Badge>
-            ) : null}
-            {!matchingConfig.portfolioProjects ? (
-              <Badge variant="outline">Portfolio projects off for matching</Badge>
-            ) : null}
-          </div>
-        }
+        description="What Optra knows about you. Matching uses the approved version."
       />
 
-      <MarketFitPanel report={marketFit} />
+      <ProfileOverview review={review} hasCv={sources.some((s) => s.type === "cv")} />
+
+      <WorthImproving report={marketFit} />
 
       {showImportReview && draft ? (
         <ProfileImportReview draftId={draft.id} items={importDiff!.items} />
@@ -122,7 +90,7 @@ export default async function ProfilePage({
 
       <ProfileWorkspace
         sources={sources}
-        usePortfolioInMatching={matchingConfig.portfolioProjects}
+        matchingConfig={matchingConfig}
         initialFix={initialFix}
         draft={
           draft
@@ -155,16 +123,7 @@ export default async function ProfilePage({
             : null
         }
       >
-        <MatchingSourcesPanel
-          config={matchingConfig}
-          sources={sources.map((s) => ({
-            id: s.id,
-            type: s.type,
-            label: s.label,
-            enabledForMatching: s.enabledForMatching,
-            lastSyncedAt: s.lastSyncedAt,
-          }))}
-        />
+        <MatchingSourcesPanel config={matchingConfig} />
       </ProfileWorkspace>
     </PageShell>
   );

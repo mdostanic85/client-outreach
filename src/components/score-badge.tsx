@@ -17,11 +17,11 @@ type ScoreKind = "match" | "fit";
 const TOOLTIPS: Record<ScoreKind, { title: string; body: string }> = {
   match: {
     title: "Match score",
-    body: `How closely this role fits your approved profile — skills, seniority, location, and preferences. ${STRONG_MATCH_MIN}+ Strong · ${WORTH_A_LOOK_MIN}–${STRONG_MATCH_MIN - 1} Worth a look.`,
+    body: `Weighted fit across skills, seniority, location, and preferences (computed in app — not a model guess). ${STRONG_MATCH_MIN}%+ Strong · ${WORTH_A_LOOK_MIN}–${STRONG_MATCH_MIN - 1}% Worth a look.`,
   },
   fit: {
     title: "Fit score",
-    body: "How well this company fits outreach — need, timing, and your positioning. Not a job match score.",
+    body: "Percent fit for outreach — need, timing, and your positioning. Not a job match score.",
   },
 };
 
@@ -31,7 +31,12 @@ function matchLabel(
 ): string {
   if (tier === "strong") return score >= 80 ? "Great match" : "Strong match";
   if (tier === "worth_a_look") return "Worth a look";
-  return "Match";
+  return "Low match";
+}
+
+function formatScore(score: number): string {
+  const n = Number.isInteger(score) ? String(score) : score.toFixed(1);
+  return `${n}%`;
 }
 
 function ScoreTooltipBody({
@@ -72,7 +77,7 @@ export function ScoreBadge({
     );
   }
 
-  const display = Number.isInteger(score) ? score : Number(score.toFixed(1));
+  const display = formatScore(score);
   const tip = TOOLTIPS[kind];
   const tipBody = tooltip ?? tip.body;
 
@@ -85,11 +90,11 @@ export function ScoreBadge({
             <button
               type="button"
               className={cn(
-                "inline-flex min-w-[4.25rem] cursor-help flex-col items-center justify-center gap-0.5 rounded-2xl px-3 py-2 font-semibold tabular-nums transition-[transform,box-shadow,background-color] duration-150 ease-[var(--ease-out-soft)] hover:scale-[1.03]",
-                size === "sm" && "min-w-[3.5rem] px-2.5 py-1.5",
+                "inline-flex min-w-[3.75rem] cursor-help flex-col items-end justify-center gap-0.5 rounded-2xl px-3 py-2 transition-[transform,background-color] duration-150 ease-[var(--ease-out-soft)] hover:scale-[1.02] sm:items-center",
+                size === "sm" && "min-w-[3.25rem] px-2.5 py-1.5",
                 strong
-                  ? "bg-primary/15 text-primary ring-1 ring-primary/30"
-                  : "bg-muted text-muted-foreground ring-1 ring-border",
+                  ? "bg-primary/15 text-primary"
+                  : "bg-muted text-muted-foreground",
                 className,
               )}
               aria-label={`Fit score ${display}`}
@@ -99,13 +104,13 @@ export function ScoreBadge({
         >
           <span
             className={cn(
-              "font-display leading-none tracking-tight",
-              size === "sm" ? "text-[20px]" : "text-[24px]",
+              "font-mono tabular leading-none font-semibold tracking-tight",
+              size === "sm" ? "text-[18px]" : "text-[22px]",
             )}
           >
             {display}
           </span>
-          <span className="text-[13px] font-medium tracking-wide uppercase opacity-80">
+          <span className="text-[11px] font-medium tracking-wide uppercase opacity-80">
             Fit
           </span>
         </TooltipTrigger>
@@ -126,31 +131,34 @@ export function ScoreBadge({
           <button
             type="button"
             className={cn(
-              "inline-flex shrink-0 cursor-help items-center justify-center gap-3 rounded-[24px] px-3.5 py-2.5 transition-[transform,box-shadow,background-color] duration-150 ease-[var(--ease-out-soft)] hover:scale-[1.03]",
-              size === "sm" && "gap-2 px-3 py-2",
+              "inline-flex min-w-[4.5rem] cursor-help flex-col items-end justify-center gap-1 rounded-2xl px-3 py-2 text-right transition-[transform,background-color] duration-150 ease-[var(--ease-out-soft)] hover:scale-[1.02] sm:items-center sm:text-center",
+              size === "sm" && "min-w-[4rem] gap-0.5 px-2.5 py-1.5",
               tier === "strong" && "bg-primary/15 text-primary",
               tier === "worth_a_look" &&
-                "bg-amber-500/12 text-amber-900 dark:text-amber-100",
+                "bg-amber-500/12 text-amber-100",
               !tier && "bg-muted text-muted-foreground",
               className,
             )}
-            aria-label={`${label}, score ${display}`}
+            aria-label={`${label}, ${display}`}
             onClick={onClick}
           />
         }
       >
         <span
           className={cn(
-            "font-mono tabular font-semibold leading-none tracking-tight",
-            size === "sm" ? "text-[22px]" : "text-[28px]",
+            "font-mono tabular leading-none font-semibold tracking-tight",
+            size === "sm" ? "text-[20px]" : "text-[24px]",
           )}
         >
           {display}
         </span>
         <span
           className={cn(
-            "font-medium leading-tight tracking-wide whitespace-nowrap",
-            size === "sm" ? "text-[13px]" : "text-[15px]",
+            "max-w-[6.5rem] font-medium leading-tight tracking-wide",
+            size === "sm" ? "text-[11px]" : "text-[12px]",
+            tier === "strong" && "text-primary/85",
+            tier === "worth_a_look" && "text-amber-100/85",
+            !tier && "text-muted-foreground",
           )}
         >
           {label}

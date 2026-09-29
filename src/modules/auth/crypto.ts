@@ -1,4 +1,4 @@
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
 const SCRYPT_KEYLEN = 64;
 
@@ -15,16 +15,4 @@ export function verifyPassword(password: string, stored: string): boolean {
   const prev = Buffer.from(hash, "hex");
   if (prev.length !== next.length) return false;
   return timingSafeEqual(prev, next);
-}
-
-export function newSessionToken(): string {
-  return randomBytes(32).toString("base64url");
-}
-
-export function hashToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
-}
-
-export function newResetToken(): string {
-  return randomBytes(32).toString("base64url");
 }

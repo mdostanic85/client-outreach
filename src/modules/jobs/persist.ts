@@ -8,6 +8,7 @@ import {
   normalizeCompanyName,
   type RawCollectedJob,
 } from "@/modules/collectors/types";
+import { currentUserId, owned } from "@/modules/auth/current-user";
 
 export async function persistCollectedJob(
   job: RawCollectedJob,
@@ -18,14 +19,14 @@ export async function persistCollectedJob(
   let existing: typeof jobs.$inferSelect | undefined = (await db
     .select()
     .from(jobs)
-    .where(and(eq(jobs.source, job.source), eq(jobs.externalId, job.externalId))).limit(1))[0];
+    .where(and(await owned(jobs), eq(jobs.source, job.source), eq(jobs.externalId, job.externalId))).limit(1))[0];
 
   // Exact canonical posting identity only; title similarity is not sufficient.
   // This also adopts legacy Apify IDs without replacing the job/application ID.
   if (!existing) {
     const canonical = canonicalJobUrl(job.sourceUrl);
     if (canonical) {
-      const candidates = await db.select().from(jobs).where(or(eq(jobs.title, job.title), eq(jobs.sourceUrl, job.sourceUrl)));
+      const candidates = await db.select().from(jobs).where(and(await owned(jobs), or(eq(jobs.title, job.title), eq(jobs.sourceUrl, job.sourceUrl))));
       existing = candidates.find(candidate => canonicalJobUrl(candidate.sourceUrl) === canonical);
     }
   }
@@ -43,7 +44,7 @@ export async function persistCollectedJob(
         updatedAt: nowIso(),
         status: "active",
       })
-      .where(eq(jobs.id, existing.id));
+      .where(and(await owned(jobs), eq(jobs.id, existing.id)));
     return { jobId: existing.id, created: false };
   }
 
@@ -88,6 +89,7 @@ export async function persistCollectedJob(
   const jobId = newId("job");
   await db.insert(jobs)
     .values({
+      userId: await currentUserId(),
       id: jobId,
       companyId: company.id,
       title: job.title,

@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { profileSources, structuredProfiles } from "@/db/schema";
 import { anthropicProvider } from "@/lib/ai/anthropic";
@@ -11,11 +11,13 @@ import { resolveModel, TASK_ROUTES } from "@/lib/ai/routing";
 import { assertPublicBudgetAllows } from "@/lib/budgets";
 import { newId, nowIso } from "@/lib/ids";
 import { logger } from "@/lib/logging/logger";
+import { missingDatedEntries } from "./dated-entries";
 import { redactPii } from "./redact";
 import {
   StructuredProfileSchema,
   type StructuredProfile,
 } from "./schemas";
+import { currentUserId, owned } from "@/modules/auth/current-user";
 
 function parseJsonLoose(text: string): unknown {
   const trimmed = text.trim();
@@ -31,6 +33,7 @@ async function nextVersion(): Promise<number> {
   const latest = (await getDb()
     .select({ version: structuredProfiles.version })
     .from(structuredProfiles)
+    .where(await owned(structuredProfiles))
     .orderBy(desc(structuredProfiles.version)).limit(1))[0];
   return (latest?.version ?? 0) + 1;
 }
@@ -63,7 +66,7 @@ async function callExtract(system: string, user: string): Promise<{
   model: string;
   usedPrivate: boolean;
 }> {
-  assertPublicBudgetAllows("profileExtract");
+  await assertPublicBudgetAllows("profileExtract");
 
   if (hasAnthropicKey()) {
     const model = resolveModel("profileExtract");
@@ -77,19 +80,35 @@ async function callExtract(system: string, user: string): Promise<{
     return { text: completion.text, model, usedPrivate: true };
   }
 
-  // Public fallback with PII redaction (resolved decision #1)
+  // Public fallback with PII redaction (resolved decision #1). Runs once per CV, so it uses a
+  // stronger model than bulk triage — lite models drop whole employment roles.
   logger.warn("ANTHROPIC_API_KEY missing — profile extract using public model with PII redaction");
-  const model =
+  const primary =
+    process.env[TASK_ROUTES.profileExtractPublic.modelEnv] ??
+    TASK_ROUTES.profileExtractPublic.defaultModel;
+  const fallback =
     process.env[TASK_ROUTES.researchAndScore.modelEnv] ??
     TASK_ROUTES.researchAndScore.defaultModel;
-  const completion = await googleProvider.complete({
-    model,
-    messages: buildMessages(system, user),
-    task: "profileExtract",
-    temperature: 0.2,
-    jsonMode: true,
-  });
-  return { text: completion.text, model, usedPrivate: false };
+  const models = primary === fallback ? [primary] : [primary, fallback];
+  let lastError: unknown;
+  for (const model of models) {
+    try {
+      const completion = await googleProvider.complete({
+        model,
+        messages: buildMessages(system, user),
+        task: "profileExtract",
+        temperature: 0.2,
+        jsonMode: true,
+      });
+      return { text: completion.text, model, usedPrivate: false };
+    } catch (err) {
+      lastError = err;
+      const message = err instanceof Error ? err.message : String(err);
+      if (!/\b(503|429|overloaded|high demand|unavailable)\b/i.test(message)) throw err;
+      logger.warn({ model }, "profile extract model busy — trying fallback");
+    }
+  }
+  throw lastError;
 }
 
 export async function extractStructuredProfile(options?: {
@@ -102,12 +121,12 @@ export async function extractStructuredProfile(options?: {
   groundingIssues: string[];
 }> {
   const db = getDb();
-  let sources = await db.select().from(profileSources);
+  let sources = await db.select().from(profileSources).where(await owned(profileSources));
   if (options?.sourceIds?.length) {
     sources = await db
       .select()
       .from(profileSources)
-      .where(inArray(profileSources.id, options.sourceIds));
+      .where(and(await owned(profileSources), inArray(profileSources.id, options.sourceIds)));
   }
   sources = sources.filter((s) => (s.rawText ?? "").trim().length > 0);
   if (sources.length === 0) {
@@ -159,6 +178,25 @@ export async function extractStructuredProfile(options?: {
     parsed = StructuredProfileSchema.parse(parseJsonLoose(retry.text));
   }
 
+  const missing = missingDatedEntries(parsed, corpus);
+  if (missing.length > 0) {
+    logger.warn({ missing: missing.length }, "profile extract dropped dated entries — retrying once");
+    try {
+      const retry = await callExtract(
+        system,
+        `${user}\n\n## Missing entries\nYour previous output left out these dated entries from the sources. Return the full profile again and include every one of them — as a relevantProjects role (evidenceKind "general", with organization, role, start, end) or in education / certifications when that is what it is:\n${missing.map((m) => `- ${m.line}`).join("\n")}`,
+      );
+      const candidate = StructuredProfileSchema.parse(parseJsonLoose(retry.text));
+      if (missingDatedEntries(candidate, corpus).length < missing.length) {
+        parsed = candidate;
+        model = retry.model;
+        privatePath = retry.usedPrivate;
+      }
+    } catch (err) {
+      logger.warn({ err }, "profile extract completeness retry failed — keeping first result");
+    }
+  }
+
   const groundingIssues = inventsClaims(parsed, corpus);
   if (groundingIssues.length) {
     parsed = {
@@ -185,6 +223,7 @@ export async function extractStructuredProfile(options?: {
   await db.insert(structuredProfiles)
     .values({
       id,
+      userId: await currentUserId(),
       version,
       status: "draft",
       profileJson: JSON.stringify(parsed),
@@ -217,7 +256,7 @@ export async function saveDraftProfileEdits(
   const row = (await db
     .select()
     .from(structuredProfiles)
-    .where(eq(structuredProfiles.id, profileId)).limit(1))[0];
+    .where(and(await owned(structuredProfiles), eq(structuredProfiles.id, profileId))).limit(1))[0];
   if (!row) throw new Error("Profile not found");
   if (row.status !== "draft") {
     throw new Error("Only draft profiles can be edited — extract a new version instead");
@@ -225,7 +264,7 @@ export async function saveDraftProfileEdits(
   const validated = StructuredProfileSchema.parse(profile);
   await db.update(structuredProfiles)
     .set({ profileJson: JSON.stringify(validated) })
-    .where(eq(structuredProfiles.id, profileId));
+    .where(and(await owned(structuredProfiles), eq(structuredProfiles.id, profileId)));
 }
 
 /**
@@ -241,7 +280,7 @@ export async function createDraftFromApprovedProfile(): Promise<{
   const existingDraft = (await db
     .select()
     .from(structuredProfiles)
-    .where(eq(structuredProfiles.status, "draft"))
+    .where(and(await owned(structuredProfiles), eq(structuredProfiles.status, "draft")))
     .orderBy(desc(structuredProfiles.version))
     .limit(1))[0];
   if (existingDraft) {
@@ -251,7 +290,7 @@ export async function createDraftFromApprovedProfile(): Promise<{
   const approved = (await db
     .select()
     .from(structuredProfiles)
-    .where(eq(structuredProfiles.status, "approved"))
+    .where(and(await owned(structuredProfiles), eq(structuredProfiles.status, "approved")))
     .orderBy(desc(structuredProfiles.version))
     .limit(1))[0];
   if (!approved) {
@@ -262,6 +301,7 @@ export async function createDraftFromApprovedProfile(): Promise<{
     (await db
       .select()
       .from(structuredProfiles)
+      .where(await owned(structuredProfiles))
       .orderBy(desc(structuredProfiles.version))
       .limit(1))[0]?.version ?? approved.version;
 
@@ -274,6 +314,7 @@ export async function createDraftFromApprovedProfile(): Promise<{
   await db.insert(structuredProfiles)
     .values({
       id,
+      userId: await currentUserId(),
       version,
       status: "draft",
       profileJson: JSON.stringify(profile),

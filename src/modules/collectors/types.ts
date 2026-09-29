@@ -26,6 +26,8 @@ export type CollectorQuery = {
   postedWithinHours: number;
   maxResults: number;
   source: JobSource;
+  /** Extra board search terms (local-language titles); results are merged and filtered. */
+  searchTerms?: string[];
 };
 
 export function jobFingerprint(job: {

@@ -5,6 +5,7 @@ import {
   PackageMailStatusSchema,
   type PackageMailStatus,
 } from "./schemas";
+import { owned } from "@/modules/auth/current-user";
 
 const WAITING_AFTER_DAYS = 5;
 
@@ -63,7 +64,7 @@ export async function listApplicationMailBoard(): Promise<ApplicationMailBoard> 
     .innerJoin(jobs, eq(applicationPackages.jobId, jobs.id))
     .leftJoin(companies, eq(applicationPackages.companyId, companies.id))
     .where(
-      and(
+      and(await owned(applicationPackages),
         ne(applicationPackages.state, "superseded"),
         ne(applicationPackages.mailStatus, "none"),
       ),

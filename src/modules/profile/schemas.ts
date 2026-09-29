@@ -261,3 +261,15 @@ export function derivePositioningSummary(profile: StructuredProfile): string {
   }
   return lines.join("\n");
 }
+
+/** "Senior" + "Product Designer" → "Senior Product Designer", without doubling a level already in the title. */
+export function roleWithLevel(
+  level: string | null | undefined,
+  role: string | null | undefined,
+): string {
+  const r = role?.trim() ?? "";
+  const l = level?.trim() ?? "";
+  if (!l) return r;
+  if (!r) return l;
+  return r.toLowerCase().includes(l.toLowerCase()) ? r : `${l} ${r}`;
+}

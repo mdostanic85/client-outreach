@@ -1,36 +1,103 @@
-import { SettingsForm } from "@/components/settings-form";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { PageHeader, PageShell } from "@/components/page-shell";
-import { getSettingsRow } from "@/modules/leads/queries";
+import { Button } from "@/components/ui/button";
+import { ensureDb } from "@/db/ensure";
+import { signOutAction } from "@/modules/auth/actions";
+import { currentUserId, isOwner } from "@/modules/auth/current-user";
+import { getSessionUser } from "@/modules/auth/session";
 
 export const dynamic = "force-dynamic";
 
+type Row = { href: string; label: string; description: string };
+
+function Section({ title, rows }: { title: string; rows: Row[] }) {
+  return (
+    <section>
+      <h2 className="text-muted-foreground mb-3 text-[13px] font-medium tracking-[0.12em] uppercase">
+        {title}
+      </h2>
+      <ul className="border-border divide-border divide-y rounded-2xl border">
+        {rows.map((row) => (
+          <li key={row.href}>
+            <Link
+              href={row.href}
+              className="hover:bg-card/60 flex items-center justify-between gap-4 px-5 py-4 transition-colors first:rounded-t-2xl last:rounded-b-2xl"
+            >
+              <span>
+                <span className="block text-[15px] font-medium text-[var(--card-foreground)]">
+                  {row.label}
+                </span>
+                <span className="text-muted-foreground mt-0.5 block text-[14px]">
+                  {row.description}
+                </span>
+              </span>
+              <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export default async function SettingsPage() {
-  const row = await getSettingsRow();
-  if (!row) {
-    return (
-      <PageShell width="setup">
-        <p className="text-muted-foreground text-sm">Settings not initialized.</p>
-      </PageShell>
-    );
-  }
+  await ensureDb();
+  const user = await getSessionUser();
+  const owner = await isOwner(await currentUserId());
 
   return (
     <PageShell width="setup">
-      <PageHeader
-        title="Outreach voice"
-        description="Short positioning and writing style for cold emails. This is not your job-matching Profile."
-      />
-      <SettingsForm
-        initial={{
-          profileMd: row.profileMd,
-          styleProfileJson: row.styleProfileJson,
-          targetFiltersJson: row.targetFiltersJson,
-          countryPolicyJson: row.countryPolicyJson,
-          sendPolicyJson: row.sendPolicyJson,
-          dailyLeadCount: row.dailyLeadCount,
-          aiBudgetUsd: row.aiBudgetUsd,
-        }}
-      />
+      <PageHeader title="Settings" />
+      <div className="flex flex-col gap-10">
+        <Section
+          title="Job search"
+          rows={[
+            {
+              href: "/learning",
+              label: "Improve my search",
+              description: "Log what happened after you applied and review suggested changes.",
+            },
+          ]}
+        />
+
+        {owner ? (
+          <Section
+            title="Workspace"
+            rows={[
+              {
+                href: "/settings/voice",
+                label: "Outreach voice",
+                description: "Positioning and writing style for company emails.",
+              },
+              {
+                href: "/analytics",
+                label: "Analytics",
+                description: "How outreach and applications are performing.",
+              },
+              {
+                href: "/admin",
+                label: "Admin",
+                description: "API keys, mailbox and AI budget.",
+              },
+            ]}
+          />
+        ) : null}
+
+        <section>
+          <h2 className="text-muted-foreground mb-3 text-[13px] font-medium tracking-[0.12em] uppercase">
+            Account
+          </h2>
+          <div className="border-border flex items-center justify-between gap-4 rounded-2xl border px-5 py-4">
+            <span className="text-[15px]">{user?.email}</span>
+            <form action={signOutAction}>
+              <Button type="submit" variant="outline">
+                Sign out
+              </Button>
+            </form>
+          </div>
+        </section>
+      </div>
     </PageShell>
   );
 }

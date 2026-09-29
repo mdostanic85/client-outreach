@@ -10,6 +10,24 @@ AI cache sada uključuje opis i relevantna polja oglasa, profil, kriterijume/ver
 
 CV i letter provera odbija nepodržane numeričke tvrdnje; grounding neuspeh blokira odobravanje. Pri odobravanju se ponovo proverava uređeni sadržaj prema aktuelnom odobrenom profilu. Ovo je deterministička provera poznatih obrazaca, ne dokaz svake semantičke tvrdnje. Postojeći outcome eventi i application board su sačuvani.
 
+## Direktni LinkedIn, HelloWorld i Infostud (bez Apify-ja)
+
+Dodato 2026-09-29. Sva tri izvora se čitaju direktno sa javnih stranica; Apify više nije potreban za njih.
+
+| Izvor | Kako | Pauze / limit | Pravila |
+|---|---|---|---|
+| HelloWorld | lista `/oglasi-za-posao?q=` (offset paginacija `/stranica/30`) + stranica oglasa (`__job-text-body`, JSON-LD `datePosted`) | 0,8–1,6 s; najviše 12 strana liste po upitu | robots.txt dozvoljava; iskren User-Agent `OptraJobCollector` |
+| Infostud | `__NEXT_DATA__` JSON sa liste i oglasa (`workFromHome`/`hybridWork`, plata, `textAd`) | 0,8–1,6 s; najviše 12 strana liste | robots.txt dozvoljava `/oglasi-za-posao` i `/posao`; `/rss_feed` se ne koristi |
+| LinkedIn | javni guest endpointi `jobs-guest/.../seeMoreJobPostings/search` i `jobs-guest/jobs/api/jobPosting/{id}`, bez logina | 2–4 s između strana, 1–2,5 s između oglasa; najviše 4 strane | robots.txt i LinkedIn uslovi zabranjuju scraping; mali obim, prekid na prvi 429/redirect |
+
+Zajedničko: hard filteri (`filterRawJobs`) se primenjuju na karticu **pre** zahteva za detalje, pa se ne troše zahtevi na nerelevantne naslove. Redirect se nikad ne prati (auth wall ili tuđi URL), a 429/999/3xx zaustavljaju izvor za taj prolaz. External ID-jevi su isti numerički ID-jevi koje je Apify čuvao, pa postojeći poslovi i prijave ostaju vezani. HelloWorld i Infostud traže i šire pojmove (`regionalSearchTerms`: osnovni naslov bez senioriteta, a za dizajn i „UX”, „dizajner”), jer srpski oglasi retko koriste tačan engleski naslov.
+
+Radni režim: Infostud daje eksplicitne boolean vrednosti, pa je „onsite” činjenica. HelloWorld ga upisuje u lokaciju („Beograd | Hibrid”, „Rad od kuće”); grad bez oznake tretira se kao onsite. Kod `remote_ok_required` kriterijuma većina srpskih oglasa (hibrid/onsite) biće odbačena. To je očekivano ponašanje filtera, ne greška izvora.
+
+LinkedIn fallback: ako je guest pristup blokiran i vraćeno je manje od `maxResults`, a `APIFY_TOKEN` postoji i dnevni budžet dozvoljava, isti upit ide preko Apify actor-a. Napomena o blokadi i fallback-u upisuje se u `collector_runs.error` uz status `ok`. Na Vercelu (datacenter IP) blokada je verovatnija nego lokalno, pa je fallback tamo korisniji.
+
+Live smoke 2026-09-29: LinkedIn „Senior Product Designer”/Remote je vratio 30 kartica i 12 oglasa sa punim opisom za oko 30 s, bez blokade. Infostud i HelloWorld za „dizajner” vraćaju 30 kartica po strani. Relevantan dizajnerski oglas u Srbiji je u tom trenutku bio samo jedan („UX/UI dizajner”, hibrid), isti na oba boarda. Testovi: `tests/direct-boards.test.ts` (fixture, bez mreže).
+
 ## Provere
 
 - Cela `pnpm test` suita prolazi; dodatni V2 testovi pokrivaju tri adaptera, HTTP greške/cooldown, izbor izvora, dedup, hard remote filter, limit, cache invalidation, CV metrike, worker lock i MCP lifecycle/stdio.

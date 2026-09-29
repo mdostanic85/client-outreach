@@ -1,17 +1,18 @@
 import { and, eq, gte } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { deliveryEvents, settings } from "@/db/schema";
+import { deliveryEvents } from "@/db/schema";
 import { getMailboxHealth } from "./approvals";
 import {
   DEFAULT_SEND_POLICY,
   type SendPolicy,
 } from "./policy-defaults";
+import { getUserSettings } from "@/modules/settings/user-settings";
 
 export type { SendPolicy } from "./policy-defaults";
 export { DEFAULT_SEND_POLICY } from "./policy-defaults";
 
 export async function getSendPolicy(): Promise<SendPolicy> {
-  const row = (await getDb().select().from(settings).limit(1))[0];
+  const row = (await getUserSettings());
   let stored: Partial<SendPolicy> = {};
   try {
     stored = JSON.parse(row?.sendPolicyJson || "{}") as Partial<SendPolicy>;

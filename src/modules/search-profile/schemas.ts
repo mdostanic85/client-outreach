@@ -18,7 +18,7 @@ export type JobSource = z.infer<typeof JobSourceSchema>;
 /** Default SaaS / product-design ATS boards for direct public collection. */
 export const DEFAULT_ATS_BOARD_URLS = [
   "https://boards.greenhouse.io/figma",
-  "https://boards.greenhouse.io/notion",
+  "https://jobs.ashbyhq.com/notion",
   "https://boards.greenhouse.io/stripe",
   "https://boards.greenhouse.io/discord",
   "https://boards.greenhouse.io/webflow",
@@ -26,8 +26,37 @@ export const DEFAULT_ATS_BOARD_URLS = [
   "https://boards.greenhouse.io/airbnb",
   "https://jobs.ashbyhq.com/linear",
   "https://jobs.ashbyhq.com/ramp",
-  "https://jobs.lever.co/vercel",
+  "https://boards.greenhouse.io/vercel",
 ];
+
+/** Companies that moved ATS; saved profiles still point at the dead board. */
+const MOVED_ATS_BOARDS: Record<string, string> = {
+  "https://boards.greenhouse.io/notion": "https://jobs.ashbyhq.com/notion",
+  "https://jobs.lever.co/vercel": "https://boards.greenhouse.io/vercel",
+};
+
+/** Market order for every account: Serbia first, then remote, then EU on-site. */
+export const MARKET_LOCATIONS = ["Serbia", "Remote", "Europe"] as const;
+export const REGIONAL_SOURCES: JobSource[] = ["helloworld", "infostud", "linkedin"];
+
+/**
+ * Puts the market order in front of whatever the model or user chose and
+ * turns on the Serbian boards. Used when a search profile is generated.
+ */
+export function withMarketDefaults(params: JobSearchParams): JobSearchParams {
+  const seen = new Set<string>();
+  const locations = [...MARKET_LOCATIONS, ...params.locations].filter((loc) => {
+    const key = loc.trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return {
+    ...params,
+    locations: locations.slice(0, 5),
+    sourcesEnabled: [...new Set([...params.sourcesEnabled, ...REGIONAL_SOURCES])],
+  };
+}
 
 export const JobSearchParamsSchema = z.object({
   targetTitles: z.array(z.string()).min(1),
@@ -167,8 +196,18 @@ export function normalizeCollectorParams(params: JobSearchParams): JobSearchPara
     if (remotePolicy === "any") remotePolicy = "remote_ok_required";
   }
 
+  // A bare "on-site" / "hybrid" keyword matches almost every description; the remote rule covers it.
+  const excludedKeywords = params.excludedKeywords.filter(
+    (k) => !WORK_MODE_AS_EMPLOYMENT.test(k.trim()) && !/^(office|in[- ]office)$/i.test(k.trim()),
+  );
+  const atsBoardUrls = [
+    ...new Set(params.atsBoardUrls.map((url) => MOVED_ATS_BOARDS[url.replace(/\/+$/, "")] ?? url)),
+  ];
+
   return {
     ...params,
+    excludedKeywords,
+    atsBoardUrls,
     employmentTypes,
     remoteRequired,
     remotePolicy,

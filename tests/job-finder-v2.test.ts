@@ -33,7 +33,7 @@ test("Greenhouse strips encoded markup without fabricating publication or compan
   assert.equal(raw.externalId, "us:acme:1");
   assert.notEqual(normalizeAtsPayload(parseAtsBoard("https://boards.greenhouse.io/another"), { jobs: [posting] })[0]!.externalId, raw.externalId);
   assert.throws(() => normalizeAtsPayload(gh, {}));
-  assert.throws(() => normalizeAtsPayload(gh, { jobs: [{ ...posting, absolute_url: "javascript:alert(1)" }] }));
+  assert.deepEqual(normalizeAtsPayload(gh, { jobs: [{ ...posting, absolute_url: "javascript:alert(1)" }, posting] }).map(j => j.externalId), ["us:acme:1"]);
 });
 
 test("Lever retains requirements and workplace mode", () => {

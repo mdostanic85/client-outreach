@@ -370,7 +370,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
         </div>
       ) : null}
 
-      <nav className="bg-card border-border flex flex-wrap gap-2 rounded-[18px] border p-1.5 shadow-[var(--shadow-card)]">
+      <nav className="bg-card border-border flex flex-wrap gap-2 rounded-[18px] border p-1.5">
         {STAGES.map((s, i) => {
           const autoIndex = STAGES.findIndex((x) => x.id === autoStage);
           const unlocked = i <= Math.max(autoIndex, stageIndex);
@@ -1365,10 +1365,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
         </div>
       ) : null}
 
-      {draft &&
-      draftDirty &&
-      (stage === "compose" || stage === "approve") &&
-      draft.state !== "sent" ? (
+      {draft && draftDirty && stage === "approve" && draft.state !== "sent" ? (
         <StickyFormActions message="You have unsaved draft changes.">
           <Button
             disabled={pending}
@@ -1386,35 +1383,6 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
           >
             Save edits
           </Button>
-          {stage === "compose" ? (
-            <Button
-              disabled={pending || draft.state === "approved"}
-              onClick={() => {
-                setApproveMode(true);
-                setStageOverride("approve");
-              }}
-            >
-              Review for queue
-            </Button>
-          ) : (
-            <Button
-              disabled={pending || draft.state === "approved"}
-              onClick={() =>
-                run(async () => {
-                  const saved = await saveDraftAction(
-                    detail.lead.id,
-                    draft.id,
-                    body || draft.bodyFinal,
-                    subject || draft.subject,
-                  );
-                  if (!saved.ok) return saved;
-                  return approveDraftAction(detail.lead.id, draft.id);
-                })
-              }
-            >
-              Approve to queue
-            </Button>
-          )}
         </StickyFormActions>
       ) : null}
     </div>

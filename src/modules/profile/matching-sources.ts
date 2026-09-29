@@ -1,4 +1,4 @@
-import { eq, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { profileSources, settings } from "@/db/schema";
 import { nowIso } from "@/lib/ids";
@@ -8,6 +8,8 @@ import {
   resolveMatchingSourcesForScoring as resolveMatchingSourcesForScoringCore,
   type MatchingSourcesConfig,
 } from "./matching-sources-core";
+import { owned } from "@/modules/auth/current-user";
+import { getUserSettings } from "@/modules/settings/user-settings";
 
 export {
   DEFAULT_MATCHING_SOURCES,
@@ -21,7 +23,7 @@ export {
 } from "./matching-sources-core";
 
 export async function getMatchingSourcesConfig(): Promise<MatchingSourcesConfig> {
-  const row = (await getDb().select().from(settings).limit(1))[0];
+  const row = (await getUserSettings());
   return parseMatchingSourcesConfig(
     row?.matchingSourcesJson,
     row?.usePortfolioInMatching,
@@ -42,7 +44,7 @@ export async function resolveMatchingSourcesForScoring(
     (await getDb()
       .select()
       .from(profileSources)
-      .where(isNull(profileSources.deletedAt)))
+      .where(and(await owned(profileSources), isNull(profileSources.deletedAt))))
       .map((s) => ({
         type: s.type,
         enabledForMatching: s.enabledForMatching,
@@ -55,7 +57,7 @@ export async function setMatchingSourcesConfig(
   patch: Partial<MatchingSourcesConfig>,
 ): Promise<MatchingSourcesConfig> {
   const db = getDb();
-  const row = (await db.select().from(settings).limit(1))[0];
+  const row = (await getUserSettings());
   if (!row) throw new Error("Settings missing");
 
   const next = MatchingSourcesConfigSchema.parse({
@@ -70,7 +72,7 @@ export async function setMatchingSourcesConfig(
       usePortfolioInMatching: next.portfolioProjects ? 1 : 0,
       updatedAt: nowIso(),
     })
-    .where(eq(settings.id, row.id));
+    .where(and(await owned(settings), eq(settings.id, row.id)));
 
   return next;
 }

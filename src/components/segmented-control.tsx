@@ -68,7 +68,7 @@ export function SegmentedControl<T extends string>({
   );
 }
 
-/** Labeled mode switch used on Today / Improve (Jobs | Companies). */
+/** Labeled mode switch used on Today / Improve (Jobs | Companies). Figma 3:173 */
 export function ModeSwitch<T extends string>({
   options,
   value,
@@ -93,7 +93,7 @@ export function ModeSwitch<T extends string>({
       aria-disabled={disabled || undefined}
       title={disabled ? disabledHint : undefined}
       className={cn(
-        "bg-muted/50 border-border grid max-w-xl grid-cols-2 gap-1 rounded-xl border p-1",
+        "grid max-w-[576px] grid-cols-2 gap-1 rounded-[18px] bg-[rgba(28,33,44,0.5)] p-1",
         className,
       )}
     >
@@ -108,25 +108,25 @@ export function ModeSwitch<T extends string>({
             disabled={disabled}
             onClick={() => onChange(option.id)}
             className={cn(
-              "segment-option rounded-lg px-3.5 py-2.5 text-left",
+              "segment-option flex flex-col items-start justify-center rounded-[14px] px-3.5 py-2.5 text-left transition-colors",
               selected
-                ? "bg-primary text-primary-foreground shadow-sm"
+                ? "bg-primary text-primary-foreground shadow-[0_1px_1.5px_rgba(0,0,0,0.1),0_1px_1px_rgba(0,0,0,0.1)]"
                 : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
               disabled && !selected && "opacity-50",
             )}
           >
-            <span className="flex items-baseline gap-1.5 text-[15px] font-medium">
+            <span className="flex items-center gap-1 text-[18px] leading-[23px] font-medium">
               {option.label}
-              {option.count != null && option.count > 0 ? (
-                <span className="tabular opacity-80">{option.count}</span>
+              {option.count != null ? (
+                <span className="font-mono tabular">{option.count}</span>
               ) : null}
             </span>
             <span
               className={cn(
-                "mt-0.5 block text-[13px] leading-snug",
+                "mt-0.5 block text-[13px] leading-[18px]",
                 selected
                   ? "text-primary-foreground/80"
-                  : "text-muted-foreground",
+                  : "text-muted-foreground/80",
               )}
             >
               {option.description}

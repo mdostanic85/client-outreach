@@ -460,29 +460,11 @@ export function SearchCriteriaWorkspace({
   const isApprovedOnly = Boolean(approved) && !draft;
   const showApproveActions = canApprove || isApprovedOnly;
 
-  const headerActions =
-    !draft && !approved ? (
-      <Button
-        size="lg"
-        disabled={pending}
-        onClick={() =>
-          run(async () => generateSearchProfileAction(), "Draft generated")
-        }
-      >
-        {pending ? "Generating…" : "Generate from profile"}
-      </Button>
-    ) : showApproveActions ? (
-      <Button size="lg" disabled={pending} onClick={approveFromForm}>
-        Approve criteria
-      </Button>
-    ) : null;
-
   return (
     <PageShell width="setup">
       <PageHeader
         title="Search criteria"
         description="Drafted from your profile. Approve before finding jobs on Today."
-        actions={headerActions}
       />
 
       {error ? <InlineAlert variant="error">{error}</InlineAlert> : null}
@@ -576,22 +558,6 @@ export function SearchCriteriaWorkspace({
               {showAdvanced ? advancedForm : null}
             </div>
 
-            {isApprovedOnly ? (
-              <div className="border-border flex flex-wrap items-center gap-3 border-t pt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="lg"
-                  onClick={() => router.push("/")}
-                >
-                  Go to Today
-                </Button>
-                <p className="text-muted-foreground text-[15px]">
-                  Edit above, then Approve criteria — or regenerate to start
-                  over.
-                </p>
-              </div>
-            ) : null}
           </PanelBody>
         </Surface>
       )}

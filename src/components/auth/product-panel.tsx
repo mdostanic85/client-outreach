@@ -147,7 +147,7 @@ export function ProductPanel() {
             <AnimatePresence mode="wait">
               <motion.aside
                 key={current.id}
-                className="border-border/50 bg-card/90 absolute -right-1 -top-3 z-20 max-w-[15.5rem] rounded-2xl border px-3.5 py-3 shadow-[0_18px_40px_-20px_rgba(0,0,0,0.75)] backdrop-blur-md sm:-right-4 sm:-top-4 sm:max-w-[17rem]"
+                className="border-border/50 bg-card/90 absolute -right-1 -top-3 z-20 max-w-[15.5rem] rounded-2xl border px-3.5 py-3 backdrop-blur-md sm:-right-4 sm:-top-4 sm:max-w-[17rem]"
                 initial={
                   reducedMotion ? false : { opacity: 0, y: 10, scale: 0.96 }
                 }
@@ -171,7 +171,7 @@ export function ProductPanel() {
 
             {/* Main inbox mock */}
             <div
-              className="border-border/60 bg-card/75 relative overflow-hidden rounded-[1.35rem] border shadow-[0_28px_60px_-28px_rgba(0,0,0,0.85)] backdrop-blur-sm"
+              className="border-border/60 bg-card/75 relative overflow-hidden rounded-[1.35rem] border backdrop-blur-sm"
               role="list"
               aria-label="Example daily shortlist"
             >

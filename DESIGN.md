@@ -27,7 +27,7 @@ Page: `px-8 py-8`, section gap `24–32`. Prefer airy over cramped.
 | Token | Hex |
 |---|---|
 | Canvas | `#0a0c11` |
-| Surface | `#161a23` |
+| Surface | `#0f121a` |
 | Surface 2 | `#1c212c` |
 | Border | `#ffffff12` |
 | Text strong | `#eaedf3` |
@@ -47,3 +47,6 @@ Page: `px-8 py-8`, section gap `24–32`. Prefer airy over cramped.
 
 ## Signature
 Verdigris accent wash on active nav + left accent bar on row hover.
+
+## Elevation
+No drop shadows anywhere. Surfaces separate with border and background. Focus rings stay.

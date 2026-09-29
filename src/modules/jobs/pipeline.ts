@@ -1,10 +1,10 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { jobs, settings } from "@/db/schema";
+import { jobs } from "@/db/schema";
 import { getBudgetStatus } from "@/lib/budgets";
 import { logger } from "@/lib/logging/logger";
 import { collectJobsForProfile } from "@/modules/collectors/run";
-import { filterRawJobs } from "@/modules/jobs/filters";
+import { filterRawJobs, type FilterDropReason } from "@/modules/jobs/filters";
 import { persistCollectedJobs } from "@/modules/jobs/persist";
 import {
   progressFor,
@@ -16,6 +16,8 @@ import {
   requireMatchingProfileJson,
 } from "@/modules/matching/evaluate";
 import { getActiveSearchParams } from "@/modules/search-profile/queries";
+import { getUserSettings } from "@/modules/settings/user-settings";
+import { owned } from "@/modules/auth/current-user";
 
 export type JobPipelineStats = {
   skipped?: string;
@@ -123,6 +125,13 @@ export async function runJobDiscoveryPipeline(options?: {
         promising: filtered.kept.length,
         regionOrCategory: active.params.targetTitles[0],
       },
+      {
+        kind: "filter",
+        label: `Removed ${filtered.dropped.length} of ${collected.raw.length}`,
+        meta: summarizeDropReasons(filtered.dropped.map((d) => d.reason)) || "Nothing removed",
+        value: `${filtered.kept.length} kept`,
+        tone: filtered.kept.length > 0 ? "neutral" : "weak",
+      },
     ),
   );
 
@@ -131,7 +140,7 @@ export async function runJobDiscoveryPipeline(options?: {
     .select()
     .from(jobs)
     .where(
-      and(
+      and(await owned(jobs),
         eq(jobs.status, "active"),
         inArray(jobs.id, persisted.jobIds),
         inArray(jobs.triageState, ["discovered", "published", "saved"]),
@@ -158,7 +167,7 @@ export async function runJobDiscoveryPipeline(options?: {
       regionOrCategory: active.params.targetTitles[0],
     }),
   );
-  const setting = (await db.select().from(settings).limit(1))[0];
+  const setting = (await getUserSettings());
   const limit = setting?.dailyJobCount ?? 20;
   const published = await publishDailyJobList(limit, evalResult.evaluatedJobIds, evalResult.matchIds);
 
@@ -194,4 +203,28 @@ export async function runJobDiscoveryPipeline(options?: {
 
   logger.info(stats, "job discovery pipeline complete");
   return stats;
+}
+
+const DROP_REASON_LABELS: Record<FilterDropReason, string> = {
+  unrelated_title: "different role",
+  excluded_title: "excluded title",
+  too_old: "too old",
+  bad_location: "location",
+  remote_required: "not remote",
+  wrong_employment: "employment type",
+  wrong_seniority: "seniority",
+  excluded_keyword: "excluded keyword",
+  duplicate: "duplicate",
+  avoid_industry: "industry",
+};
+
+/** "18 different role · 4 not remote · 2 duplicate" — top three reasons. */
+export function summarizeDropReasons(reasons: FilterDropReason[]): string {
+  const counts = new Map<FilterDropReason, number>();
+  for (const r of reasons) counts.set(r, (counts.get(r) ?? 0) + 1);
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([reason, n]) => `${n} ${DROP_REASON_LABELS[reason]}`)
+    .join(" · ");
 }

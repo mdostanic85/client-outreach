@@ -1,6 +1,7 @@
-import type {
-  RelevantProject,
-  StructuredProfile,
+import {
+  roleWithLevel,
+  type RelevantProject,
+  type StructuredProfile,
 } from "@/modules/profile/schemas";
 import {
   TailoredCvSchema,
@@ -181,13 +182,7 @@ export function buildBaseCv(
     profile.timeZones[0] ??
     undefined;
 
-  const headline = [
-    profile.seniority,
-    profile.currentRole,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
+  const headline = roleWithLevel(profile.seniority, profile.currentRole);
 
   return TailoredCvSchema.parse({
     fullName: contact.fullName.trim() || "Your Name",

@@ -99,7 +99,7 @@ export function ApplicationsKanban({ board }: { board: ApplicationMailBoard }) {
       <div className="border-border rounded-2xl border px-6 py-12 text-center">
         <p className="font-medium text-[15px]">No applications sent yet</p>
         <p className="text-muted-foreground mt-2 text-[14px]">
-          Prepare a package from Interested, then Send.
+          Prepare a package from Saved, then Send.
         </p>
         <Link
           href="/interested"
@@ -108,7 +108,7 @@ export function ApplicationsKanban({ board }: { board: ApplicationMailBoard }) {
             "mt-5 inline-flex",
           )}
         >
-          Go to Interested
+          Go to Saved
         </Link>
       </div>
     );

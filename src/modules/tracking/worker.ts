@@ -4,7 +4,6 @@ import { getDb } from "@/db/client";
 import {
   companies,
   leads,
-  settings,
   signals,
   syncRuns,
 } from "@/db/schema";
@@ -19,6 +18,7 @@ import { discoverBatch } from "@/modules/discovery/persist";
 import type { FilteredCandidate } from "@/modules/discovery/filters";
 import { triageCandidatesBatch } from "@/modules/discovery/triage";
 import { researchCompany } from "@/modules/research/run";
+import { getUserSettings } from "@/modules/settings/user-settings";
 
 export const WORKER_STAGES = [
   "discover",
@@ -44,7 +44,7 @@ type Checkpoint = {
 };
 
 async function loadSettings() {
-  return (await getDb().select().from(settings).limit(1))[0]!;
+  return (await getUserSettings());
 }
 
 async function saveCheckpoint(
@@ -179,7 +179,7 @@ export async function runWorkerPipeline(options?: {
     }
 
     if (!stageDone(checkpoint, "llm_triage_batch")) {
-      assertPublicBudgetAllows("triage");
+      await assertPublicBudgetAllows("triage");
 
       await report?.(
         companyProgressFor(

@@ -6,6 +6,7 @@ import {
   applyLearningProposalAction,
   generateMarketReportAction,
   generatePositioningAction,
+  proposeJobScoringAction,
   proposeScoringAction,
   proposeStyleAction,
   rejectLearningProposalAction,
@@ -54,7 +55,15 @@ export function LearningControls({ gatesReady }: { gatesReady: boolean }) {
         variant="secondary"
         onClick={() => run(() => proposeScoringAction(force))}
       >
-        Scoring
+        Outreach scoring
+      </Button>
+      <Button
+        size="xs"
+        disabled={pending}
+        variant="secondary"
+        onClick={() => run(() => proposeJobScoringAction(force))}
+      >
+        Job scoring
       </Button>
       <Button
         size="xs"

@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db/client";
 import {
@@ -24,6 +24,7 @@ import {
   listStrategyVersions,
   type StrategyCohort,
 } from "./job-cohorts";
+import { currentUserId, owned } from "@/modules/auth/current-user";
 
 function parseJsonLoose(text: string): unknown {
   const trimmed = text.trim();
@@ -35,7 +36,7 @@ async function nextSearchProfileVersion(): Promise<number> {
   const latest = (await getDb()
     .select({ version: jobSearchProfiles.version })
     .from(jobSearchProfiles)
-    .orderBy(desc(jobSearchProfiles.version)).limit(1))[0];
+    .where(await owned(jobSearchProfiles)).orderBy(desc(jobSearchProfiles.version)).limit(1))[0];
   return (latest?.version ?? 0) + 1;
 }
 
@@ -151,6 +152,7 @@ export async function generateWeeklyJobInsights(force = false) {
   await getDb()
     .insert(learningReports)
     .values({
+      userId: await currentUserId(),
       id,
       kind: "job_weekly_insights",
       title: `Job search review · Strategy v${primary.strategyVersion}`,
@@ -332,7 +334,7 @@ export async function proposeSearchStrategyUpdate(force = false) {
   const approvedStructured = (await db
     .select()
     .from(structuredProfiles)
-    .where(eq(structuredProfiles.status, "approved"))
+    .where(and(await owned(structuredProfiles), eq(structuredProfiles.status, "approved")))
     .orderBy(desc(structuredProfiles.version))
     .limit(1))[0];
 
@@ -340,6 +342,7 @@ export async function proposeSearchStrategyUpdate(force = false) {
   const version = await nextSearchProfileVersion();
   await db.insert(jobSearchProfiles)
     .values({
+      userId: await currentUserId(),
       id: draftId,
       version,
       status: "draft",
@@ -364,6 +367,7 @@ export async function proposeSearchStrategyUpdate(force = false) {
   const proposalId = newId("prop");
   await db.insert(learningProposals)
     .values({
+      userId: await currentUserId(),
       id: proposalId,
       kind: "search_strategy",
       title,

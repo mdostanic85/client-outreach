@@ -1,6 +1,7 @@
 import { getDb } from "@/db/client";
 import { apiUsage } from "@/db/schema";
 import { newId, nowIso } from "@/lib/ids";
+import { currentUserId } from "@/modules/auth/current-user";
 import { estimateCost } from "./routing";
 
 export type LlmUsage = {
@@ -23,6 +24,7 @@ export async function recordUsage(usage: LlmUsage): Promise<number> {
     .insert(apiUsage)
     .values({
       id: newId("usage"),
+      userId: await currentUserId(),
       provider: usage.provider,
       model: usage.model,
       task: usage.task,

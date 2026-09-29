@@ -7,7 +7,8 @@
  */
 import { ensureDb } from "../src/db/ensure";
 import { writePersonalDataExport } from "../src/modules/privacy/export";
+import { runAsOwner } from "../src/modules/auth/current-user";
 
 await ensureDb();
-const result = await writePersonalDataExport();
+const result = await runAsOwner(() => writePersonalDataExport());
 console.log(`Wrote ${result.bytes} bytes → ${result.path}`);

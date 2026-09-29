@@ -57,8 +57,8 @@ export function InterestedJobs({
   return (
     <PageShell>
       <PageHeader
-        title="Interested"
-        description="Roles you marked as a fit. Prepare an application package, open the posting, or mark applied."
+        title="Saved"
+        description="Roles you liked. Prepare an application or mark it applied."
         meta={`${rows.length} role${rows.length === 1 ? "" : "s"}`}
       />
 
@@ -67,8 +67,8 @@ export function InterestedJobs({
       {rows.length === 0 ? (
         <Surface>
           <EmptyState
-            title="No interested roles yet"
-            description="On Today · Jobs, expand a match and click Interested. They’ll show up here."
+            title="Nothing saved yet"
+            description="On Today, open a role and click Save. It shows up here."
             icon={
               <Bookmark className="size-6 opacity-70" strokeWidth={1.5} />
             }

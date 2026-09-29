@@ -18,6 +18,7 @@ import {
   threads,
 } from "@/db/schema";
 import { nowIso } from "@/lib/ids";
+import { owned } from "@/modules/auth/current-user";
 
 export type PersonalDataExport = {
   exportedAt: string;
@@ -140,8 +141,8 @@ export async function buildPersonalDataExport(options?: {
     suppressions: await db.select().from(suppressions),
     ...(exportAll
       ? {
-          profileSources: await db.select().from(profileSources),
-          structuredProfiles: await db.select().from(structuredProfiles),
+          profileSources: await db.select().from(profileSources).where(await owned(profileSources)),
+          structuredProfiles: await db.select().from(structuredProfiles).where(await owned(structuredProfiles)),
         }
       : {}),
   };

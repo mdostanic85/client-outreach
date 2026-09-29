@@ -77,7 +77,7 @@ export function QueueBoard({
         </div>
       )}
 
-      <div className="bg-card border-border flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border px-5 py-3.5 text-[14px] shadow-[var(--shadow-card)]">
+      <div className="bg-card border-border flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border px-5 py-3.5 text-[14px]">
         <span
           className={cn(
             "size-2 rounded-full",
@@ -171,7 +171,6 @@ export function QueueBoard({
                   subject={item.draft.subject}
                   meta={`Updated ${item.draft.updatedAt.slice(0, 16).replace("T", " ")}`}
                   badge="Needs review"
-                  actionLabel="Review"
                 />
               ))}
             </ul>
@@ -329,7 +328,6 @@ function QueueRow({
   meta,
   badge,
   preview,
-  actionLabel,
   index = 0,
 }: {
   href: string;
@@ -339,7 +337,6 @@ function QueueRow({
   meta: string;
   badge: string;
   preview?: string | null;
-  actionLabel?: string;
   index?: number;
 }) {
   const [open, setOpen] = useState(false);
@@ -369,14 +366,6 @@ function QueueRow({
           <Button size="lg" variant="ghost" onClick={() => setOpen((v) => !v)}>
             {open ? "Hide" : "Preview"}
           </Button>
-        ) : null}
-        {actionLabel ? (
-          <Link
-            href={href}
-            className="bg-secondary text-secondary-foreground hover:bg-secondary/80 inline-flex h-11 items-center rounded-xl px-4 text-[15px] font-medium"
-          >
-            {actionLabel}
-          </Link>
         ) : null}
       </div>
       {open && preview ? (

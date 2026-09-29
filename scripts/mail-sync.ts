@@ -6,10 +6,11 @@
  */
 import { ensureDb } from "../src/db/ensure";
 import { syncInbox } from "../src/modules/mail/sync";
+import { runAsOwner } from "../src/modules/auth/current-user";
 
 async function main() {
   await ensureDb();
-  const result = await syncInbox();
+  const result = await runAsOwner(() => syncInbox());
   console.log(JSON.stringify(result, null, 2));
 }
 

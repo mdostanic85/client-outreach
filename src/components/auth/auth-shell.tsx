@@ -1,19 +1,10 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { MakerCredit } from "@/components/maker-credit";
+import { OptraLogo } from "@/components/optra-logo";
 import { noWidow } from "@/lib/utils";
 
 export function AuthBrand() {
-  return (
-    <Link href="/welcome" className="inline-flex items-center gap-2.5">
-      <span className="bg-primary text-primary-foreground grid size-8 place-items-center rounded-lg text-sm font-bold tracking-tight">
-        O
-      </span>
-      <span className="font-display text-[17px] font-semibold tracking-tight text-[var(--card-foreground)]">
-        Optra
-      </span>
-    </Link>
-  );
+  return <OptraLogo href="/welcome" width={100} />;
 }
 
 /** Split layout: form left, product preview right (stacks below form on mobile). */

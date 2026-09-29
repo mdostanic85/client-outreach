@@ -5,6 +5,8 @@ import { nowIso } from "@/lib/ids";
 import { logger } from "@/lib/logging/logger";
 import { invalidateMarketFitOpenCount } from "@/modules/profile/market-fit";
 import { derivePositioningSummary, parseStructuredProfile } from "./schemas";
+import { getUserSettings } from "@/modules/settings/user-settings";
+import { owned } from "@/modules/auth/current-user";
 
 /**
  * Approve a draft profile for matching.
@@ -20,7 +22,7 @@ export async function approveStructuredProfile(profileId: string): Promise<{
   const row = (await db
     .select()
     .from(structuredProfiles)
-    .where(eq(structuredProfiles.id, profileId)).limit(1))[0];
+    .where(and(await owned(structuredProfiles), eq(structuredProfiles.id, profileId))).limit(1))[0];
   if (!row) throw new Error("Profile not found");
   if (row.status === "approved") {
     return { version: row.version, syncedPositioning: false };
@@ -36,6 +38,7 @@ export async function approveStructuredProfile(profileId: string): Promise<{
     .set({ status: "superseded" })
     .where(
       and(
+        await owned(structuredProfiles),
         eq(structuredProfiles.status, "approved"),
         ne(structuredProfiles.id, profileId),
       ),
@@ -43,11 +46,11 @@ export async function approveStructuredProfile(profileId: string): Promise<{
 
   await db.update(structuredProfiles)
     .set({ status: "approved", approvedAt })
-    .where(eq(structuredProfiles.id, profileId));
+    .where(and(await owned(structuredProfiles), eq(structuredProfiles.id, profileId)));
 
   // Sync freeform positioning blurb only when empty (don't clobber Style edits)
   let syncedPositioning = false;
-  const setting = (await db.select().from(settings).limit(1))[0];
+  const setting = (await getUserSettings());
   if (setting && !setting.profileMd.trim()) {
     const summary = derivePositioningSummary(
       parseStructuredProfile(row.profileJson),
@@ -55,7 +58,7 @@ export async function approveStructuredProfile(profileId: string): Promise<{
     if (summary.trim()) {
       await db.update(settings)
         .set({ profileMd: summary, updatedAt: nowIso() })
-        .where(eq(settings.id, setting.id));
+        .where(and(await owned(settings), eq(settings.id, setting.id)));
       syncedPositioning = true;
     }
   }

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { collectorRuns } from "@/db/schema";
 import { newId, nowIso } from "@/lib/ids";
@@ -13,24 +13,49 @@ import {
 import {
   collectPercent,
   progressFor,
+  SOURCE_LABELS,
   type JobSearchProgressCallback,
 } from "@/modules/jobs/progress";
+import type { SearchActivity } from "@/modules/search-experience/stages";
 import { plannedAtsBoards, collectDirectBoard } from "./direct-ats";
 import { collectArbeitnow } from "./arbeitnow";
+import { collectHelloWorld } from "./helloworld";
+import { collectInfostud } from "./infostud";
+import { collectLinkedIn } from "./linkedin";
 import { collectRemotive } from "./remotive";
 import type { CollectorQuery, RawCollectedJob } from "./types";
+import { currentUserId, owned } from "@/modules/auth/current-user";
 
 function queryDetail(query: CollectorQuery): string {
-  const source =
-    query.source === "helloworld"
-      ? "HelloWorld"
-      : query.source.charAt(0).toUpperCase() + query.source.slice(1);
-  return `${source} · ${query.title} · ${query.location}`;
+  return `${SOURCE_LABELS[query.source] ?? query.source} · ${query.title} · ${query.location}`;
+}
+
+function foundActivity(label: string, meta: string, found: number | null): SearchActivity {
+  return {
+    kind: "source",
+    label,
+    meta,
+    value: found == null ? "unavailable" : `${found} found`,
+    tone: found == null ? "error" : found > 0 ? "neutral" : "weak",
+  };
+}
+
+function queryActivity(query: CollectorQuery, found: number): SearchActivity {
+  return foundActivity(
+    SOURCE_LABELS[query.source] ?? query.source,
+    `${query.title} · ${query.location}`,
+    found,
+  );
+}
+
+function boardName(slug: string): string {
+  return slug.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 const FREE_SOURCES = new Set<JobSource>(["remotive", "arbeitnow"]);
 
-const PAID_BOARD_SOURCES = new Set<JobSource>([
+/** Read directly from public pages; LinkedIn may fall back to Apify when blocked. */
+const DIRECT_BOARD_SOURCES = new Set<JobSource>([
   "linkedin",
   "helloworld",
   "infostud",
@@ -103,10 +128,32 @@ export function expandLinkedInQueries(params: JobSearchParams): CollectorQuery[]
   }).slice(0, 3);
 }
 
+/**
+ * Serbian boards rarely use the exact English senior title ("UX/UI dizajner",
+ * "Product Designer"), so search broader terms and let filterRawJobs decide.
+ */
+export function regionalSearchTerms(params: JobSearchParams): string[] {
+  const terms = params.targetTitles.slice(0, 1);
+  for (const title of params.targetTitles) {
+    const core = title.replace(/\b(senior|sr\.?|lead|staff|principal|head of|junior|mid|ai)\b/gi, " ").replace(/\s+/g, " ").trim();
+    if (core) terms.push(core);
+  }
+  if (params.targetTitles.some(t => /design|ux|ui/i.test(t))) terms.push("UX", "dizajner");
+  terms.push(...params.targetTitles.slice(1));
+  const seen = new Set<string>();
+  return terms.filter(t => {
+    const key = t.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 4);
+}
+
 /** HelloWorld (daily) + Infostud (only when explicitly enabled). */
 export function expandRegionalQueries(params: JobSearchParams): CollectorQuery[] {
   const title = params.targetTitles[0];
   if (!title) return [];
+  const searchTerms = regionalSearchTerms(params);
 
   const maxResults = Math.min(15, params.maxResultsPerQuery);
   const serbiaLoc =
@@ -121,6 +168,7 @@ export function expandRegionalQueries(params: JobSearchParams): CollectorQuery[]
       postedWithinHours: params.postedWithinHours,
       maxResults,
       source: "helloworld",
+      searchTerms,
     });
   }
 
@@ -132,6 +180,7 @@ export function expandRegionalQueries(params: JobSearchParams): CollectorQuery[]
       postedWithinHours: params.postedWithinHours,
       maxResults,
       source: "infostud",
+      searchTerms,
     });
   }
 
@@ -142,11 +191,13 @@ async function runOneQuery(
   query: CollectorQuery,
   searchProfileVersion: number,
   params: JobSearchParams,
+  options: { apifyFallbackAllowed?: boolean } = {},
 ): Promise<{ jobs: RawCollectedJob[]; costUsd: number }> {
   const runId = newId("crun");
   const db = getDb();
   await db.insert(collectorRuns)
     .values({
+      userId: await currentUserId(),
       id: runId,
       searchProfileVersion,
       source: query.source,
@@ -158,11 +209,33 @@ async function runOneQuery(
   try {
     let jobs: RawCollectedJob[] = [];
     let costUsd = 0;
+    let note: string | null = null;
 
     if (query.source === "remotive") {
       jobs = await collectRemotive(query);
     } else if (query.source === "arbeitnow") {
       jobs = await collectArbeitnow(query);
+    } else if (query.source === "helloworld") {
+      jobs = await collectHelloWorld(query, params);
+    } else if (query.source === "infostud") {
+      jobs = await collectInfostud(query, params);
+    } else if (query.source === "linkedin") {
+      const direct = await collectLinkedIn(query, params);
+      jobs = direct.jobs;
+      if (direct.blocked) {
+        note = `linkedin guest API blocked after ${direct.cardsSeen} cards / ${jobs.length} postings`;
+        // Paid fallback only when the free path was cut short and budget remains.
+        if (jobs.length < query.maxResults && options.apifyFallbackAllowed && getApifyToken()) {
+          const fallback = await collectViaApify(query, {
+            remoteRequired: params.remoteRequired,
+            seniority: params.seniority,
+          });
+          jobs = [...jobs, ...fallback.jobs];
+          costUsd = fallback.costUsd;
+          note += `; Apify fallback added ${fallback.jobs.length}`;
+        }
+        logger.warn({ query: queryDetail(query), note }, "LinkedIn direct collect blocked");
+      }
     } else {
       const result = await collectViaApify(query, {
         remoteRequired: params.remoteRequired,
@@ -178,8 +251,9 @@ async function runOneQuery(
         resultCount: jobs.length,
         costUsd,
         status: "ok",
+        error: note,
       })
-      .where(eq(collectorRuns.id, runId));
+      .where(and(await owned(collectorRuns), eq(collectorRuns.id, runId)));
 
     return { jobs, costUsd };
   } catch (err) {
@@ -190,7 +264,7 @@ async function runOneQuery(
         status: "error",
         error: message.slice(0, 500),
       })
-      .where(eq(collectorRuns.id, runId));
+      .where(and(await owned(collectorRuns), eq(collectorRuns.id, runId)));
     logger.warn({ err, query }, "collector query failed");
     return { jobs: [], costUsd: 0 };
   }
@@ -199,11 +273,11 @@ async function runOneQuery(
 /**
  * Run focused collectors for an approved search profile.
  *
- * Daily mix (target ≤ $0.50 Apify):
+ * Daily mix (free by default; Apify only as an explicit or LinkedIn fallback, ≤ $0.50):
  * 1. Direct public ATS boards, then Remotive / Arbeitnow
  * 2. Optional explicit Apify ATS fallback
- * 3. LinkedIn — 2–3 focused queries
- * 4. HelloWorld (+ Infostud if enabled) — regional
+ * 3. LinkedIn — 2–3 focused queries via the public guest pages (Apify if blocked)
+ * 4. HelloWorld (+ Infostud if enabled) — regional, read directly
  */
 export async function collectJobsForProfile(options: {
   params: JobSearchParams;
@@ -239,14 +313,14 @@ export async function collectJobsForProfile(options: {
   const freeQueries = expandFreeQueries(options.params);
   const linkedInQueries = expandLinkedInQueries(options.params);
   const regionalQueries = expandRegionalQueries(options.params).filter((q) =>
-    PAID_BOARD_SOURCES.has(q.source),
+    DIRECT_BOARD_SOURCES.has(q.source),
   );
   const directBoards = plannedAtsBoards(options.params);
   const wantsAts = options.params.sourcesEnabled.includes("apify");
   const hasApify = Boolean(getApifyToken());
   const willRunAts = Boolean(wantsAts && hasApify && afford("ats"));
-  const linkedInPlanned = hasApify ? linkedInQueries : [];
-  const regionalPlanned = hasApify ? regionalQueries : [];
+  const linkedInPlanned = linkedInQueries;
+  const regionalPlanned = regionalQueries;
   const collectTotal =
     directBoards.length + freeQueries.length +
     (willRunAts ? 1 : 0) +
@@ -254,7 +328,7 @@ export async function collectJobsForProfile(options: {
     regionalPlanned.length;
   let collectDone = 0;
 
-  const markCollect = async (detail: string) => {
+  const markCollect = async (detail: string, activity: SearchActivity) => {
     collectDone += 1;
     queryCount += 1;
     await report?.(
@@ -262,6 +336,8 @@ export async function collectJobsForProfile(options: {
         "collect",
         collectPercent(collectDone, Math.max(collectTotal, 1)),
         detail,
+        { found: raw.length, sourcesDone: collectDone, sourcesTotal: collectTotal },
+        activity,
       ),
     );
   };
@@ -282,6 +358,7 @@ export async function collectJobsForProfile(options: {
     const db = getDb();
     const runId = newId("crun");
     await db.insert(collectorRuns).values({
+      userId: await currentUserId(),
       id: runId, searchProfileVersion: options.searchProfileVersion,
       source: entry.board?.source ?? "direct_ats",
       queryJson: JSON.stringify({ board: entry.url, mode: "direct" }),
@@ -293,13 +370,23 @@ export async function collectJobsForProfile(options: {
         Math.min(options.params.maxResultsPerQuery, options.params.maxDailyRawJobs - raw.length));
       pushJobs(found);
       await db.update(collectorRuns).set({ status: "ok", finishedAt: nowIso(), resultCount: found.length, costUsd: 0 })
-        .where(eq(collectorRuns.id, runId));
-      await markCollect(`${entry.board.source} · ${entry.board.slug} · ${found.length} found`);
+        .where(and(await owned(collectorRuns), eq(collectorRuns.id, runId)));
+      await markCollect(
+        `${boardName(entry.board.slug)} careers · ${found.length} found`,
+        foundActivity(boardName(entry.board.slug), `${SOURCE_LABELS[entry.board.source]} careers page`, found.length),
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       await db.update(collectorRuns).set({ status: "error", finishedAt: nowIso(), error: message.slice(0, 500), costUsd: 0 })
-        .where(eq(collectorRuns.id, runId));
-      await markCollect(`${entry.board?.source ?? "ATS"} · failed`);
+        .where(and(await owned(collectorRuns), eq(collectorRuns.id, runId)));
+      await markCollect(
+        `${entry.board ? boardName(entry.board.slug) : "Careers page"} · unavailable`,
+        foundActivity(
+          entry.board ? boardName(entry.board.slug) : entry.url,
+          entry.board ? `${SOURCE_LABELS[entry.board.source]} careers page` : "Careers page",
+          null,
+        ),
+      );
     }
   }
 
@@ -321,6 +408,7 @@ export async function collectJobsForProfile(options: {
     pushJobs(result.jobs);
     await markCollect(
       `${queryDetail(query)} · ${result.jobs.length} found`,
+      queryActivity(query, result.jobs.length),
     );
   }
 
@@ -351,6 +439,7 @@ export async function collectJobsForProfile(options: {
       const db = getDb();
       await db.insert(collectorRuns)
         .values({
+      userId: await currentUserId(),
           id: runId,
           searchProfileVersion: options.searchProfileVersion,
           source: "apify",
@@ -379,8 +468,11 @@ export async function collectJobsForProfile(options: {
             costUsd: result.costUsd,
             status: "ok",
           })
-          .where(eq(collectorRuns.id, runId));
-        await markCollect(`${atsDetail} · ${result.jobs.length} found`);
+          .where(and(await owned(collectorRuns), eq(collectorRuns.id, runId)));
+        await markCollect(
+          `${atsDetail} · ${result.jobs.length} found`,
+          foundActivity("ATS boards", `${title} · ${boardCount} pages`, result.jobs.length),
+        );
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         await db.update(collectorRuns)
@@ -389,9 +481,12 @@ export async function collectJobsForProfile(options: {
             status: "error",
             error: message.slice(0, 500),
           })
-          .where(eq(collectorRuns.id, runId));
+          .where(and(await owned(collectorRuns), eq(collectorRuns.id, runId)));
         logger.warn({ err, title }, "Apify ATS collect failed");
-        await markCollect(`${atsDetail} · failed`);
+        await markCollect(
+          `${atsDetail} · unavailable`,
+          foundActivity("ATS boards", `${title} · ${boardCount} pages`, null),
+        );
       }
     }
   } else if (wantsAts && !getApifyToken()) {
@@ -402,7 +497,7 @@ export async function collectJobsForProfile(options: {
 
   // 3) LinkedIn — focused coverage queries
   for (const query of linkedInPlanned) {
-    if (!roomForJobs() || !afford("linkedin")) break;
+    if (!roomForJobs()) break;
     await report?.(
       progressFor(
         "collect",
@@ -414,17 +509,19 @@ export async function collectJobsForProfile(options: {
       query,
       options.searchProfileVersion,
       options.params,
+      { apifyFallbackAllowed: afford("linkedin") },
     );
     apifyCostUsd += result.costUsd;
     pushJobs(result.jobs);
     await markCollect(
       `${queryDetail(query)} · ${result.jobs.length} found`,
+      queryActivity(query, result.jobs.length),
     );
   }
 
   // 4) Regional boards (HelloWorld daily; Infostud if enabled)
   for (const query of regionalPlanned) {
-    if (!roomForJobs() || !afford(query.source)) break;
+    if (!roomForJobs()) break;
     await report?.(
       progressFor(
         "collect",
@@ -441,6 +538,7 @@ export async function collectJobsForProfile(options: {
     pushJobs(result.jobs);
     await markCollect(
       `${queryDetail(query)} · ${result.jobs.length} found`,
+      queryActivity(query, result.jobs.length),
     );
   }
 

@@ -1,4 +1,4 @@
-import { desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { ensureDb } from "@/db/ensure";
 import {
   apiUsage,
@@ -7,7 +7,6 @@ import {
   drafts,
   leads,
   researchBriefs,
-  settings,
   signals,
   sourcePages,
   syncRuns,
@@ -17,6 +16,8 @@ import { resolveCountryPolicy } from "@/lib/policy/country";
 import { buildLookupLinks } from "@/modules/contacts/lookup";
 import { getLeadMailDetail } from "@/modules/mail/queries";
 import type { EvidenceItem, ResearchAndScore } from "@/modules/research/schemas";
+import { getUserSettings } from "@/modules/settings/user-settings";
+import { owned } from "@/modules/auth/current-user";
 
 export async function listLeads() {
   const db = await ensureDb();
@@ -131,7 +132,7 @@ export async function getLeadDetail(leadId: string) {
   const usage = await db
     .select()
     .from(apiUsage)
-    .orderBy(desc(apiUsage.occurredAt))
+    .where(await owned(apiUsage)).orderBy(desc(apiUsage.occurredAt))
     .limit(20);
 
   const policy = await resolveCountryPolicy(row.company.country);
@@ -201,10 +202,10 @@ export async function getAdminOverview() {
       tokensOut: sql<number>`coalesce(sum(${apiUsage.outputTokens}), 0)`,
     })
     .from(apiUsage)
-    .where(gte(apiUsage.occurredAt, monthStart.toISOString()))
+    .where(and(await owned(apiUsage), gte(apiUsage.occurredAt, monthStart.toISOString())))
     .groupBy(apiUsage.task, apiUsage.provider);
 
-  const setting = (await db.select().from(settings).limit(1))[0];
+  const setting = (await getUserSettings());
   const budget = await getBudgetStatus();
 
   const triageFailed = stateCounts.find((s) => s.state === "triage_failed")?.count ?? 0;
@@ -235,6 +236,6 @@ export async function getAdminOverview() {
 }
 
 export async function getSettingsRow() {
-  const db = await ensureDb();
-  return (await db.select().from(settings).limit(1))[0] ?? null;
+  await ensureDb();
+  return (await getUserSettings()) ?? null;
 }

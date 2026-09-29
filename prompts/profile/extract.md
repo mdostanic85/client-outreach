@@ -1,4 +1,4 @@
-# Profile extract — prompt v3
+# Profile extract — prompt v4
 
 You extract a structured professional profile from the user's source materials (CV text, portfolio page text, LinkedIn export, GitHub profile/repos, and/or manual notes).
 
@@ -19,7 +19,11 @@ You extract a structured professional profile from the user's source materials (
   - `title` = short label, prefer `"Role at Organization"` (still required)
   - `summary` = 1–2 sentence role overview from the source
   - `outcomes` = concrete bullets / responsibilities / achievements from that role (do not drop them)
-- Keep **all** distinct employment roles you can ground — do not collapse a multi-role career into one entry.
+- Keep **all** distinct employment roles you can ground — do not collapse a multi-role career into one entry. Every line that opens with a date or date range is an entry: short roles, parallel roles and a summarized "Earlier experience" block each get their own relevantProjects item.
+- PDF text keeps table columns as tab characters. In a work-history row the cells are usually date <TAB> organization <TAB> role. In a list row ("Tools <TAB> Figma <TAB> Claude Code <TAB> Excel") each cell is one item — never split a multi-word cell into separate items.
+- Clients, brands and employers named inside role descriptions (e.g. "work for Heineken and Carlsberg") also go into notableClients.
+- Location and work mode stated in the header (e.g. "Serbia · remote", "Berlin, open to relocation") go into preferredLocations as separate values (["Serbia", "Remote"]).
+- The profile can be for any occupation (nurse, accountant, electrician, developer, designer…). Put tools and software in technicalTools unless they are design software, which goes in designTools.
 - General professional facts from a portfolio website (name, title, bio, skills, tools, industries, clients) belong in top-level fields — NOT only inside portfolio_project entries. Those facts must remain even if portfolio projects are later excluded from matching.
 - Prefer concrete skills and tools named in sources; do not expand into adjacent buzzwords.
 - Populate fieldSources with human labels for key fields when known, e.g. `"currentRole": ["LinkedIn", "Portfolio"]`. Merge duplicates; do not invent sources.

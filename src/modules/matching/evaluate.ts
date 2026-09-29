@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { evaluationCacheVersion, opportunitySignal } from "./v2-signals";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { jobMatches, jobs } from "@/db/schema";
+import { companies, jobMatches, jobs } from "@/db/schema";
+import type { SearchActivity } from "@/modules/search-experience/stages";
 import { buildMessages, googleProvider } from "@/lib/ai/google";
 import { JOB_MATCH_PROMPT_VERSION, loadPrompt } from "@/lib/ai/prompts";
 import { resolveModel } from "@/lib/ai/routing";
@@ -28,10 +29,18 @@ import {
   deriveRemoteFit,
 } from "@/modules/matching/remote-fit";
 import {
+  MatchDimensionsSchema,
+  finalizeMatchScore,
+  mapMatchRecommendation,
+  type JobMatchDimKey,
+} from "@/modules/matching/score";
+import { getJobMatchWeights } from "@/modules/matching/weights";
+import {
   STRONG_MATCH_MIN,
   WORTH_A_LOOK_LIMIT,
   WORTH_A_LOOK_MIN,
 } from "@/modules/matching/tiers";
+import { currentUserId, owned } from "@/modules/auth/current-user";
 
 export {
   STRONG_MATCH_MIN,
@@ -42,22 +51,60 @@ export {
 } from "@/modules/matching/tiers";
 
 export { profileForMatching } from "@/modules/profile/matching-sources";
+
+function scoreActivity(title: string, company: string | null, location: string | null, score: number | null): SearchActivity {
+  const rounded = score == null ? null : Math.round(score);
+  return {
+    kind: "score",
+    label: title,
+    meta: [company, location].filter(Boolean).join(" · ") || undefined,
+    value: rounded == null ? "skipped" : String(rounded),
+    tone:
+      rounded == null ? "error"
+      : rounded >= STRONG_MATCH_MIN ? "strong"
+      : rounded >= WORTH_A_LOOK_MIN ? "worth"
+      : "weak",
+  };
+}
+
+async function companyName(companyId: string | null): Promise<string | null> {
+  if (!companyId) return null;
+  const row = (await getDb().select({ name: companies.name }).from(companies).where(eq(companies.id, companyId)).limit(1))[0];
+  return row?.name ?? null;
+}
 export {
   RemoteFitSchema,
   type RemoteFit,
   type MatchHighlight,
 } from "@/modules/matching/remote-fit";
+export {
+  JOB_MATCH_WEIGHTS,
+  MatchDimensionsSchema,
+  calculateMatchScore,
+  finalizeMatchScore,
+  mapMatchRecommendation,
+  type MatchDimensions,
+} from "@/modules/matching/score";
 
-export const JobMatchResultSchema = z.object({
-  matchScore: z.number().min(0).max(100),
+/** LLM output — dimensions required; model matchScore ignored if present. */
+export const JobMatchLlmSchema = z.object({
+  matchScore: z.number().min(0).max(100).optional(),
+  dimensions: MatchDimensionsSchema,
   eligibility: z.enum(["eligible", "borderline", "ineligible"]),
-  recommend: z.boolean(),
+  recommend: z.boolean().optional(),
   recommendation: z.enum(["apply", "consider", "skip"]).optional(),
   matchingReasons: z.array(z.string()).default([]),
   concerns: z.array(z.string()).default([]),
   missingRequirements: z.array(z.string()).default([]),
   mainRisk: z.string().optional(),
   remoteFit: RemoteFitSchema.optional(),
+});
+
+export const JobMatchResultSchema = JobMatchLlmSchema.extend({
+  matchScore: z.number().min(0).max(100),
+  recommend: z.boolean(),
+  recommendation: z.enum(["apply", "consider", "skip"]),
+  dimensions: MatchDimensionsSchema,
 });
 
 export type JobMatchResult = z.infer<typeof JobMatchResultSchema>;
@@ -75,56 +122,99 @@ function parseJsonLoose(text: string): unknown {
   return JSON.parse(fenced ? fenced[1]!.trim() : trimmed);
 }
 
-function normalizeRecommendation(
-  r: JobMatchResult,
-  jobContext?: {
+function normalizeMatchResult(
+  raw: z.infer<typeof JobMatchLlmSchema>,
+  jobContext: {
     remotePolicy: string | null;
     location: string | null;
     remoteRequired: boolean;
   },
+  weights: Record<JobMatchDimKey, number>,
 ): JobMatchResult {
-  let recommendation = r.recommendation;
-  if (!recommendation) {
-    if (!r.recommend || r.eligibility === "ineligible") recommendation = "skip";
-    else if (r.matchScore >= 80 && r.eligibility === "eligible")
-      recommendation = "apply";
-    else recommendation = "consider";
-  }
-  if (r.eligibility === "ineligible" || !r.recommend) {
-    recommendation = "skip";
-  }
-
-  let remoteFit = r.remoteFit;
-  if (!remoteFit && jobContext) {
+  let remoteFit = raw.remoteFit;
+  if (!remoteFit) {
     remoteFit = deriveRemoteFit({
       remotePolicy: jobContext.remotePolicy,
       location: jobContext.location,
-      concerns: r.concerns,
-      eligibility: r.eligibility,
+      concerns: raw.concerns,
+      eligibility: raw.eligibility,
       remoteRequired: jobContext.remoteRequired,
     });
   }
 
+  const { dimensions, matchScore } = finalizeMatchScore(
+    raw.dimensions,
+    {
+      eligibility: raw.eligibility,
+      remoteFit,
+      remoteRequired: jobContext.remoteRequired,
+    },
+    weights,
+  );
+
+  const recommendation = mapMatchRecommendation({
+    matchScore,
+    eligibility: raw.eligibility,
+    remoteFit,
+    remoteRequired: jobContext.remoteRequired,
+  });
+
   return {
-    ...r,
+    ...raw,
+    dimensions,
+    matchScore,
     recommendation,
     recommend: recommendation !== "skip",
     remoteFit,
   };
 }
 
+export type CandidateFeedback = {
+  skipped: Array<{ title: string; reason: string | null }>;
+  liked: string[];
+};
+
+/** Recent Save / Pass decisions, so new scores follow what the user actually picks. */
+export async function loadCandidateFeedback(): Promise<CandidateFeedback> {
+  const db = getDb();
+  const [skipped, liked] = await Promise.all([
+    db
+      .select({ title: jobs.title, reason: jobs.rejectReason })
+      .from(jobs)
+      .where(and(await owned(jobs), eq(jobs.triageState, "rejected")))
+      .orderBy(desc(jobs.updatedAt))
+      .limit(15),
+    db
+      .select({ title: jobs.title })
+      .from(jobs)
+      .where(
+        and(
+          await owned(jobs),
+          inArray(jobs.triageState, ["interested", "applied"]),
+          isNotNull(jobs.title),
+        ),
+      )
+      .orderBy(desc(jobs.updatedAt))
+      .limit(10),
+  ]);
+  return { skipped, liked: liked.map((row) => row.title) };
+}
+
 async function evaluateOne(
   jobRow: typeof jobs.$inferSelect,
   profileJson: string,
   searchParams: JobSearchParams,
+  weights: Record<JobMatchDimKey, number>,
+  feedback: CandidateFeedback,
 ): Promise<{ result: JobMatchResult; model: string; costUsd: number }> {
-  assertPublicBudgetAllows("jobMatch");
+  await assertPublicBudgetAllows("jobMatch");
   const system = loadPrompt("jobs/match-and-explain.md");
   const model = resolveModel("jobMatch");
   const user = JSON.stringify(
     {
       profile: JSON.parse(profileJson),
       searchHints: searchParams,
+      candidateFeedback: feedback,
       job: {
         title: jobRow.title,
         companyLocation: jobRow.location,
@@ -150,13 +240,14 @@ async function evaluateOne(
       temperature: 0.2,
       jsonMode: true,
     });
-    const parsed = normalizeRecommendation(
-      JobMatchResultSchema.parse(parseJsonLoose(completion.text)),
+    const parsed = normalizeMatchResult(
+      JobMatchLlmSchema.parse(parseJsonLoose(completion.text)),
       {
         remotePolicy: jobRow.remotePolicy,
         location: jobRow.location,
         remoteRequired: searchParams.remoteRequired,
       },
+      weights,
     );
     return {
       result: parsed,
@@ -166,7 +257,8 @@ async function evaluateOne(
   };
 
   const isRateLimited = (err: unknown) =>
-    err instanceof Error && /Google LLM error 429|RESOURCE_EXHAUSTED/i.test(err.message);
+    err instanceof Error &&
+    /Google LLM error 429|RESOURCE_EXHAUSTED/i.test(err.message);
 
   let lastErr: unknown;
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -213,6 +305,8 @@ export async function evaluateJobsBatch(options: {
     matchingConfig.portfolioProjects = options.usePortfolioInMatching;
   }
   const basePromptVersion = matchPromptVersion(matchingConfig);
+  const weights = await getJobMatchWeights();
+  const feedback = await loadCandidateFeedback();
   const total = options.jobIds.length;
   let done = 0;
 
@@ -223,12 +317,12 @@ export async function evaluateJobsBatch(options: {
       total > 0
         ? `Scoring ${total} roles against your profile…`
         : "Nothing new to score",
-      { reviewed: 0, promising: 0 },
+      { reviewed: 0, toScore: total, promising: 0 },
     ),
   );
 
   for (const jobId of options.jobIds) {
-    const jobRow = (await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1))[0];
+    const jobRow = (await db.select().from(jobs).where(and(await owned(jobs), eq(jobs.id, jobId))).limit(1))[0];
     if (!jobRow) {
       done++;
       continue;
@@ -243,7 +337,7 @@ export async function evaluateJobsBatch(options: {
       .select()
       .from(jobMatches)
       .where(
-        and(
+        and(await owned(jobMatches),
           eq(jobMatches.jobId, jobId),
           eq(jobMatches.profileVersion, options.profileVersion),
           eq(jobMatches.promptVersion, promptVersion),
@@ -259,12 +353,14 @@ export async function evaluateJobsBatch(options: {
         progressFor(
           "evaluate",
           evaluatePercent(done, Math.max(total, 1)),
-          `Cached score · ${done}/${total}`,
+          `Already scored · ${jobRow.title}`,
           {
             reviewed: done,
+            toScore: total,
             promising: recommended,
             regionOrCategory: undefined,
           },
+          scoreActivity(jobRow.title, await companyName(jobRow.companyId), jobRow.location, existing.matchScore),
         ),
       );
       continue;
@@ -274,9 +370,10 @@ export async function evaluateJobsBatch(options: {
       progressFor(
         "evaluate",
         evaluatePercent(done, Math.max(total, 1)),
-        `${jobRow.title}${jobRow.location ? ` · ${jobRow.location}` : ""}`,
+        `Reading ${jobRow.title}${jobRow.location ? ` · ${jobRow.location}` : ""}`,
         {
           reviewed: done,
+          toScore: total,
           promising: recommended,
           regionOrCategory: jobRow.location ?? undefined,
         },
@@ -288,11 +385,14 @@ export async function evaluateJobsBatch(options: {
         jobRow,
         options.profileJson,
         options.searchParams,
+        weights,
+        feedback,
       );
 
       const matchId = newId("jmatch");
       await db.insert(jobMatches)
         .values({
+      userId: await currentUserId(),
           id: matchId,
           jobId,
           profileVersion: options.profileVersion,
@@ -322,9 +422,11 @@ export async function evaluateJobsBatch(options: {
           `${jobRow.title} · score ${Math.round(result.matchScore)} · ${done}/${total}`,
           {
             reviewed: done,
+            toScore: total,
             promising: recommended,
             regionOrCategory: jobRow.location ?? undefined,
           },
+          scoreActivity(jobRow.title, await companyName(jobRow.companyId), jobRow.location, result.matchScore),
         ),
       );
       // Free-tier Gemini is ~15 RPM — pace new matches so a full batch survives.
@@ -337,7 +439,8 @@ export async function evaluateJobsBatch(options: {
           "evaluate",
           evaluatePercent(done, Math.max(total, 1)),
           `Skipped one role · ${done}/${total}`,
-          { reviewed: done, promising: recommended },
+          { reviewed: done, toScore: total, promising: recommended },
+          scoreActivity(jobRow.title, null, jobRow.location, null),
         ),
       );
     }
@@ -373,7 +476,7 @@ export async function rankJobsForPublish(options: {
   const active = (await db
     .select()
     .from(jobs)
-    .where(eq(jobs.status, "active")))
+    .where(and(await owned(jobs), eq(jobs.status, "active"))))
     .filter(
       (j) =>
         j.triageState === "discovered" ||
@@ -394,18 +497,15 @@ export async function rankJobsForPublish(options: {
     const match = (await db
       .select()
       .from(jobMatches)
-      .where(options.matchIds
+      .where(and(await owned(jobMatches), options.matchIds
         ? and(eq(jobMatches.jobId, job.id), eq(jobMatches.id, options.matchIds[job.id] ?? ""))
-        : eq(jobMatches.jobId, job.id)))
+        : eq(jobMatches.jobId, job.id))))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
     if (!match) continue;
     if (!match.recommend) continue;
     if (match.eligibility === "ineligible") continue;
     if (match.matchScore < minScore) continue;
-    if (
-      maxScoreExclusive != null &&
-      match.matchScore >= maxScoreExclusive
-    ) {
+    if (maxScoreExclusive != null && match.matchScore >= maxScoreExclusive) {
       continue;
     }
 
@@ -446,17 +546,16 @@ async function markJobsPublished(ranked: RankedJob[]): Promise<string[]> {
 
   for (const row of ranked) {
     const existing = (
-      await db.select().from(jobs).where(eq(jobs.id, row.jobId)).limit(1)
+      await db.select().from(jobs).where(and(await owned(jobs), eq(jobs.id, row.jobId))).limit(1)
     )[0];
     await db
       .update(jobs)
       .set({
         publishedAt: now,
-        triageState:
-          existing?.triageState === "saved" ? "saved" : "published",
+        triageState: existing?.triageState === "saved" ? "saved" : "published",
         updatedAt: now,
       })
-      .where(eq(jobs.id, row.jobId));
+      .where(and(await owned(jobs), eq(jobs.id, row.jobId)));
     jobIds.push(row.jobId);
   }
 

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db/client";
 import {
@@ -13,9 +13,13 @@ import { buildMessages } from "@/lib/ai/google";
 import { resolveModel } from "@/lib/ai/routing";
 import { newId, nowIso } from "@/lib/ids";
 import { logger } from "@/lib/logging/logger";
+import { JOB_MATCH_WEIGHTS } from "@/modules/matching/score";
+import { getJobMatchWeights, setJobMatchWeights } from "@/modules/matching/weights";
 import { assertGatesOrPreview } from "./gates";
 import { buildSourcePerformance } from "./reports";
 import { approveSearchProfile } from "@/modules/search-profile/approve";
+import { getUserSettings } from "@/modules/settings/user-settings";
+import { currentUserId, owned } from "@/modules/auth/current-user";
 
 function parseJsonLoose(text: string): unknown {
   const trimmed = text.trim();
@@ -48,7 +52,7 @@ export async function proposeStyleUpdate(force = false) {
     throw new Error("No draft edits to learn from");
   }
 
-  const setting = (await db.select().from(settings).limit(1))[0];
+  const setting = (await getUserSettings());
   const model = resolveModel("styleProposal");
   const system =
     "You propose style-profile updates from draft edit diffs. " +
@@ -81,6 +85,7 @@ export async function proposeStyleUpdate(force = false) {
   const now = nowIso();
   await db.insert(learningProposals)
     .values({
+      userId: await currentUserId(),
       id,
       kind: "style_update",
       title: parsed.title,
@@ -121,6 +126,7 @@ export async function proposeScoringWeights(force = false) {
   const now = nowIso();
   await db.insert(learningProposals)
     .values({
+      userId: await currentUserId(),
       id,
       kind: "scoring_weights",
       title: "Scoring weight proposal from source outcomes",
@@ -135,11 +141,60 @@ export async function proposeScoringWeights(force = false) {
   return id;
 }
 
+/** Propose job-match dimension weights (separate from outreach scoring). */
+export async function proposeJobScoringWeights(force = false) {
+  assertGatesOrPreview(force);
+  const db = getDb();
+  const current = await getJobMatchWeights();
+  // Light heuristic: nudge skills +2 / locationTimezone −2 vs defaults when
+  // current equals defaults — gives a reviewable diff without silent apply.
+  const proposed = { ...current };
+  const isDefault = jobMatchWeightsEqual(current, JOB_MATCH_WEIGHTS);
+  if (isDefault) {
+    proposed.skills = Math.min(40, current.skills + 2);
+    proposed.locationTimezone = Math.max(5, current.locationTimezone - 2);
+  }
+
+  const payload = {
+    ...proposed,
+    rationale: [
+      "Job match total is computed in code from dimension scores × these weights.",
+      isDefault
+        ? "Suggested +2 skills / −2 locationTimezone vs shipping defaults — review before Accept."
+        : "Re-propose current active weights for review (no auto-change).",
+    ],
+  };
+
+  const id = newId("prop");
+  const now = nowIso();
+  await db.insert(learningProposals).values({
+    userId: await currentUserId(),
+    id,
+    kind: "job_scoring_weights",
+    title: "Job match weight proposal",
+    summary:
+      "Suggested dimension weights for job match %. Not applied until approved.",
+    proposalJson: JSON.stringify(payload),
+    status: "pending",
+    model: null,
+    createdAt: now,
+    decidedAt: null,
+  });
+  return id;
+}
+
+function jobMatchWeightsEqual(
+  a: Record<string, number>,
+  b: Record<string, number>,
+): boolean {
+  return Object.keys(b).every((k) => a[k] === b[k]);
+}
+
 export async function generateMarketReport(force = false) {
   assertGatesOrPreview(force);
   const db = getDb();
   const { rows } = await buildSourcePerformance();
-  const setting = (await db.select().from(settings).limit(1))[0];
+  const setting = (await getUserSettings());
   const model = resolveModel("marketReport");
 
   const system =
@@ -170,6 +225,7 @@ export async function generateMarketReport(force = false) {
   const id = newId("rep");
   await db.insert(learningReports)
     .values({
+      userId: await currentUserId(),
       id,
       kind: "market_demand",
       title: parsed.title,
@@ -184,7 +240,7 @@ export async function generateMarketReport(force = false) {
 export async function generatePositioningRecs(force = false) {
   assertGatesOrPreview(force);
   const db = getDb();
-  const setting = (await db.select().from(settings).limit(1))[0];
+  const setting = (await getUserSettings());
   const edits = (await db.select().from(draftEdits)).slice(0, 15);
   const { rows } = await buildSourcePerformance();
   const model = resolveModel("positioningRecs");
@@ -221,6 +277,7 @@ export async function generatePositioningRecs(force = false) {
   const id = newId("rep");
   await db.insert(learningReports)
     .values({
+      userId: await currentUserId(),
       id,
       kind: "positioning",
       title: parsed.title,
@@ -239,7 +296,7 @@ export async function applyProposal(proposalId: string) {
   const proposal = (await db
     .select()
     .from(learningProposals)
-    .where(eq(learningProposals.id, proposalId)).limit(1))[0];
+    .where(and(await owned(learningProposals), eq(learningProposals.id, proposalId))).limit(1))[0];
   if (!proposal) throw new Error("Proposal not found");
   if (proposal.status !== "pending") {
     throw new Error(`Proposal status is ${proposal.status}`);
@@ -254,7 +311,7 @@ export async function applyProposal(proposalId: string) {
       preferredLength?: string;
       ctaPatternsAdd?: string[];
     };
-    const setting = (await db.select().from(settings).limit(1))[0];
+    const setting = (await getUserSettings());
     if (!setting) throw new Error("Settings missing");
     const style = JSON.parse(setting.styleProfileJson || "{}") as Record<
       string,
@@ -282,21 +339,32 @@ export async function applyProposal(proposalId: string) {
     }
     await db.update(settings)
       .set({ styleProfileJson: JSON.stringify(style), updatedAt: now })
-      .where(eq(settings.id, setting.id));
+      .where(and(await owned(settings), eq(settings.id, setting.id)));
   } else if (proposal.kind === "scoring_weights") {
-    const existing = (await db.select().from(settingsScoring).limit(1))[0];
+    const existing = (await db.select().from(settingsScoring).where(await owned(settingsScoring)).limit(1))[0];
     if (existing) {
       await db.update(settingsScoring)
         .set({ weightsJson: proposal.proposalJson, updatedAt: now })
-        .where(eq(settingsScoring.id, existing.id));
+        .where(and(await owned(settingsScoring), eq(settingsScoring.id, existing.id)));
     } else {
       await db.insert(settingsScoring)
         .values({
+      userId: await currentUserId(),
           id: newId("scw"),
           weightsJson: proposal.proposalJson,
           updatedAt: now,
         });
     }
+  } else if (proposal.kind === "job_scoring_weights") {
+    const parsed = JSON.parse(proposal.proposalJson) as Record<string, unknown>;
+    const weights: Partial<Record<keyof typeof JOB_MATCH_WEIGHTS, number>> = {};
+    for (const key of Object.keys(JOB_MATCH_WEIGHTS) as Array<
+      keyof typeof JOB_MATCH_WEIGHTS
+    >) {
+      const v = parsed[key];
+      if (typeof v === "number" && Number.isFinite(v)) weights[key] = v;
+    }
+    await setJobMatchWeights(weights);
   } else if (proposal.kind === "search_strategy") {
     const payload = JSON.parse(proposal.proposalJson) as {
       draftSearchProfileId?: string;
@@ -311,7 +379,7 @@ export async function applyProposal(proposalId: string) {
 
   await db.update(learningProposals)
     .set({ status: "applied", decidedAt: now })
-    .where(eq(learningProposals.id, proposalId));
+    .where(and(await owned(learningProposals), eq(learningProposals.id, proposalId)));
 }
 
 export async function rejectProposal(proposalId: string) {
@@ -319,14 +387,14 @@ export async function rejectProposal(proposalId: string) {
   const proposal = (await db
     .select()
     .from(learningProposals)
-    .where(eq(learningProposals.id, proposalId)).limit(1))[0];
+    .where(and(await owned(learningProposals), eq(learningProposals.id, proposalId))).limit(1))[0];
   if (!proposal) throw new Error("Proposal not found");
   if (proposal.status !== "pending") {
     throw new Error(`Proposal status is ${proposal.status}`);
   }
   await db.update(learningProposals)
     .set({ status: "rejected", decidedAt: nowIso() })
-    .where(eq(learningProposals.id, proposalId));
+    .where(and(await owned(learningProposals), eq(learningProposals.id, proposalId)));
 }
 
 export async function saveSourcePerformanceReport() {
@@ -347,6 +415,7 @@ export async function saveSourcePerformanceReport() {
   await getDb()
     .insert(learningReports)
     .values({
+      userId: await currentUserId(),
       id,
       kind: "source_performance",
       title: "Source performance report",

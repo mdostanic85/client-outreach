@@ -1,7 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { jobOutcomeEvents, jobs } from "@/db/schema";
 import { newId, nowIso } from "@/lib/ids";
+import { currentUserId, owned } from "@/modules/auth/current-user";
 
 export const JOB_REJECT_REASONS = [
   "Wrong title",
@@ -44,11 +45,12 @@ export async function recordJobOutcomeEvent(
   payload: Record<string, unknown> = {},
 ) {
   const db = getDb();
-  const job = (await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1))[0];
+  const job = (await db.select().from(jobs).where(and(await owned(jobs), eq(jobs.id, jobId))).limit(1))[0];
   if (!job) throw new Error("Job not found");
 
   await db.insert(jobOutcomeEvents)
     .values({
+      userId: await currentUserId(),
       id: newId("joe"),
       jobId,
       type,
@@ -64,7 +66,7 @@ export async function setJobOutcome(
   note?: string,
 ) {
   const db = getDb();
-  const job = (await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1))[0];
+  const job = (await db.select().from(jobs).where(and(await owned(jobs), eq(jobs.id, jobId))).limit(1))[0];
   if (!job) throw new Error("Job not found");
   if (job.triageState !== "applied" && job.triageState !== "interested") {
     throw new Error("Mark the job as applied before recording an outcome");
@@ -84,7 +86,7 @@ export async function setJobOutcome(
         ? { triageState: "applied", appliedAt: job.appliedAt ?? now }
         : {}),
     })
-    .where(eq(jobs.id, jobId));
+    .where(and(await owned(jobs), eq(jobs.id, jobId)));
 
   await recordJobOutcomeEvent(jobId, eventType, { note: note?.trim() || null });
 }
@@ -93,7 +95,7 @@ export async function listAppliedJobs(limit = 40) {
   const db = getDb();
   return (await db
     .select()
-    .from(jobs))
+    .from(jobs).where(await owned(jobs)))
     .filter((j) => j.triageState === "applied")
     .sort((a, b) =>
       (b.appliedAt ?? b.updatedAt).localeCompare(a.appliedAt ?? a.updatedAt),

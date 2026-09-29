@@ -55,7 +55,7 @@ export function EmptyState({
             href={actionHref}
             className={cn(
               buttonVariants({ size: "lg" }),
-              "pressable animate-enter",
+              "pressable animate-enter h-12 min-w-[12rem] rounded-xl px-6 text-[16px]",
             )}
             style={{ animationDelay: "120ms" }}
           >
@@ -67,7 +67,7 @@ export function EmptyState({
             size="lg"
             disabled={pending}
             onClick={onAction}
-            className="animate-enter"
+            className="animate-enter h-12 min-w-[12rem] rounded-xl px-6 text-[16px]"
             style={{ animationDelay: "120ms" }}
           >
             {actionLabel}

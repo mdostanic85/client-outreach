@@ -19,11 +19,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import type { PackageListMeta } from "@/modules/applications/packages";
 import type { JobTriageRow } from "@/modules/jobs/triage-row";
@@ -119,17 +114,6 @@ export function JobListItem({
     return null;
   })();
 
-  const sheetPrimary =
-    variant === "today" && onInterested ? (
-      <Button size="sm" disabled={pending} onClick={onInterested}>
-        Interested
-      </Button>
-    ) : variant === "interested" && onMarkApplied ? (
-      <Button size="sm" disabled={pending} onClick={onMarkApplied}>
-        Mark applied
-      </Button>
-    ) : null;
-
   const roleLine = [row.title, row.location, row.companySnapshot.salaryText]
     .filter(Boolean)
     .join(" · ");
@@ -139,14 +123,12 @@ export function JobListItem({
     companyName: row.companyName,
     location: row.location,
     remotePolicy: row.remotePolicy,
-    sourceUrl: row.sourceUrl,
     remoteFit: row.remoteFit,
     remoteRequired: row.remoteRequired,
     matchingReasons: row.matchingReasons,
     concerns: row.concerns,
     mainRisk: row.mainRisk,
     missingRequirements: row.missingRequirements,
-    sheetPrimaryAction: sheetPrimary,
     rationaleOpen,
     onRationaleOpenChange: setRationaleOpen,
   } as const;
@@ -210,7 +192,7 @@ export function JobListItem({
             {variant === "today" ? (
               <>
                 <Button size="sm" disabled={pending} onClick={onInterested}>
-                  Interested
+                  Save
                 </Button>
                 <a
                   href={row.sourceUrl}
@@ -234,9 +216,9 @@ export function JobListItem({
                     <DropdownMenuItem
                       onClick={onSaveForLater}
                       disabled={pending}
-                      title="Keep on Today for later — not the same as Interested."
+                      title="Stays on Today so you can decide later."
                     >
-                      Save for later
+                      Decide later
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={onAlreadyApplied}
@@ -263,23 +245,6 @@ export function JobListItem({
                 >
                   {packageCta.label}
                 </Link>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        size="sm"
-                        disabled={pending}
-                        onClick={onMarkApplied}
-                      />
-                    }
-                  >
-                    Mark applied
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    Removes it from Interested and records that you already
-                    applied outside Optra.
-                  </TooltipContent>
-                </Tooltip>
                 <a
                   href={row.sourceUrl}
                   target="_blank"
@@ -289,22 +254,31 @@ export function JobListItem({
                   Open posting
                   <ExternalLink className="size-3.5" />
                 </a>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={pending}
-                  onClick={onMoveToToday}
-                >
-                  Move to Today
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  disabled={pending}
-                  onClick={onStartReject}
-                >
-                  Not interested
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button size="sm" variant="ghost" disabled={pending} />
+                    }
+                  >
+                    <MoreHorizontal className="size-4" />
+                    <span className="sr-only">More actions</span>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="min-w-48">
+                    <DropdownMenuItem
+                      onClick={onMarkApplied}
+                      disabled={pending}
+                      title="Records that you already applied outside Optra."
+                    >
+                      Mark applied
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onMoveToToday} disabled={pending}>
+                      Move back to Today
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onStartReject} disabled={pending}>
+                      Not interested
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             )}
           </div>

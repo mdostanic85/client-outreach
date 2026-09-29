@@ -4,9 +4,14 @@ import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useActionState, useState, type FormEvent } from "react";
 import { MakerCredit } from "@/components/maker-credit";
+import { OptraLogo } from "@/components/optra-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  AuthDivider,
+  GoogleSignInButton,
+} from "@/components/auth/google-sign-in";
 import { signInAction, type AuthFormState } from "@/modules/auth/actions";
 import { cn, noWidow } from "@/lib/utils";
 
@@ -17,7 +22,15 @@ const initial: AuthFormState = {};
  * Atmospheric canvas + email-first gate.
  * Direction: Peec/Midday presence + Linear friction reduction — Optra shortlist vernacular.
  */
-export function LoginExperience() {
+export function LoginExperience({
+  googleEnabled,
+  error,
+  notice,
+}: {
+  googleEnabled: boolean;
+  error: string | null;
+  notice: string | null;
+}) {
   const reducedMotion = useReducedMotion() ?? false;
 
   return (
@@ -46,24 +59,20 @@ export function LoginExperience() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: EASE }}
         >
-          <Link
-            href="/welcome"
-            className="group mb-10 flex flex-col items-center gap-4 text-center"
-          >
-            <span className="bg-primary text-primary-foreground grid size-12 place-items-center rounded-2xl text-lg font-bold tracking-tight shadow-[0_0_40px_-8px_color-mix(in_oklch,var(--primary)_70%,transparent)] transition-transform duration-300 group-hover:scale-[1.03]">
-              O
-            </span>
-            <span className="font-display text-[clamp(2.4rem,6vw,3.25rem)] leading-none font-semibold tracking-[-0.04em] text-[var(--card-foreground)]">
-              Optra
-            </span>
-          </Link>
+          <div className="mb-10 flex flex-col items-center">
+            <OptraLogo href="/welcome" width={133} />
+          </div>
 
           <p className="text-muted-foreground mb-9 max-w-[18rem] text-center text-[15px] leading-relaxed">
             {noWidow("Today's roles. Explained matches. You approve every move.")}
           </p>
 
-          <div className="border-border/60 bg-card/55 w-full rounded-[1.35rem] border px-5 py-6 shadow-[0_28px_60px_-28px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:px-6 sm:py-7">
-            <EmailFirstSignIn />
+          <div className="border-border/60 bg-card/55 w-full rounded-[1.35rem] border px-5 py-6 backdrop-blur-xl sm:px-6 sm:py-7">
+            <EmailFirstSignIn
+              googleEnabled={googleEnabled}
+              error={error}
+              notice={notice}
+            />
           </div>
         </motion.div>
       </main>
@@ -135,7 +144,15 @@ function LoginAtmosphere({ reducedMotion }: { reducedMotion: boolean }) {
   );
 }
 
-function EmailFirstSignIn() {
+function EmailFirstSignIn({
+  googleEnabled,
+  error,
+  notice,
+}: {
+  googleEnabled: boolean;
+  error: string | null;
+  notice: string | null;
+}) {
   const reducedMotion = useReducedMotion() ?? false;
   const [step, setStep] = useState<"email" | "password">("email");
   const [email, setEmail] = useState("");
@@ -165,6 +182,20 @@ function EmailFirstSignIn() {
             : email}
         </p>
       </div>
+
+      {step === "email" && error ? <FieldError message={error} /> : null}
+      {step === "email" && notice ? (
+        <p className="bg-primary/10 text-accent-foreground rounded-xl px-3.5 py-2.5 text-[14px]">
+          {notice}
+        </p>
+      ) : null}
+
+      {step === "email" && googleEnabled ? (
+        <>
+          <GoogleSignInButton className="h-12 rounded-xl" />
+          <AuthDivider />
+        </>
+      ) : null}
 
       <AnimatePresence mode="wait" initial={false}>
         {step === "email" ? (

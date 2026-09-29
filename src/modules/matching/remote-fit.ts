@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  MatchDimensionsSchema,
+  type MatchDimensions,
+} from "@/modules/matching/score";
 
 export const RemoteFitSchema = z.object({
   status: z.enum(["pass", "unclear", "fail"]),
@@ -55,15 +59,22 @@ export function parseMatchExtrasFromScoreJson(
   remoteFit: RemoteFit | null;
   mainRisk: string | null;
   missingRequirements: string[];
+  dimensions: MatchDimensions | null;
 } {
   if (!scoreJson) {
-    return { remoteFit: null, mainRisk: null, missingRequirements: [] };
+    return {
+      remoteFit: null,
+      mainRisk: null,
+      missingRequirements: [],
+      dimensions: null,
+    };
   }
   try {
     const parsed = JSON.parse(scoreJson) as {
       remoteFit?: unknown;
       mainRisk?: unknown;
       missingRequirements?: unknown;
+      dimensions?: unknown;
     };
     let remoteFit: RemoteFit | null = null;
     if (parsed.remoteFit) {
@@ -79,9 +90,19 @@ export function parseMatchExtrasFromScoreJson(
           (x): x is string => typeof x === "string" && x.trim().length > 0,
         )
       : [];
-    return { remoteFit, mainRisk, missingRequirements };
+    let dimensions: MatchDimensions | null = null;
+    if (parsed.dimensions) {
+      const dimResult = MatchDimensionsSchema.safeParse(parsed.dimensions);
+      if (dimResult.success) dimensions = dimResult.data;
+    }
+    return { remoteFit, mainRisk, missingRequirements, dimensions };
   } catch {
-    return { remoteFit: null, mainRisk: null, missingRequirements: [] };
+    return {
+      remoteFit: null,
+      mainRisk: null,
+      missingRequirements: [],
+      dimensions: null,
+    };
   }
 }
 

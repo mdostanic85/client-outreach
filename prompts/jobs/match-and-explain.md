@@ -2,7 +2,9 @@
 
 Compare one job posting to the candidate's approved professional profile.
 
-Return structured JSON only. Be honest — do not inflate scores to fill a quota.
+Return structured JSON only. Be honest — do not inflate dimension scores to fill a quota.
+
+**Do not compute an overall match percentage.** The application calculates the total from your dimension scores and weights.
 
 ## Eligibility
 
@@ -10,22 +12,31 @@ Return structured JSON only. Be honest — do not inflate scores to fill a quota
 - `borderline` — ambiguous location/TZ or stretch seniority/skills
 - `ineligible` — hard location lock, wrong seniority band, wrong discipline, or clear remote ban
 
-## Recommendation
+## Recommendation (optional)
 
-- `apply` — strong match, recommend
-- `consider` — worth a look with caveats
-- `skip` — do not recommend
+You may omit `recommendation` / `recommend` — the application derives them from eligibility, remote fit, and the code-computed total.
 
-## Scoring
+If you include them: `apply` | `consider` | `skip`.
 
-`matchScore` 0–100. Prefer evidence from the posting vs inventing fit.
+## Dimension scoring (required)
 
-Use these bands consistently (do not inflate to fill a quota):
+Score **each** dimension 0–100 from posting evidence vs the profile. Prefer quotes / concrete signals over guesses.
 
-- **80–100** — clear apply: title, seniority, remote/location, and core skills align
-- **70–79** — solid fit with minor caveats (still recommend)
-- **55–69** — worth a look: stretch seniority/skills or ambiguous TZ/location, but not a hard mismatch
-- **below 55** — skip unless evidence is unusually strong
+Each dimension: `{ "score": number, "evidence": "short string ≤140 chars" }`.
+
+| Key | Measures |
+|---|---|
+| `skills` | Core stack / craft tools vs posting must-haves |
+| `seniority` | Title + years band vs profile level |
+| `experience` | Relevant domain / product surface depth |
+| `locationTimezone` | Remote policy + geo + TZ overlap |
+| `employmentType` | Full-time / contract / fractional vs prefs |
+| `compensation` | Pay band vs expectations — use `null` when posting has no pay signal |
+| `industry` | Industry / company type fit |
+| `portfolioFit` | Project evidence maps to role asks |
+| `language` | Language requirements vs profile |
+
+Do **not** invent pay or remote policy. Weak evidence → lower score or `compensation: null`.
 
 ## Remote fit (required)
 
@@ -43,6 +54,18 @@ Always return `remoteFit`. This is a hard decision surface when `searchHints.rem
 
 Do **not** bury remote/TZ only inside `concerns`. Put the verdict in `remoteFit`, and keep related caveats in `concerns` too if useful.
 
+## Evidence from their work
+
+The profile's `relevantProjects` come from their CV, portfolio case studies and GitHub. When a project is relevant to this posting, at least one matching reason must name it, e.g. `"Proof: OriginChains — B2B climate platform UX, same B2B SaaS space"`. Never invent a project; if none is relevant, say so in `concerns` (e.g. "No portfolio work in fintech").
+
+## Their past decisions
+
+`candidateFeedback` lists roles they recently skipped (with their reason, when given) and roles they saved or applied to. Treat these as preferences:
+
+- A posting that repeats a skip reason (same kind of company, domain, seniority, location or contract) scores lower and names that reason in `concerns`.
+- A posting that resembles saved or applied roles may score higher, but only when the posting itself supports the fit.
+- The profile and search hints still win over feedback when they conflict.
+
 ## Matching reasons format
 
 Each `matchingReasons` item should be `"Label: short evidence"` (max ~140 chars), e.g.:
@@ -50,16 +73,24 @@ Each `matchingReasons` item should be `"Label: short evidence"` (max ~140 chars)
 - `"Stack: React, TypeScript, Cursor, Claude"`
 - `"Domain: B2B SaaS and data-heavy UX"`
 
-Prefer 3–5 strong reasons. Skip fluff.
+Prefer 3–5 strong reasons tied to your highest dimension scores. Skip fluff.
 
 ## Output
 
 ```json
 {
-  "matchScore": 88,
+  "dimensions": {
+    "skills": { "score": 88, "evidence": "React, TypeScript, design systems required" },
+    "seniority": { "score": 82, "evidence": "Senior / Staff band matches profile" },
+    "experience": { "score": 75, "evidence": "B2B SaaS product design" },
+    "locationTimezone": { "score": 60, "evidence": "Remote unclear; Denver HQ; CET↔MT thin" },
+    "employmentType": { "score": 90, "evidence": "Full-time remote OK" },
+    "compensation": null,
+    "industry": { "score": 70, "evidence": "Developer tools adjacency" },
+    "portfolioFit": { "score": 80, "evidence": "Design system case studies map to asks" },
+    "language": { "score": 95, "evidence": "English required" }
+  },
   "eligibility": "eligible",
-  "recommend": true,
-  "recommendation": "apply",
   "matchingReasons": ["Stack: React, TypeScript", "Title: Senior Product Designer"],
   "concerns": ["…"],
   "missingRequirements": ["…"],

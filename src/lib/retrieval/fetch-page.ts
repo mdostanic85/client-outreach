@@ -17,7 +17,55 @@ export type RetrievedPage = {
   httpStatus: number | null;
   status: "ok" | "failed";
   error: string | null;
+  /** Absolute same-origin links found on the page (for site crawls). */
+  links?: string[];
 };
+
+const MAX_REDIRECTS = 5;
+
+/** Follows redirects by hand so every hop passes the SSRF check, not just the first URL. */
+async function fetchChecked(url: string, signal: AbortSignal): Promise<Response> {
+  let current = url;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+    const blocked = await isBlockedUrl(current);
+    if (blocked) throw new Error(blocked);
+    const res = await fetch(current, {
+      signal,
+      redirect: "manual",
+      headers: {
+        "User-Agent": "ClientOutreachBot/0.1 (+local; research)",
+        Accept: "text/html,application/xhtml+xml",
+      },
+    });
+    const location = res.headers.get("location");
+    if (res.status >= 300 && res.status < 400 && location) {
+      current = new URL(location, current).toString();
+      continue;
+    }
+    Object.defineProperty(res, "url", { value: current });
+    return res;
+  }
+  throw new Error("Too many redirects");
+}
+
+function sameOriginLinks(html: string, baseUrl: string, cheerio: typeof import("cheerio")): string[] {
+  const origin = new URL(baseUrl).origin;
+  const $ = cheerio.load(html);
+  const out = new Set<string>();
+  $("a[href]").each((_, el) => {
+    const href = $(el).attr("href");
+    if (!href || href.startsWith("#") || /^(mailto|tel|javascript):/i.test(href)) return;
+    try {
+      const abs = new URL(href, baseUrl);
+      if (abs.origin !== origin) return;
+      abs.hash = "";
+      out.add(abs.toString());
+    } catch {
+      // ignore malformed hrefs
+    }
+  });
+  return [...out];
+}
 
 export async function retrievePage(url: string): Promise<RetrievedPage> {
   const retrievedAt = new Date().toISOString();
@@ -36,6 +84,7 @@ export async function retrievePage(url: string): Promise<RetrievedPage> {
       httpStatus: null,
       status: "failed",
       error: blocked,
+      links: [],
     };
   }
 
@@ -43,14 +92,7 @@ export async function retrievePage(url: string): Promise<RetrievedPage> {
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      redirect: "follow",
-      headers: {
-        "User-Agent": "ClientOutreachBot/0.1 (+local; research)",
-        Accept: "text/html,application/xhtml+xml",
-      },
-    });
+    const res = await fetchChecked(url, controller.signal);
 
     const contentType = res.headers.get("content-type") ?? "";
     if (!contentType.includes("text/html") && !contentType.includes("application/xhtml")) {
@@ -83,6 +125,7 @@ export async function retrievePage(url: string): Promise<RetrievedPage> {
         httpStatus: res.status,
         status: "failed",
         error: `Response too large: ${buf.byteLength} bytes`,
+        links: [],
       };
     }
 
@@ -99,11 +142,13 @@ export async function retrievePage(url: string): Promise<RetrievedPage> {
         httpStatus: res.status,
         status: "failed",
         error: `HTTP ${res.status}`,
+        links: [],
       };
     }
 
     const html = buf.toString("utf8");
     const extracted = await extractText(html, res.url);
+    const links = sameOriginLinks(html, res.url, await import("cheerio"));
     const contentHash = createHash("sha256").update(extracted.text).digest("hex");
 
     return {
@@ -118,6 +163,7 @@ export async function retrievePage(url: string): Promise<RetrievedPage> {
       httpStatus: res.status,
       status: "ok",
       error: null,
+      links,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -134,6 +180,7 @@ export async function retrievePage(url: string): Promise<RetrievedPage> {
       httpStatus: null,
       status: "failed",
       error: message,
+      links: [],
     };
   } finally {
     clearTimeout(timer);

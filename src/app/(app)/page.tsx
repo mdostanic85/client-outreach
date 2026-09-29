@@ -6,30 +6,32 @@ import {
 } from "@/modules/jobs/queries";
 import { toJobTriageRow } from "@/modules/jobs/to-triage-row";
 import { listDailyLeads, getSettingsRow } from "@/modules/leads/queries";
-import {
-  getSetupChecklistItems,
-  isSetupChecklistDismissed,
-} from "@/modules/onboarding/state";
 import { getApprovedSearchProfile } from "@/modules/search-profile/queries";
+import { currentUserId, isOwner } from "@/modules/auth/current-user";
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ first?: string }>;
+}) {
+  const { first } = await searchParams;
   await ensureDb();
+  const clientsEnabled = await isOwner(await currentUserId());
   const settings = await getSettingsRow();
   const limit = settings?.dailyLeadCount ?? 12;
-  const leadRows = await listDailyLeads(limit);
+  const leadRows = clientsEnabled ? await listDailyLeads(limit) : [];
   const jobRows = await listDailyJobs();
-  const mode = await getTodayMode();
+  const mode = clientsEnabled ? await getTodayMode() : "jobs";
   const hasSearchProfile = Boolean(await getApprovedSearchProfile());
-  const showChecklist = !(await isSetupChecklistDismissed());
-  const checklistItems = showChecklist ? await getSetupChecklistItems() : [];
 
   return (
     <TodayTabs
       mode={mode}
+      clientsEnabled={clientsEnabled}
       hasSearchProfile={hasSearchProfile}
-      checklistItems={checklistItems}
+      autoSearch={first === "1"}
       jobRows={jobRows.map(toJobTriageRow)}
       leadRows={leadRows.map((row) => ({
         leadId: row.lead.id,

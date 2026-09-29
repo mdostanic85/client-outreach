@@ -1,5 +1,4 @@
-import { getDb } from "@/db/client";
-import { settings } from "@/db/schema";
+import { getUserSettings } from "@/modules/settings/user-settings";
 
 export type CountryPolicy =
   | "draft_allowed"
@@ -57,7 +56,7 @@ export function normalizeCountryCode(raw?: string | null): string | null {
 export async function loadCountryPolicyMap(): Promise<
   Record<string, CountryPolicy>
 > {
-  const setting = (await getDb().select().from(settings).limit(1))[0];
+  const setting = (await getUserSettings());
   let stored: Record<string, CountryPolicy> = {};
   try {
     stored = JSON.parse(setting?.countryPolicyJson || "{}") as Record<

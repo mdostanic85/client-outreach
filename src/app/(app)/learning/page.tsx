@@ -8,6 +8,7 @@ import {
   getJobLearningDashboard,
   getLearningDashboard,
 } from "@/modules/learning/queries";
+import { currentUserId, isOwner } from "@/modules/auth/current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -18,13 +19,15 @@ export default async function LearningPage({
 }) {
   await ensureDb();
   const sp = searchParams ? await searchParams : {};
+  const clientsEnabled = await isOwner(await currentUserId());
   const todayMode = await getTodayMode();
-  const mode =
+  const requested =
     sp.mode === "clients" || sp.mode === "jobs"
       ? sp.mode
       : todayMode === "clients"
         ? "clients"
         : "jobs";
+  const mode = clientsEnabled ? requested : "jobs";
 
   const clientsDash = await getLearningDashboard();
   const jobsDash = await getJobLearningDashboard();
@@ -44,7 +47,7 @@ export default async function LearningPage({
             ? "Log what happened after you applied. Optra suggests search updates — you approve before anything changes."
             : "See which sources work. Optra suggests style and scoring updates — you approve before anything changes."
         }
-        actions={<LearningModeSwitch mode={mode} />}
+        actions={clientsEnabled ? <LearningModeSwitch mode={mode} /> : undefined}
       />
 
       {mode === "jobs" ? (

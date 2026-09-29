@@ -6,6 +6,7 @@ import {
   listOutboundBoard,
   listRecentDeliveryEvents,
 } from "@/modules/mail/queries";
+import { requireOwnerPage } from "@/modules/auth/page-guards";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ export default async function QueuePage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireOwnerPage();
   await ensureDb();
   const sp = (await searchParams) ?? {};
   const tabRaw = typeof sp.tab === "string" ? sp.tab : "";

@@ -1,4 +1,6 @@
+import nodemailer from "nodemailer";
 import { getSecret, setSecret, clearSecret } from "@/lib/security/secrets";
+import { describeMailError } from "./errors";
 
 const OAUTH_SCOPE = [
   "https://mail.google.com/",
@@ -165,7 +167,41 @@ export function saveGoogleOauthConnection(input: {
   setSecret("GMAIL_USER", input.email);
 }
 
-export function savePasswordMailboxConnection(input: {
+function parsePort(raw: string | undefined, fallback: number): number {
+  const n = Number.parseInt(raw?.trim() ?? "", 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/**
+ * Actually log in before saving anything. Without this, bad credentials
+ * (e.g. a Gmail account password instead of an App Password) get stored as
+ * "Connected" and the 535 auth failure only surfaces later, confusingly, when
+ * a send is attempted.
+ */
+async function verifySmtpLogin(input: {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  password: string;
+}): Promise<void> {
+  const transport = nodemailer.createTransport({
+    host: input.host,
+    port: input.port,
+    secure: input.secure,
+    auth: { user: input.user, pass: input.password },
+    connectionTimeout: 10_000,
+  });
+  try {
+    await transport.verify();
+  } catch (err) {
+    throw new Error(describeMailError(err, input.host));
+  } finally {
+    transport.close();
+  }
+}
+
+export async function savePasswordMailboxConnection(input: {
   email: string;
   password: string;
   smtpHost: string;
@@ -173,21 +209,30 @@ export function savePasswordMailboxConnection(input: {
   smtpPort?: string;
   imapPort?: string;
   provider?: string;
-}) {
+}): Promise<void> {
   const email = input.email.trim().toLowerCase();
+  const password = input.password.trim();
   const smtpHost = input.smtpHost.trim();
   const imapHost = input.imapHost.trim();
-  if (!email || !input.password.trim() || !smtpHost || !imapHost) {
+  if (!email || !password || !smtpHost || !imapHost) {
     throw new Error("Email, password, SMTP server, and incoming server are required");
   }
+
+  const smtpPort = parsePort(input.smtpPort, 465);
+  // 587 is conventionally STARTTLS (secure: false, upgraded after connect);
+  // everything else (465, custom ports) defaults to implicit TLS.
+  const smtpSecure = smtpPort !== 587;
+
+  await verifySmtpLogin({ host: smtpHost, port: smtpPort, secure: smtpSecure, user: email, password });
 
   setSecret("MAIL_AUTH_MODE", "password");
   setSecret("MAIL_PROVIDER", input.provider ?? "custom");
   setSecret("MAIL_USER", email);
-  setSecret("MAIL_PASSWORD", input.password.trim());
+  setSecret("MAIL_PASSWORD", password);
   setSecret("MAIL_SMTP_HOST", smtpHost);
+  setSecret("MAIL_SMTP_PORT", String(smtpPort));
+  setSecret("MAIL_SMTP_SECURE", smtpSecure ? "true" : "false");
   setSecret("MAIL_IMAP_HOST", imapHost);
-  if (input.smtpPort?.trim()) setSecret("MAIL_SMTP_PORT", input.smtpPort.trim());
   if (input.imapPort?.trim()) setSecret("MAIL_IMAP_PORT", input.imapPort.trim());
 
   try {

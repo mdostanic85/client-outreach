@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { applicationPackages, jobs } from "@/db/schema";
 import { nowIso } from "@/lib/ids";
@@ -7,6 +7,9 @@ import { logger } from "@/lib/logging/logger";
 import { requireMailCredentials } from "@/modules/mail/credentials";
 import { getPackageById } from "./packages";
 import type { ApplicationEmailDraft } from "./application-email";
+import { owned } from "@/modules/auth/current-user";
+import { packageFilenameBase, tailoredCvToPlainText } from "./export-text";
+import { describeMailError } from "@/modules/mail/errors";
 
 function createTransport() {
   const creds = requireMailCredentials();
@@ -92,6 +95,15 @@ export async function sendApplicationPackage(input: {
   }
 
   const { creds, transport } = transportBundle;
+  // No PDF pipeline yet (deferred — see docs/product/company-specific-application-package.md);
+  // attach the same plain-text CV the "Export .txt" button already produces so
+  // the recruiter gets an actual CV file instead of only the letter-body text.
+  const cvFilename = `${packageFilenameBase({
+    fullName: view.cv.fullName,
+    companyName: view.companyName,
+    jobTitle: view.jobTitle,
+  })}_CV.txt`;
+  const cvText = tailoredCvToPlainText(view.cv, view.marketLabel);
   try {
     await transport.sendMail({
       from: creds.user,
@@ -101,6 +113,13 @@ export async function sendApplicationPackage(input: {
       headers: {
         "X-Optra-Application": "1",
       },
+      attachments: [
+        {
+          filename: cvFilename,
+          content: cvText,
+          contentType: "text/plain; charset=utf-8",
+        },
+      ],
     });
   } catch (err) {
     logger.error(
@@ -109,7 +128,7 @@ export async function sendApplicationPackage(input: {
     );
     return {
       ok: false,
-      reason: `Send failed: ${err instanceof Error ? err.message : String(err)}`,
+      reason: describeMailError(err, creds.smtp.host),
     };
   }
 
@@ -126,7 +145,7 @@ export async function sendApplicationPackage(input: {
       state: view.state === "approved" ? "prepared" : view.state,
       updatedAt: now,
     })
-    .where(eq(applicationPackages.id, input.packageId));
+    .where(and(await owned(applicationPackages), eq(applicationPackages.id, input.packageId)));
 
   await db
     .update(jobs)
@@ -135,7 +154,7 @@ export async function sendApplicationPackage(input: {
       appliedAt: now,
       updatedAt: now,
     })
-    .where(eq(jobs.id, view.jobId));
+    .where(and(await owned(jobs), eq(jobs.id, view.jobId)));
 
   return { ok: true, packageId: input.packageId, jobId: view.jobId };
 }
@@ -161,7 +180,7 @@ export async function markApplicationGotReply(
       repliedAt: view.repliedAt ?? now,
       updatedAt: now,
     })
-    .where(eq(applicationPackages.id, packageId));
+    .where(and(await owned(applicationPackages), eq(applicationPackages.id, packageId)));
 
   await getDb()
     .update(jobs)
@@ -170,7 +189,7 @@ export async function markApplicationGotReply(
       outcomeAt: now,
       updatedAt: now,
     })
-    .where(eq(jobs.id, view.jobId));
+    .where(and(await owned(jobs), eq(jobs.id, view.jobId)));
 
   return { packageId, jobId: view.jobId };
 }

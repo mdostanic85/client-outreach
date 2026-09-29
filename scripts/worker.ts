@@ -6,6 +6,8 @@
  *   pnpm worker
  *   pnpm worker --resume <runId>
  */
+import { ensureDb } from "../src/db/ensure";
+import { runAsOwner } from "../src/modules/auth/current-user";
 import { runWorkerPipeline } from "../src/modules/tracking/worker";
 
 async function main() {
@@ -14,7 +16,9 @@ async function main() {
   const resumeRunId =
     resumeIdx >= 0 ? args[resumeIdx + 1] : undefined;
 
-  const result = await runWorkerPipeline({ resumeRunId });
+  await ensureDb();
+  // Client-outreach pipeline: owner only.
+  const result = await runAsOwner(() => runWorkerPipeline({ resumeRunId }));
   console.log(JSON.stringify(result, null, 2));
 }
 

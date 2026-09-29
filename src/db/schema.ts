@@ -4,11 +4,14 @@ import {
   real,
   pgTable,
   text,
+  timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const settings = pgTable("settings", {
   id: text("id").primaryKey(),
+  /** Owning account (auth_user.id). One row per account. */
+  userId: text("user_id").notNull().unique("settings_user_id_unique"),
   profileMd: text("profile_md").notNull().default(""),
   targetFiltersJson: text("target_filters_json").notNull().default("{}"),
   dailyLeadCount: integer("daily_lead_count").notNull().default(10),
@@ -25,6 +28,8 @@ export const settings = pgTable("settings", {
   mailboxHealthJson: text("mailbox_health_json").notNull().default("{}"),
   /** Phase 3 ops prerequisites checklist (manual DNS/mailbox). */
   opsChecklistJson: text("ops_checklist_json").notNull().default("{}"),
+  /** First-login survey answers (see modules/onboarding/survey). */
+  surveyJson: text("survey_json").notNull().default("{}"),
   /** Soft post-onboarding checklist on Today — dismissed timestamp. */
   setupChecklistDismissedAt: text("setup_checklist_dismissed_at"),
   /**
@@ -202,6 +207,8 @@ export const syncRuns = pgTable("sync_runs", {
 
 export const apiUsage = pgTable("api_usage", {
   id: text("id").primaryKey(),
+  /** Owning account (auth_user.id). */
+  userId: text("user_id").notNull(),
   provider: text("provider").notNull(),
   model: text("model").notNull(),
   task: text("task").notNull(),
@@ -322,6 +329,8 @@ export const draftEdits = pgTable("draft_edits", {
 
 export const learningProposals = pgTable("learning_proposals", {
   id: text("id").primaryKey(),
+  /** Owning account (auth_user.id). */
+  userId: text("user_id").notNull(),
   kind: text("kind").notNull(),
   title: text("title").notNull(),
   summary: text("summary").notNull(),
@@ -334,6 +343,8 @@ export const learningProposals = pgTable("learning_proposals", {
 
 export const learningReports = pgTable("learning_reports", {
   id: text("id").primaryKey(),
+  /** Owning account (auth_user.id). */
+  userId: text("user_id").notNull(),
   kind: text("kind").notNull(),
   title: text("title").notNull(),
   bodyMd: text("body_md").notNull(),
@@ -345,6 +356,21 @@ export const learningReports = pgTable("learning_reports", {
 /** Soft scoring weight overrides — only applied via approved proposal. */
 export const settingsScoring = pgTable("settings_scoring", {
   id: text("id").primaryKey(),
+  /** Owning account (auth_user.id). */
+  userId: text("user_id").notNull(),
+  weightsJson: text("weights_json").notNull().default("{}"),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/**
+ * Job-match dimension weights (skills, seniority, …).
+ * Separate from outreach `settings_scoring` — different question, different dims.
+ * Only applied via approved `job_scoring_weights` proposal (or defaults).
+ */
+export const settingsJobScoring = pgTable("settings_job_scoring", {
+  id: text("id").primaryKey(),
+  /** Owning account (auth_user.id). */
+  userId: text("user_id").notNull(),
   weightsJson: text("weights_json").notNull().default("{}"),
   updatedAt: text("updated_at").notNull(),
 });
@@ -352,6 +378,8 @@ export const settingsScoring = pgTable("settings_scoring", {
 /** Raw materials for structured professional profile (CV, portfolio, etc.). */
 export const profileSources = pgTable("profile_sources", {
   id: text("id").primaryKey(),
+  /** Owning account (auth_user.id). */
+  userId: text("user_id").notNull(),
   type: text("type").notNull(),
   label: text("label"),
   rawText: text("raw_text"),
@@ -373,6 +401,8 @@ export const profileSources = pgTable("profile_sources", {
 /** Versioned structured profile. Matching uses approved only. */
 export const structuredProfiles = pgTable("structured_profiles", {
   id: text("id").primaryKey(),
+  /** Owning account (auth_user.id). */
+  userId: text("user_id").notNull(),
   version: integer("version").notNull(),
   status: text("status").notNull().default("draft"),
   profileJson: text("profile_json").notNull(),
@@ -386,6 +416,8 @@ export const structuredProfiles = pgTable("structured_profiles", {
 /** AI-generated Apify/search criteria. Collectors use approved only. Strategy versions = rows. */
 export const jobSearchProfiles = pgTable("job_search_profiles", {
   id: text("id").primaryKey(),
+  /** Owning account (auth_user.id). */
+  userId: text("user_id").notNull(),
   version: integer("version").notNull(),
   status: text("status").notNull().default("draft"),
   structuredProfileId: text("structured_profile_id"),
@@ -410,6 +442,8 @@ export const jobs = pgTable(
   "jobs",
   {
     id: text("id").primaryKey(),
+    /** Owning account (auth_user.id). */
+    userId: text("user_id").notNull(),
     companyId: text("company_id").references(() => companies.id),
     title: text("title").notNull(),
     description: text("description").notNull().default(""),
@@ -444,13 +478,15 @@ export const jobs = pgTable(
     updatedAt: text("updated_at").notNull(),
   },
   (t) => [
-    uniqueIndex("jobs_source_external").on(t.source, t.externalId),
+    uniqueIndex("jobs_user_source_external").on(t.userId, t.source, t.externalId),
   ],
 );
 
 /** Append-only job learning signals (triage + post-apply outcomes). */
 export const jobOutcomeEvents = pgTable("job_outcome_events", {
   id: text("id").primaryKey(),
+  /** Owning account (auth_user.id). */
+  userId: text("user_id").notNull(),
   jobId: text("job_id")
     .notNull()
     .references(() => jobs.id),
@@ -464,6 +500,8 @@ export const jobOutcomeEvents = pgTable("job_outcome_events", {
 /** Snapshot of funnel KPIs per search strategy version (recomputed on demand). */
 export const strategyCohortMetrics = pgTable("strategy_cohort_metrics", {
   id: text("id").primaryKey(),
+  /** Owning account (auth_user.id). */
+  userId: text("user_id").notNull(),
   strategyVersion: integer("strategy_version").notNull(),
   applicationsN: integer("applications_n").notNull().default(0),
   responsesN: integer("responses_n").notNull().default(0),
@@ -483,6 +521,8 @@ export const strategyCohortMetrics = pgTable("strategy_cohort_metrics", {
 /** One collector/Apify query run. */
 export const collectorRuns = pgTable("collector_runs", {
   id: text("id").primaryKey(),
+  /** Owning account (auth_user.id). */
+  userId: text("user_id").notNull(),
   searchProfileVersion: integer("search_profile_version"),
   source: text("source").notNull(),
   queryJson: text("query_json").notNull(),
@@ -494,40 +534,73 @@ export const collectorRuns = pgTable("collector_runs", {
   error: text("error"),
 });
 
-/** Local account for private app access. */
-export const users = pgTable(
-  "users",
-  {
-    id: text("id").primaryKey(),
-    email: text("email").notNull(),
-    name: text("name"),
-    passwordHash: text("password_hash").notNull(),
-    /** Set when first-login wizard finishes (profile + search approved). */
-    onboardingCompletedAt: text("onboarding_completed_at"),
-    createdAt: text("created_at").notNull(),
-    updatedAt: text("updated_at").notNull(),
-  },
-  (t) => [uniqueIndex("users_email_idx").on(t.email)],
-);
-
-export const sessions = pgTable("sessions", {
+/**
+ * Better Auth tables (user / session / account / verification).
+ * Passwords live on `auth_account` (provider_id = "credential"); Google logins
+ * add a second account row for the same user.
+ */
+export const users = pgTable("auth_user", {
   id: text("id").primaryKey(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id),
-  tokenHash: text("token_hash").notNull(),
-  expiresAt: text("expires_at").notNull(),
-  createdAt: text("created_at").notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  image: text("image"),
+  /** Set when first-login wizard finishes (profile + search approved). */
+  onboardingCompletedAt: text("onboarding_completed_at"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 });
 
-export const passwordResetTokens = pgTable("password_reset_tokens", {
+export const authSessions = pgTable("auth_session", {
   id: text("id").primaryKey(),
   userId: text("user_id")
     .notNull()
-    .references(() => users.id),
-  tokenHash: text("token_hash").notNull(),
-  expiresAt: text("expires_at").notNull(),
-  usedAt: text("used_at"),
+    .references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+});
+
+export const authAccounts = pgTable("auth_account", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  accountId: text("account_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+  scope: text("scope"),
+  password: text("password"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+});
+
+export const authVerifications = pgTable("auth_verification", {
+  id: text("id").primaryKey(),
+  identifier: text("identifier").notNull(),
+  value: text("value").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+});
+
+/** CV quality review shown at the end of onboarding and on Profile. */
+export const cvReviews = pgTable("cv_reviews", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  sourceId: text("source_id").references(() => profileSources.id),
+  score: integer("score").notNull(),
+  /** Parsed CvReview JSON (headline, dimensions, strengths, fixes). */
+  reviewJson: text("review_json").notNull(),
+  model: text("model"),
+  promptVersion: text("prompt_version"),
   createdAt: text("created_at").notNull(),
 });
 
@@ -536,6 +609,8 @@ export const jobMatches = pgTable(
   "job_matches",
   {
     id: text("id").primaryKey(),
+    /** Owning account (auth_user.id). */
+    userId: text("user_id").notNull(),
     jobId: text("job_id")
       .notNull()
       .references(() => jobs.id),
@@ -568,6 +643,8 @@ export const jobMatches = pgTable(
  */
 export const applicationPackages = pgTable("application_packages", {
   id: text("id").primaryKey(),
+  /** Owning account (auth_user.id). */
+  userId: text("user_id").notNull(),
   jobId: text("job_id")
     .notNull()
     .references(() => jobs.id),

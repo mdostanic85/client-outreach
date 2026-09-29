@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { jobSearchProfiles, structuredProfiles } from "@/db/schema";
 import { buildMessages, googleProvider } from "@/lib/ai/google";
@@ -19,9 +19,11 @@ import {
   EMPTY_SEARCH_PARAMS,
   JobSearchParamsSchema,
   SearchProfileLlmSchema,
+  withMarketDefaults,
   type JobSearchParams,
   type SearchProfileLlm,
 } from "./schemas";
+import { currentUserId, owned } from "@/modules/auth/current-user";
 
 function parseJsonLoose(text: string): unknown {
   const trimmed = text.trim();
@@ -33,6 +35,7 @@ async function nextVersion(): Promise<number> {
   const latest = (await getDb()
     .select({ version: jobSearchProfiles.version })
     .from(jobSearchProfiles)
+    .where(await owned(jobSearchProfiles))
     .orderBy(desc(jobSearchProfiles.version)).limit(1))[0];
   return (latest?.version ?? 0) + 1;
 }
@@ -107,7 +110,7 @@ async function callLlm(profileJson: string): Promise<{
   model: string;
   costUsd: number;
 }> {
-  assertPublicBudgetAllows("jobSearchProfile");
+  await assertPublicBudgetAllows("jobSearchProfile");
   const system = loadPrompt("jobs/search-profile.md");
   const model = resolveModel("jobSearchProfile");
   const user = `Approved structured profile JSON:\n${profileJson}\n\nGenerate the job search profile JSON.`;
@@ -186,6 +189,7 @@ export async function generateSearchProfile(options?: {
     params = derived.params;
     rationale = derived.rationale;
   }
+  params = withMarketDefaults(params);
 
   const db = getDb();
   const version = await nextVersion();
@@ -193,6 +197,7 @@ export async function generateSearchProfile(options?: {
   await db.insert(jobSearchProfiles)
     .values({
       id,
+      userId: await currentUserId(),
       version,
       status: "draft",
       structuredProfileId: approved.id,
@@ -219,7 +224,7 @@ export async function saveSearchProfileDraft(
   const row = (await db
     .select()
     .from(jobSearchProfiles)
-    .where(eq(jobSearchProfiles.id, id)).limit(1))[0];
+    .where(and(await owned(jobSearchProfiles), eq(jobSearchProfiles.id, id))).limit(1))[0];
   if (!row) throw new Error("Search profile not found");
   if (row.status !== "draft") {
     throw new Error("Only draft search profiles can be edited");
@@ -230,7 +235,7 @@ export async function saveSearchProfileDraft(
       paramsJson: JSON.stringify(parsed),
       ...(rationale ? { rationaleJson: JSON.stringify(rationale) } : {}),
     })
-    .where(eq(jobSearchProfiles.id, id));
+    .where(and(await owned(jobSearchProfiles), eq(jobSearchProfiles.id, id)));
 }
 
 /**
@@ -245,7 +250,7 @@ export async function createDraftFromApprovedSearchProfile(options?: {
   const existingDraft = (await db
     .select()
     .from(jobSearchProfiles)
-    .where(eq(jobSearchProfiles.status, "draft"))
+    .where(and(await owned(jobSearchProfiles), eq(jobSearchProfiles.status, "draft")))
     .orderBy(desc(jobSearchProfiles.version))
     .limit(1))[0];
   if (existingDraft) {
@@ -262,7 +267,7 @@ export async function createDraftFromApprovedSearchProfile(options?: {
   const approved = (await db
     .select()
     .from(jobSearchProfiles)
-    .where(eq(jobSearchProfiles.status, "approved"))
+    .where(and(await owned(jobSearchProfiles), eq(jobSearchProfiles.status, "approved")))
     .orderBy(desc(jobSearchProfiles.version))
     .limit(1))[0];
   if (!approved) {
@@ -285,6 +290,7 @@ export async function createDraftFromApprovedSearchProfile(options?: {
   const version = await nextVersion();
   await db.insert(jobSearchProfiles).values({
     id,
+    userId: await currentUserId(),
     version,
     status: "draft",
     structuredProfileId: approved.structuredProfileId,
@@ -310,6 +316,6 @@ export async function assertStructuredProfileExists(id: string) {
   const row = (await getDb()
     .select()
     .from(structuredProfiles)
-    .where(eq(structuredProfiles.id, id)).limit(1))[0];
+    .where(and(await owned(structuredProfiles), eq(structuredProfiles.id, id))).limit(1))[0];
   if (!row) throw new Error("Structured profile missing");
 }

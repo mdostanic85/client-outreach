@@ -54,9 +54,9 @@ const lever = z.object({
 const ashby = z.object({
   id, title: z.string().min(1), jobUrl: z.string().url(),
   descriptionPlain: optionalText, descriptionHtml: optionalText,
-  location: optionalText, isRemote: z.boolean().optional(),
+  location: optionalText, isRemote: z.boolean().nullish(),
   workplaceType: optionalText, employmentType: optionalText,
-  publishedAt: optionalText, isListed: z.boolean().optional(),
+  publishedAt: optionalText, isListed: z.boolean().nullish(),
 });
 
 function plain(html: string | null | undefined): string {
@@ -85,40 +85,49 @@ export function normalizeAtsPayload(board: AtsBoard, payload: unknown): RawColle
   const rows = board.source === "lever"
     ? z.array(z.unknown()).parse(payload)
     : z.object({ jobs: z.array(z.unknown()) }).parse(payload).jobs;
+  // One malformed posting must not drop the whole board.
   return rows.flatMap((row) => {
-    const base = { source: board.source, companyName: board.slug };
-    if (board.source === "greenhouse") {
-      const j = greenhouse.parse(row);
-      return [RawCollectedJobSchema.parse({ ...base,
-        externalId: `${board.region}:${board.slug}:${j.id}`,
-        companyName: j.company_name || board.slug, title: j.title,
-        sourceUrl: safePostingUrl(j.absolute_url), description: plain(j.content),
-        location: j.location?.name ?? undefined,
-        // updated_at is not a publication date.
-        postedAt: date(j.first_published),
-      })];
+    try {
+      return normalizeAtsRow(board, row);
+    } catch {
+      return [];
     }
-    if (board.source === "lever") {
-      const j = lever.parse(row);
-      return [RawCollectedJobSchema.parse({ ...base,
-        externalId: `${board.region}:${board.slug}:${j.id}`, title: j.text,
-        sourceUrl: safePostingUrl(j.hostedUrl),
-        description: plain([j.descriptionPlain || j.description, ...(j.lists ?? []).map(l => `${l.text ?? ""} ${l.content ?? ""}`), j.additionalPlain].filter(Boolean).join("\n")),
-        location: j.categories?.location ?? undefined,
-        remotePolicy: j.workplaceType ?? undefined,
-        employmentType: j.categories?.commitment ?? undefined,
-      })];
-    }
-    const j = ashby.parse(row);
-    if (j.isListed === false) return [];
-    return [RawCollectedJobSchema.parse({ ...base,
-      externalId: `${board.slug}:${j.id}`, title: j.title,
-      sourceUrl: safePostingUrl(j.jobUrl), description: plain(j.descriptionPlain || j.descriptionHtml),
-      location: j.location ?? undefined, employmentType: j.employmentType ?? undefined,
-      remotePolicy: j.workplaceType ?? (j.isRemote === true ? "remote" : undefined),
-      postedAt: date(j.publishedAt),
-    })];
   });
+}
+
+function normalizeAtsRow(board: AtsBoard, row: unknown): RawCollectedJob[] {
+  const base = { source: board.source, companyName: board.slug };
+  if (board.source === "greenhouse") {
+    const j = greenhouse.parse(row);
+    return [RawCollectedJobSchema.parse({ ...base,
+      externalId: `${board.region}:${board.slug}:${j.id}`,
+      companyName: j.company_name || board.slug, title: j.title,
+      sourceUrl: safePostingUrl(j.absolute_url), description: plain(j.content),
+      location: j.location?.name ?? undefined,
+      // updated_at is not a publication date.
+      postedAt: date(j.first_published),
+    })];
+  }
+  if (board.source === "lever") {
+    const j = lever.parse(row);
+    return [RawCollectedJobSchema.parse({ ...base,
+      externalId: `${board.region}:${board.slug}:${j.id}`, title: j.text,
+      sourceUrl: safePostingUrl(j.hostedUrl),
+      description: plain([j.descriptionPlain || j.description, ...(j.lists ?? []).map(l => `${l.text ?? ""} ${l.content ?? ""}`), j.additionalPlain].filter(Boolean).join("\n")),
+      location: j.categories?.location ?? undefined,
+      remotePolicy: j.workplaceType ?? undefined,
+      employmentType: j.categories?.commitment ?? undefined,
+    })];
+  }
+  const j = ashby.parse(row);
+  if (j.isListed === false) return [];
+  return [RawCollectedJobSchema.parse({ ...base,
+    externalId: `${board.slug}:${j.id}`, title: j.title,
+    sourceUrl: safePostingUrl(j.jobUrl), description: plain(j.descriptionPlain || j.descriptionHtml),
+    location: j.location ?? undefined, employmentType: j.employmentType ?? undefined,
+    remotePolicy: j.workplaceType ?? (j.isRemote === true ? "remote" : undefined),
+    postedAt: date(j.publishedAt),
+  })];
 }
 
 export async function fetchAtsBoard(board: AtsBoard, fetcher: typeof fetch = fetch): Promise<RawCollectedJob[]> {

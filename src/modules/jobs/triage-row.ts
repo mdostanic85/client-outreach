@@ -1,5 +1,6 @@
 import type { CompanySnapshot } from "@/modules/jobs/company-snapshot";
 import type { RemoteFit } from "@/modules/matching/remote-fit";
+import type { MatchDimensions } from "@/modules/matching/score";
 
 /** Client-safe job card props for Today / Interested lists. */
 export type JobTriageRow = {
@@ -19,6 +20,7 @@ export type JobTriageRow = {
   remoteFit: RemoteFit;
   mainRisk: string | null;
   missingRequirements: string[];
+  matchDimensions: MatchDimensions | null;
   remoteRequired: boolean;
   postedAt: string | null;
   triageState: string;

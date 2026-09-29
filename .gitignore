@@ -2,6 +2,9 @@
 
 # dependencies
 /node_modules
+# pnpm is the package manager (pnpm-lock.yaml). An npm lockfile makes
+# Turbopack infer the wrong root and panic with "Next.js package not found".
+package-lock.json
 /.pnp
 .pnp.*
 .yarn/*
@@ -52,3 +55,4 @@ next-env.d.ts
 
 # Local job scheduler lock
 /data/jobs-worker.lock
+/.next-preview/

@@ -302,10 +302,13 @@ export function CompanySnapshotCard({
   snapshot,
   location,
   remotePolicy,
+  /** When false, show full facts inline (no nested “More” sheet). */
+  expandable = true,
 }: {
   snapshot: CompanySnapshot;
   location: string | null;
   remotePolicy: string | null;
+  expandable?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const hasAnything =
@@ -316,9 +319,99 @@ export function CompanySnapshotCard({
     Boolean(snapshot.country) ||
     Boolean(snapshot.headcountBand) ||
     snapshot.relatedOpenings > 0 ||
-    Boolean(snapshot.reputation);
+    Boolean(snapshot.reputation) ||
+    snapshot.risksAndUnknowns.length > 0;
 
-  if (!hasAnything) return null;
+  if (!hasAnything) {
+    return (
+      <p className="text-muted-foreground text-[14px] leading-snug">
+        No public company details yet.
+      </p>
+    );
+  }
+
+  if (!expandable) {
+    const size = formatHeadcountBand(snapshot.headcountBand);
+    const hiring = formatHiringActivity(
+      snapshot.relatedOpenings,
+      snapshot.hiringLookbackDays,
+    );
+    const site = websiteHref(snapshot.domain);
+
+    return (
+      <div className="space-y-5">
+        {snapshot.reputation ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <ReputationChip
+              rating={snapshot.reputation.rating}
+              reviewCount={snapshot.reputation.reviewCount}
+              source={snapshot.reputation.source}
+            />
+            <span className="text-muted-foreground text-[13px]">
+              via {snapshot.reputation.source}
+              {snapshot.reputation.reviewCount < 10
+                ? " · limited sample"
+                : ""}
+            </span>
+            {snapshot.reputation.sourceUrl ? (
+              <a
+                href={snapshot.reputation.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary inline-flex items-center gap-1 text-[13px] font-medium hover:underline"
+              >
+                Reviews
+                <ExternalLink className="size-3" />
+              </a>
+            ) : null}
+          </div>
+        ) : null}
+
+        <CompanyFacts snapshot={snapshot} location={location} showWebsite={false} />
+
+        <dl className="text-muted-foreground space-y-2 border-t pt-4 text-[14px]">
+          {!snapshot.salaryText ? (
+            <FactRow label="Pay" value="Not listed on posting" />
+          ) : null}
+          {!size ? <FactRow label="Size" value="Unknown" /> : null}
+          {!hiring ? (
+            <FactRow label="Recent hiring" value="No recent openings tracked" />
+          ) : null}
+          {!snapshot.reputation ? (
+            <FactRow label="Employee reviews" value="No public rating yet" />
+          ) : null}
+          {remotePolicy?.trim() ? (
+            <FactRow label="Remote policy" value={remotePolicy.trim()} />
+          ) : null}
+        </dl>
+
+        {snapshot.risksAndUnknowns.length > 0 ? (
+          <section>
+            <h3 className="text-muted-foreground mb-2 text-[14px] font-medium">
+              Open questions
+            </h3>
+            <ul className="text-muted-foreground list-disc space-y-1.5 pl-5 text-[14px] leading-snug">
+              {snapshot.risksAndUnknowns.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {site ? (
+          <a
+            href={site}
+            target="_blank"
+            rel="noreferrer"
+            className="border-border hover:bg-muted inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-white/10 px-3 text-[14px]"
+          >
+            Visit website
+            <ExternalLink className="size-3.5" />
+          </a>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <>

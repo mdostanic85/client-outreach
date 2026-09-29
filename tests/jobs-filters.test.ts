@@ -131,3 +131,28 @@ const params = {
 }
 
 console.log("jobs-filters.test.ts OK");
+
+// "Intern" is a whole word: International / Internal roles stay.
+{
+  const intl = { ...base, externalId: "intl", title: "Staff Product Designer, International" };
+  const { kept } = filterRawJobs([intl], params);
+  assert.equal(kept.length, 1);
+}
+
+// Boards keep roles open for weeks; a 3-week-old posting survives a 48h "posted within".
+{
+  const older = { ...base, externalId: "old", postedAt: new Date(Date.now() - 21 * 86400000).toISOString() };
+  assert.equal(filterRawJobs([older], { ...params, postedWithinHours: 48 }).kept.length, 1);
+  const stale = { ...base, externalId: "stale", postedAt: new Date(Date.now() - 45 * 86400000).toISOString() };
+  assert.equal(filterRawJobs([stale], params).dropped[0]?.reason, "too_old");
+}
+
+{
+  const normalized = normalizeCollectorParams({
+    ...EMPTY_SEARCH_PARAMS,
+    excludedKeywords: ["on-site", "internship"],
+    atsBoardUrls: ["https://boards.greenhouse.io/notion", "https://jobs.lever.co/vercel"],
+  });
+  assert.deepEqual(normalized.excludedKeywords, ["internship"]);
+  assert.deepEqual(normalized.atsBoardUrls, ["https://jobs.ashbyhq.com/notion", "https://boards.greenhouse.io/vercel"]);
+}

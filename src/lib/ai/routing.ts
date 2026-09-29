@@ -56,6 +56,20 @@ export const TASK_ROUTES = {
     modelEnv: "PRIVATE_WRITING_MODEL",
     defaultModel: "claude-sonnet-4-5",
   },
+  /** Profile extract without an Anthropic key (sources are PII-redacted first). */
+  profileExtractPublic: {
+    dataClass: "PUBLIC" as const,
+    provider: "google" as const,
+    modelEnv: "PUBLIC_PROFILE_MODEL",
+    defaultModel: "gemini-flash-latest",
+  },
+  /** CV quality review — private (the whole CV is sent). */
+  cvReview: {
+    dataClass: "PRIVATE" as const,
+    provider: "anthropic" as const,
+    modelEnv: "PRIVATE_WRITING_MODEL",
+    defaultModel: "claude-sonnet-4-5",
+  },
   /** Search criteria from structured profile — public mid-tier OK. */
   jobSearchProfile: {
     dataClass: "PUBLIC" as const,

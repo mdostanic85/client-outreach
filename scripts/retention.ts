@@ -8,10 +8,11 @@
  */
 import { ensureDb } from "../src/db/ensure";
 import { runRetentionPrune } from "../src/modules/privacy/retention";
+import { runAsOwner } from "../src/modules/auth/current-user";
 
 const apply = process.argv.includes("--apply");
 await ensureDb();
-const result = await runRetentionPrune({ dryRun: !apply });
+const result = await runAsOwner(() => runRetentionPrune({ dryRun: !apply }));
 console.log(JSON.stringify(result, null, 2));
 if (!apply) {
   console.log("\nDry run only. Pass --apply to delete.");

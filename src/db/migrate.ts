@@ -3,7 +3,7 @@ import { getSql } from "./client";
 /**
  * Additive PostgreSQL schema bootstrap.
  * Safe to re-run: CREATE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS only.
- * Never drops tables or columns.
+ * Never drops tables or columns (only the superseded jobs_source_external index).
  */
 const MIGRATION_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS settings (
@@ -281,6 +281,12 @@ const MIGRATION_STATEMENTS = [
   updated_at TEXT NOT NULL
 )`,
 
+  `CREATE TABLE IF NOT EXISTS settings_job_scoring (
+  id TEXT PRIMARY KEY,
+  weights_json TEXT NOT NULL DEFAULT '{}',
+  updated_at TEXT NOT NULL
+)`,
+
   `CREATE TABLE IF NOT EXISTS profile_sources (
   id TEXT PRIMARY KEY,
   type TEXT NOT NULL,
@@ -356,7 +362,6 @@ const MIGRATION_STATEMENTS = [
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 )`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS jobs_source_external ON jobs(source, external_id)`,
 
   `CREATE TABLE IF NOT EXISTS collector_runs (
   id TEXT PRIMARY KEY,
@@ -390,6 +395,7 @@ const MIGRATION_STATEMENTS = [
 )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS job_matches_job_profile ON job_matches(job_id, profile_version, prompt_version)`,
 
+  // Legacy auth tables — kept only as the source for the Better Auth backfill below.
   `CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   email TEXT NOT NULL,
@@ -510,7 +516,148 @@ const MIGRATION_STATEMENTS = [
   `ALTER TABLE application_packages ADD COLUMN IF NOT EXISTS sent_at TEXT`,
   `ALTER TABLE application_packages ADD COLUMN IF NOT EXISTS replied_at TEXT`,
   `CREATE INDEX IF NOT EXISTS application_packages_mail_status_idx ON application_packages(mail_status)`,
+
+  `ALTER TABLE settings ADD COLUMN IF NOT EXISTS survey_json TEXT NOT NULL DEFAULT '{}'`,
+  `CREATE TABLE IF NOT EXISTS cv_reviews (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  source_id TEXT REFERENCES profile_sources(id),
+  score INTEGER NOT NULL,
+  review_json TEXT NOT NULL,
+  model TEXT,
+  prompt_version TEXT,
+  created_at TEXT NOT NULL
+)`,
+  `CREATE INDEX IF NOT EXISTS cv_reviews_user_id_idx ON cv_reviews(user_id)`,
+
+  // Better Auth
+  `CREATE TABLE IF NOT EXISTS auth_user (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  image TEXT,
+  onboarding_completed_at TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+)`,
+  `CREATE TABLE IF NOT EXISTS auth_session (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE,
+  token TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  ip_address TEXT,
+  user_agent TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+)`,
+  `CREATE INDEX IF NOT EXISTS auth_session_user_id_idx ON auth_session(user_id)`,
+  `CREATE TABLE IF NOT EXISTS auth_account (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE,
+  account_id TEXT NOT NULL,
+  provider_id TEXT NOT NULL,
+  access_token TEXT,
+  refresh_token TEXT,
+  id_token TEXT,
+  access_token_expires_at TIMESTAMPTZ,
+  refresh_token_expires_at TIMESTAMPTZ,
+  scope TEXT,
+  password TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+)`,
+  `CREATE INDEX IF NOT EXISTS auth_account_user_id_idx ON auth_account(user_id)`,
+  `CREATE TABLE IF NOT EXISTS auth_verification (
+  id TEXT PRIMARY KEY,
+  identifier TEXT NOT NULL,
+  value TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+)`,
+  `CREATE INDEX IF NOT EXISTS auth_verification_identifier_idx ON auth_verification(identifier)`,
+
+  // One-time copy of pre-Better-Auth accounts. Same ids and scrypt hashes, so
+  // existing passwords keep working. These accounts predate Google sign-in, so
+  // they are treated as verified to let Google link to them by email.
+  `INSERT INTO auth_user (id, name, email, email_verified, onboarding_completed_at, created_at, updated_at)
+  SELECT id, COALESCE(NULLIF(name, ''), split_part(email, '@', 1)), email, TRUE,
+    onboarding_completed_at, created_at::timestamptz, updated_at::timestamptz
+  FROM users
+  ON CONFLICT DO NOTHING`,
+  `INSERT INTO auth_account (id, user_id, account_id, provider_id, password, created_at, updated_at)
+  SELECT 'acc_' || u.id, u.id, u.id, 'credential', u.password_hash, u.created_at::timestamptz, u.updated_at::timestamptz
+  FROM users u
+  JOIN auth_user au ON au.id = u.id
+  ON CONFLICT DO NOTHING`,
 ];
+
+/** Tables whose rows belong to one account. Client-outreach tables stay owner-only. */
+export const USER_SCOPED_TABLES = [
+  "settings",
+  "settings_scoring",
+  "settings_job_scoring",
+  "profile_sources",
+  "structured_profiles",
+  "job_search_profiles",
+  "jobs",
+  "job_matches",
+  "application_packages",
+  "job_outcome_events",
+  "strategy_cohort_metrics",
+  "collector_runs",
+  "learning_proposals",
+  "learning_reports",
+  "api_usage",
+] as const;
+
+/**
+ * Adds user_id to per-account tables and hands pre-multi-user rows to the
+ * owner (OPTRA_OWNER_EMAIL, else the oldest account). NOT NULL is only
+ * enforced once every row has an owner.
+ */
+async function scopeRowsToUsers(sql: ReturnType<typeof getSql>) {
+  const ownerEmail = process.env.OPTRA_OWNER_EMAIL?.trim().toLowerCase() ?? "";
+  const owner = (await sql.query(
+    `SELECT id FROM auth_user ORDER BY (lower(email) = $1) DESC, created_at ASC LIMIT 1`,
+    [ownerEmail],
+  )) as Array<{ id: string }>;
+  const ownerId = owner[0]?.id ?? null;
+
+  for (const table of USER_SCOPED_TABLES) {
+    await sql.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS user_id TEXT`);
+    await sql.query(
+      `CREATE INDEX IF NOT EXISTS ${table}_user_id_idx ON ${table}(user_id)`,
+    );
+    if (ownerId) {
+      await sql.query(`UPDATE ${table} SET user_id = $1 WHERE user_id IS NULL`, [
+        ownerId,
+      ]);
+    }
+    const orphans = (await sql.query(
+      `SELECT 1 FROM ${table} WHERE user_id IS NULL LIMIT 1`,
+    )) as unknown[];
+    if (orphans.length === 0) {
+      await sql.query(`ALTER TABLE ${table} ALTER COLUMN user_id SET NOT NULL`);
+    }
+  }
+
+  // One settings row per account (keep the oldest if a race created extras).
+  await sql.query(
+    `DELETE FROM settings a USING settings b
+     WHERE a.user_id = b.user_id AND (a.created_at, a.id) > (b.created_at, b.id)`,
+  );
+  await sql.query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS settings_user_id_unique ON settings(user_id)`,
+  );
+
+  // The same posting can now exist once per account.
+  await sql.query(`DROP INDEX IF EXISTS jobs_source_external`);
+  await sql.query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS jobs_user_source_external ON jobs(user_id, source, external_id)`,
+  );
+}
 
 export async function runMigrations() {
   const sql = getSql();
@@ -518,6 +665,8 @@ export async function runMigrations() {
   for (const statement of MIGRATION_STATEMENTS) {
     await sql.query(statement);
   }
+
+  await scopeRowsToUsers(sql);
 
   // Backfill last_synced_at from ingested_at when null.
   await sql.query(

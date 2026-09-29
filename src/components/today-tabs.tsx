@@ -5,8 +5,6 @@ import { useCallback, useState, useTransition } from "react";
 import { setTodayModeAction } from "@/app/actions";
 import { JobsInbox } from "@/components/jobs-inbox";
 import type { JobTriageRow } from "@/modules/jobs/triage-row";
-import type { SetupChecklistItem } from "@/modules/onboarding/state";
-import { SetupChecklistBanner } from "@/components/onboarding/setup-checklist-banner";
 import { AnimateIn } from "@/components/motion";
 import { PageShell } from "@/components/page-shell";
 import { ModeSwitch } from "@/components/segmented-control";
@@ -17,13 +15,16 @@ export function TodayTabs({
   jobRows,
   leadRows,
   hasSearchProfile,
-  checklistItems,
+  clientsEnabled,
+  autoSearch,
 }: {
   mode: "jobs" | "clients";
+  /** Company outreach is owner-only; others only see jobs. */
+  clientsEnabled: boolean;
   jobRows: JobTriageRow[];
   leadRows: TriageRow[];
   hasSearchProfile: boolean;
-  checklistItems?: SetupChecklistItem[];
+  autoSearch: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -48,11 +49,8 @@ export function TodayTabs({
 
   return (
     <PageShell>
-      {checklistItems && checklistItems.length > 0 ? (
-        <SetupChecklistBanner items={checklistItems} />
-      ) : null}
-
       <div className="space-y-6">
+        {clientsEnabled ? (
         <ModeSwitch
           ariaLabel="Today view"
           value={mode}
@@ -74,12 +72,14 @@ export function TodayTabs({
             },
           ]}
         />
+        ) : null}
 
         <AnimateIn key={mode} variant="fade">
           {mode === "jobs" ? (
             <JobsInbox
               rows={jobRows}
               hasSearchProfile={hasSearchProfile}
+              autoSearch={autoSearch}
               onSearchingChange={onJobsSearchingChange}
             />
           ) : (

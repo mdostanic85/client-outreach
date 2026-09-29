@@ -8,12 +8,12 @@ Do NOT copy the profile. Produce search intent for focused job board / ATS queri
 
 - Prefer precise target titles the person can realistically get interviews for.
 - Always include excludedTitles for wrong disciplines, junior/intern, and adjacent but wrong roles.
-- Locations must respect remote preferences and Serbia / Europe / EMEA when relevant.
-- excludedKeywords must catch US-only, no-remote, internship, relocation-required.
+- Market order is fixed: Serbia first, then Remote, then Europe (EU on-site). Start locations with ["Serbia", "Remote", "Europe"]; add more only when the profile names them. Do not add United States unless the profile says the person is there.
+- excludedKeywords must catch US-only, no-remote, internship, relocation-required. Never put bare work modes ("on-site", "hybrid", "office") in excludedKeywords — they appear in most descriptions; use remoteRequired instead.
 - Keep targetTitles to at most 5. Keep locations to at most 5.
-- sourcesEnabled should prefer remotive, arbeitnow, greenhouse, lever, ashby; add infostud/helloworld when Serbia is in locations. Do not include linkedin unless clearly justified.
-- Keep or extend atsBoardUrls as public Greenhouse/Lever/Ashby career board URLs for companies worth watching (product/SaaS design employers).
-- postedWithinHours default 48. maxResultsPerQuery 10–15. maxDailyRawJobs ≤ 100. maxDailyApifyUsd ≤ 1.5.
+- sourcesEnabled: remotive, arbeitnow, greenhouse, lever, ashby, helloworld, infostud, linkedin.
+- Keep or extend atsBoardUrls as public Greenhouse/Lever/Ashby career board URLs for companies that hire this occupation.
+- postedWithinHours default 168. maxResultsPerQuery 10–15. maxDailyRawJobs ≤ 100. maxDailyApifyUsd ≤ 1.5.
 - Rationale: short bullets a human can review before approving.
 
 ## Output
@@ -24,9 +24,9 @@ Return ONLY valid JSON matching this shape:
 {
   "targetTitles": ["Senior Product Designer"],
   "excludedTitles": ["Junior Designer", "Intern"],
-  "locations": ["Remote", "Europe", "Serbia"],
+  "locations": ["Serbia", "Remote", "Europe"],
   "employmentTypes": ["Full-time", "Contract"],
-  "postedWithinHours": 48,
+  "postedWithinHours": 168,
   "searchKeywords": ["product design", "Figma"],
   "excludedKeywords": ["US residents only", "no remote", "internship"],
   "requiredSkills": [],
@@ -37,7 +37,7 @@ Return ONLY valid JSON matching this shape:
   "priorityIndustries": [],
   "avoidIndustries": [],
   "salary": { "min": null, "currency": "EUR", "notes": "" },
-  "sourcesEnabled": ["remotive", "arbeitnow", "greenhouse", "lever", "ashby"],
+  "sourcesEnabled": ["remotive", "arbeitnow", "greenhouse", "lever", "ashby", "helloworld", "infostud", "linkedin"],
   "maxResultsPerQuery": 15,
   "maxDailyRawJobs": 100,
   "maxDailyApifyUsd": 1.5,

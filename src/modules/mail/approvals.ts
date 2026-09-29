@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { approvals, contacts, drafts, settings } from "@/db/schema";
 import { newId, nowIso } from "@/lib/ids";
+import { getUserSettings } from "@/modules/settings/user-settings";
+import { owned } from "@/modules/auth/current-user";
 
 /** sha256(subject + body + recipient) — any edit invalidates approval. */
 export function approvalContentHash(
@@ -109,7 +111,7 @@ export type MailboxHealth = {
 };
 
 export async function getMailboxHealth(): Promise<MailboxHealth> {
-  const row = (await getDb().select().from(settings).limit(1))[0];
+  const row = (await getUserSettings());
   try {
     return JSON.parse(row?.mailboxHealthJson || "{}") as MailboxHealth;
   } catch {
@@ -119,14 +121,14 @@ export async function getMailboxHealth(): Promise<MailboxHealth> {
 
 export async function setMailboxHealth(health: MailboxHealth) {
   const db = getDb();
-  const row = (await db.select().from(settings).limit(1))[0];
+  const row = (await getUserSettings());
   if (!row) throw new Error("Settings not found");
   await db.update(settings)
     .set({
       mailboxHealthJson: JSON.stringify(health),
       updatedAt: nowIso(),
     })
-    .where(eq(settings.id, row.id));
+    .where(and(await owned(settings), eq(settings.id, row.id)));
 }
 
 export async function pauseMailbox(reason: string) {

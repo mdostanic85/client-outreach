@@ -58,8 +58,15 @@
   --duration-quick: 120ms;
   --duration-standard: 220ms;
   --duration-slow: 380ms;
-  --shadow-card: 0 16px 44px -18px #000000a6, 0 2px 10px #00000059;
-  --shadow-card-hover: 0 22px 48px -16px #000000c4, 0 4px 14px #00000066;
+  /* Flat UI: no drop shadows. Transparent layers keep focus rings valid. */
+  --shadow-2xs: 0 0 #0000;
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+  --shadow: 0 0 #0000;
+  --shadow-md: 0 0 #0000;
+  --shadow-lg: 0 0 #0000;
+  --shadow-xl: 0 0 #0000;
+  --shadow-2xl: 0 0 #0000;
 }
 
 /* Vireo dark + verdigris — default (forced dark) */
@@ -69,9 +76,9 @@
 
   --background: #0a0c11;
   --foreground: #d4dae4;
-  --card: #161a23;
+  --card: #0f121a;
   --card-foreground: #eaedf3;
-  --popover: #161a23;
+  --popover: #0f121a;
   --popover-foreground: #eaedf3;
   --primary: #39a185;
   --primary-foreground: #0b1f1a;
@@ -83,7 +90,7 @@
   --accent: #16302a;
   --accent-foreground: #63b8a3;
   --destructive: #e26a5b;
-  --border: #ffffff14;
+  --border: transparent;
   --input: #ffffff1a;
   --ring: #63b8a3;
   --warn: #e0a53a;
@@ -101,7 +108,7 @@
   --sidebar-primary-foreground: #0b1f1a;
   --sidebar-accent: #16302a;
   --sidebar-accent-foreground: #eaedf3;
-  --sidebar-border: #ffffff12;
+  --sidebar-border: transparent;
   --sidebar-ring: #63b8a3;
 }
 
@@ -151,15 +158,6 @@
   50% {
     transform: scale(1.06);
     opacity: 0.85;
-  }
-}
-
-@keyframes job-search-bar {
-  0% {
-    transform: translateX(-120%);
-  }
-  100% {
-    transform: translateX(320%);
   }
 }
 
@@ -221,10 +219,10 @@
 @keyframes optra-breathe {
   0%,
   100% {
-    box-shadow: 0 0 14px rgba(57, 161, 133, 0.28);
+    opacity: 1;
   }
   50% {
-    box-shadow: 0 0 22px rgba(57, 161, 133, 0.55);
+    opacity: 0.45;
   }
 }
 
@@ -281,10 +279,6 @@
     animation: job-search-ring 2.4s var(--ease-out-soft) infinite;
   }
 
-  .job-search-bar {
-    animation: job-search-bar 1.6s ease-in-out infinite;
-  }
-
   /* Page / region entrance */
   .animate-enter {
     animation: optra-fade-up var(--duration-slow) var(--ease-emphasized) both;
@@ -310,17 +304,15 @@
     animation-delay: calc(var(--stagger-index) * 40ms);
   }
 
-  /* Interactive surfaces — Twenty / Vercel card lift */
+  /* Interactive surfaces — lift without a drop shadow */
   .interactive-lift {
     transition:
       transform var(--duration-standard) var(--ease-out-soft),
-      box-shadow var(--duration-standard) var(--ease-out-soft),
       border-color var(--duration-standard) var(--ease-out-soft),
       background-color var(--duration-quick) var(--ease-out-soft);
   }
   .interactive-lift:hover {
     transform: translateY(-2px);
-    box-shadow: var(--shadow-card-hover);
   }
   .interactive-lift:active {
     transform: translateY(0);
@@ -340,8 +332,7 @@
     transition:
       transform var(--duration-quick) var(--ease-out-soft),
       opacity var(--duration-quick) var(--ease-out-soft),
-      background-color var(--duration-quick) var(--ease-out-soft),
-      box-shadow var(--duration-standard) var(--ease-out-soft);
+      background-color var(--duration-quick) var(--ease-out-soft);
   }
   .pressable:active:not(:disabled):not([aria-disabled="true"]) {
     transform: scale(0.97);
@@ -376,7 +367,6 @@
     transition:
       background-color var(--duration-standard) var(--ease-out-soft),
       color var(--duration-quick) var(--ease-out-soft),
-      box-shadow var(--duration-standard) var(--ease-out-soft),
       transform var(--duration-quick) var(--ease-out-soft);
   }
   .segment-option:active:not(:disabled) {
@@ -432,30 +422,6 @@
     animation: stage-check-pop 0.55s var(--ease-emphasized) both;
   }
 
-  .stage-rail-hint {
-    animation: stage-rail-hint-in 420ms var(--ease-emphasized) both;
-  }
-
-  .stage-rail-item-active {
-    margin-inline: -8px;
-    padding-inline: 8px;
-    border-radius: 14px;
-    background-color: color-mix(in oklch, var(--primary) 6%, transparent);
-    animation: stage-rail-focus 480ms var(--ease-emphasized) both;
-  }
-
-  /* Square / Etsy circular progress around stage mark */
-  .stage-progress-ring {
-    max-width: min(200px, 52vw);
-    max-height: min(200px, 52vw);
-  }
-
-  .stage-progress-arc {
-    filter: drop-shadow(
-      0 0 10px color-mix(in oklch, var(--primary) 35%, transparent)
-    );
-  }
-
   .stage-progress-spin {
     animation: stage-progress-spin 1.15s linear infinite;
   }
@@ -463,6 +429,115 @@
   @keyframes stage-progress-spin {
     to {
       transform: rotate(360deg);
+    }
+  }
+
+  /* —— Search radar: sweep + blips per source / scored role —— */
+  .search-radar-disc {
+    background:
+      radial-gradient(
+        circle at center,
+        color-mix(in oklch, var(--primary) 10%, transparent) 0%,
+        color-mix(in oklch, var(--primary) 4%, transparent) 55%,
+        transparent 72%
+      );
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--primary) 14%, transparent);
+  }
+
+  .search-radar-sweep {
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      transparent 290deg,
+      color-mix(in oklch, var(--primary) 8%, transparent) 320deg,
+      color-mix(in oklch, var(--primary) 34%, transparent) 359deg,
+      transparent 360deg
+    );
+    mask-image: radial-gradient(circle, black 69%, transparent 71%);
+    animation: search-radar-sweep 3.6s linear infinite;
+  }
+
+  .search-radar-blip {
+    animation: search-radar-blip-in 460ms var(--ease-emphasized) both;
+  }
+
+  .search-radar-ping {
+    animation: search-radar-ping 1.4s var(--ease-out-soft) 1 both;
+  }
+
+  .search-radar-dot-strong {
+    animation: search-radar-strong 2.8s ease-in-out 600ms infinite;
+  }
+
+  .search-activity-line {
+    animation: search-activity-line 420ms var(--ease-emphasized) both;
+  }
+
+  @keyframes search-radar-sweep {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes search-radar-blip-in {
+    0% {
+      opacity: 0;
+      scale: 0.2;
+    }
+    60% {
+      opacity: 1;
+      scale: 1.25;
+    }
+    100% {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+
+  @keyframes search-radar-ping {
+    0% {
+      opacity: 0.7;
+      transform: scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(4.5);
+    }
+  }
+
+  @keyframes search-radar-strong {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 55%, transparent);
+    }
+    50% {
+      box-shadow: 0 0 0 6px color-mix(in oklch, var(--primary) 0%, transparent);
+    }
+  }
+
+  @keyframes search-activity-line {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .search-radar-sweep,
+    .search-radar-ping,
+    .search-radar-dot-strong {
+      animation: none;
+    }
+    .search-radar-sweep {
+      opacity: 0.35;
+    }
+    .search-radar-blip,
+    .search-activity-line {
+      animation-duration: 1ms;
     }
   }
 
@@ -521,26 +596,6 @@
     to {
       opacity: 1;
       transform: scale(1);
-    }
-  }
-
-  @keyframes stage-rail-hint-in {
-    from {
-      opacity: 0;
-      transform: translateY(6px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes stage-rail-focus {
-    from {
-      background-color: transparent;
-    }
-    to {
-      background-color: color-mix(in oklch, var(--primary) 6%, transparent);
     }
   }
 
@@ -724,7 +779,6 @@
     color: var(--accent-foreground);
     border-color: color-mix(in oklch, var(--primary) 45%, transparent);
     background: color-mix(in oklch, var(--accent) 80%, var(--card));
-    box-shadow: 0 0 24px -8px var(--primary);
     animation: signal-chip-pulse 2.4s ease-in-out infinite;
   }
 
@@ -797,23 +851,14 @@
 
   @keyframes search-resolve-glow {
     from {
-      box-shadow: 0 32px 100px -40px rgba(0, 0, 0, 0.75);
+      box-shadow: 0 0 0 1px transparent;
     }
     40% {
-      box-shadow:
-        0 32px 100px -40px rgba(0, 0, 0, 0.75),
-        0 0 0 1px color-mix(in oklch, var(--primary) 35%, transparent),
-        0 0 60px -20px var(--primary);
+      box-shadow: 0 0 0 1px color-mix(in oklch, var(--primary) 35%, transparent);
     }
     to {
-      box-shadow:
-        0 32px 100px -40px rgba(0, 0, 0, 0.75),
-        0 0 0 1px color-mix(in oklch, var(--primary) 22%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in oklch, var(--primary) 22%, transparent);
     }
-  }
-
-  .search-result-banner {
-    animation: optra-fade-up var(--duration-slow) var(--ease-emphasized) both;
   }
 
   @media (max-width: 640px) {
@@ -840,7 +885,6 @@
     }
 
     .job-search-ring,
-    .job-search-bar,
     .animate-enter,
     .animate-enter-fade,
     .animate-enter-scale,
@@ -855,14 +899,11 @@
     .signal-chip-strong,
     .signal-chip-emerge,
     .search-experience-resolve,
-    .search-result-banner,
     .stage-spotlight-enter,
     .stage-spotlight-exit,
     .stage-spotlight-wash,
     .stage-spotlight-idle .stage-spotlight-num,
     .stage-spotlight-check,
-    .stage-rail-hint,
-    .stage-rail-item-active,
     .stage-progress-spin,
     .search-progress-fill::after {
       animation: none !important;
@@ -870,12 +911,6 @@
 
     .job-search-ring {
       opacity: 0.45;
-      transform: none;
-    }
-
-    .job-search-bar {
-      left: 0;
-      width: 40%;
       transform: none;
     }
 
@@ -928,12 +963,8 @@
 }
 
 .app-doc-page {
-  border: 1px solid rgb(15 23 42 / 0.06);
+  border: 1px solid rgb(15 23 42 / 0.08);
   border-radius: 2px;
-  box-shadow:
-    0 1px 1px rgb(15 23 42 / 0.03),
-    0 8px 24px -12px rgb(15 23 42 / 0.22),
-    0 28px 56px -28px rgb(15 23 42 / 0.28);
 }
 
 .app-doc-inner {
@@ -1222,9 +1253,15 @@
   overflow: hidden;
   border-radius: 14px;
   border: 1px solid #e5e7eb;
-  box-shadow:
-    0 1px 2px rgb(0 0 0 / 0.04),
-    0 12px 32px -16px rgb(0 0 0 / 0.28);
+}
+
+[data-sonner-toast][data-styled="true"] {
+  box-shadow: none !important;
+}
+
+[data-sonner-toast]:focus-visible,
+[data-sonner-toast][data-styled="true"] [data-close-button]:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 70%, transparent) !important;
 }
 
 .app-email-chrome {

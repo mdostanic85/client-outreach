@@ -1,4 +1,4 @@
-import type { SearchLiveStats } from "@/modules/search-experience/stages";
+import type { SearchActivity, SearchLiveStats } from "@/modules/search-experience/stages";
 
 /** High-level steps shown in the search experience (jobs mode). */
 export type JobSearchStepId = "collect" | "filter" | "evaluate" | "publish";
@@ -13,6 +13,8 @@ export type JobSearchProgress = {
   detail?: string;
   /** Structured counters — only real pipeline values */
   stats?: SearchLiveStats;
+  /** A finished unit of work to append to the activity feed. */
+  activity?: SearchActivity;
 };
 
 export type JobSearchProgressCallback = (
@@ -42,6 +44,7 @@ export function progressFor(
   percent: number,
   detail?: string,
   stats?: SearchLiveStats,
+  activity?: SearchActivity,
 ): JobSearchProgress {
   return {
     stepId,
@@ -49,5 +52,18 @@ export function progressFor(
     label: JOB_SEARCH_STEP_LABELS[stepId],
     detail,
     stats,
+    activity,
   };
 }
+
+export const SOURCE_LABELS: Record<string, string> = {
+  greenhouse: "Greenhouse",
+  lever: "Lever",
+  ashby: "Ashby",
+  linkedin: "LinkedIn",
+  helloworld: "HelloWorld",
+  infostud: "Infostud",
+  remotive: "Remotive",
+  arbeitnow: "Arbeitnow",
+  apify: "ATS boards",
+};

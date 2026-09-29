@@ -20,6 +20,7 @@ export function toJobTriageRow(row: DailyJobRow): JobTriageRow {
     remoteFit: row.remoteFit,
     mainRisk: row.mainRisk,
     missingRequirements: row.missingRequirements,
+    matchDimensions: row.matchDimensions,
     remoteRequired: row.remoteRequired,
     postedAt: row.job.postedAt,
     triageState: row.job.triageState,

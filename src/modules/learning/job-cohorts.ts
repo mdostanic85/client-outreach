@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import {
   companies,
@@ -7,6 +7,7 @@ import {
   strategyCohortMetrics,
 } from "@/db/schema";
 import { newId, nowIso } from "@/lib/ids";
+import { currentUserId, owned } from "@/modules/auth/current-user";
 
 export type SegmentStat = {
   key: string;
@@ -113,12 +114,12 @@ export async function computeStrategyCohort(strategyVersion: number): Promise<St
   const profile = (await db
     .select()
     .from(jobSearchProfiles)
-    .where(eq(jobSearchProfiles.version, strategyVersion)))
+    .where(and(await owned(jobSearchProfiles), eq(jobSearchProfiles.version, strategyVersion))))
     .sort((a, b) => (b.approvedAt ?? b.createdAt).localeCompare(a.approvedAt ?? a.createdAt))[0];
 
   const cohortJobs = (await db
     .select()
-    .from(jobs))
+    .from(jobs).where(await owned(jobs)))
     .filter((j) => j.searchProfileVersion === strategyVersion);
 
   const triageLikedN = cohortJobs.filter((j) =>
@@ -240,7 +241,7 @@ export async function persistStrategyCohort(cohort: StrategyCohort) {
   const existing = (await db
     .select()
     .from(strategyCohortMetrics)
-    .where(eq(strategyCohortMetrics.strategyVersion, cohort.strategyVersion)).limit(1))[0];
+    .where(and(await owned(strategyCohortMetrics), eq(strategyCohortMetrics.strategyVersion, cohort.strategyVersion))).limit(1))[0];
 
   const values = {
     applicationsN: cohort.applicationsN,
@@ -261,13 +262,14 @@ export async function persistStrategyCohort(cohort: StrategyCohort) {
   if (existing) {
     await db.update(strategyCohortMetrics)
       .set(values)
-      .where(eq(strategyCohortMetrics.id, existing.id));
+      .where(and(await owned(strategyCohortMetrics), eq(strategyCohortMetrics.id, existing.id)));
     return existing.id;
   }
 
   const id = newId("scm");
   await db.insert(strategyCohortMetrics)
-    .values({ id, strategyVersion: cohort.strategyVersion, ...values });
+    .values({
+      userId: await currentUserId(), id, strategyVersion: cohort.strategyVersion, ...values });
   return id;
 }
 
@@ -276,11 +278,11 @@ export async function listStrategyVersions(): Promise<StrategyCohort[]> {
   const profiles = await db
     .select()
     .from(jobSearchProfiles)
-    .orderBy(desc(jobSearchProfiles.version));
+    .where(await owned(jobSearchProfiles)).orderBy(desc(jobSearchProfiles.version));
 
   const versions = [...new Set(profiles.map((p) => p.version))];
   // Also include versions that only appear on jobs
-  for (const j of await db.select().from(jobs)) {
+  for (const j of await db.select().from(jobs).where(await owned(jobs))) {
     if (j.searchProfileVersion != null) versions.push(j.searchProfileVersion);
   }
   const unique = [...new Set(versions)].sort((a, b) => b - a);
