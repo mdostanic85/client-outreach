@@ -89,26 +89,7 @@ export async function deriveSearchParamsFromProfile(): Promise<{
       currency: p?.compensation?.currency ?? "EUR",
       notes: formatCompensation(p?.compensation) ?? p?.salaryOrRateExpectations ?? "",
     },
-    sourcesEnabled: locations.some((l) => /serbia|belgrade|balkan/i.test(l))
-      ? [
-          "remotive",
-          "arbeitnow",
-          "greenhouse",
-          "lever",
-          "ashby",
-          "linkedin",
-          "helloworld",
-          "infostud",
-        ]
-      : [
-          "remotive",
-          "arbeitnow",
-          "greenhouse",
-          "lever",
-          "ashby",
-          "linkedin",
-          "helloworld",
-        ],
+    sourcesEnabled: [...EMPTY_SEARCH_PARAMS.sourcesEnabled],
     atsBoardUrls: EMPTY_SEARCH_PARAMS.atsBoardUrls,
   });
 

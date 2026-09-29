@@ -1,6 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { companies, jobs } from "@/db/schema";
+import { canonicalJobUrl } from "@/modules/collectors/identity";
 import { newId, nowIso } from "@/lib/ids";
 import {
   jobFingerprint,
@@ -14,14 +15,25 @@ export async function persistCollectedJob(
 ): Promise<{
  jobId: string; created: boolean }> {
   const db = getDb();
-  const existing = (await db
+  let existing: typeof jobs.$inferSelect | undefined = (await db
     .select()
     .from(jobs)
     .where(and(eq(jobs.source, job.source), eq(jobs.externalId, job.externalId))).limit(1))[0];
 
+  // Exact canonical posting identity only; title similarity is not sufficient.
+  // This also adopts legacy Apify IDs without replacing the job/application ID.
+  if (!existing) {
+    const canonical = canonicalJobUrl(job.sourceUrl);
+    if (canonical) {
+      const candidates = await db.select().from(jobs).where(or(eq(jobs.title, job.title), eq(jobs.sourceUrl, job.sourceUrl)));
+      existing = candidates.find(candidate => canonicalJobUrl(candidate.sourceUrl) === canonical);
+    }
+  }
+
   if (existing) {
     await db.update(jobs)
       .set({
+        title: job.title,
         description: job.description || existing.description,
         location: job.location ?? existing.location,
         remotePolicy: job.remotePolicy ?? existing.remotePolicy,

@@ -1,6 +1,6 @@
 import type { JobSearchParams } from "@/modules/search-profile/schemas";
 import type { RawCollectedJob } from "@/modules/collectors/types";
-import { jobFingerprint } from "@/modules/collectors/types";
+import { jobIdentityKeys } from "@/modules/collectors/identity";
 
 export type FilterDropReason =
   | "excluded_title"
@@ -137,6 +137,7 @@ export function filterRawJobs(
     }
 
     const ageH = hoursAgo(job.postedAt);
+    if (ageH == null) flags.push("unknown_posted_date");
     if (ageH != null && ageH > params.postedWithinHours * 1.5) {
       // Allow slightly older than postedWithinHours for free APIs that lag
       if (ageH > Math.max(params.postedWithinHours, 72) * 2) {
@@ -159,10 +160,12 @@ export function filterRawJobs(
       params.remoteRequired ||
       params.remotePolicy === "remote_ok_required"
     ) {
-      if (ONSITE_RE.test(blob)) {
+      const explicitMode = (job.remotePolicy ?? "").trim();
+      if (ONSITE_RE.test(blob) || /^(on[- ]?site|hybrid|office)$/i.test(explicitMode)) {
         dropped.push({ job, reason: "remote_required" });
         continue;
       }
+      if (!/remote/i.test(job.remotePolicy ?? "") && job.source !== "remotive") flags.push("unconfirmed_remote");
       const loc = (job.location ?? "").toLowerCase();
       const remoteish =
         /remote|worldwide|anywhere|europe|emea|serbia|eu\b/i.test(loc) ||
@@ -214,17 +217,12 @@ export function filterRawJobs(
       }
     }
 
-    const fp = jobFingerprint({
-      title: job.title,
-      companyName: job.companyName,
-      location: job.location,
-      sourceUrl: job.sourceUrl,
-    });
-    if (fingerprints.has(fp)) {
+    const keys = jobIdentityKeys(job);
+    if (keys.some(key => fingerprints.has(key))) {
       dropped.push({ job, reason: "duplicate" });
       continue;
     }
-    fingerprints.add(fp);
+    keys.forEach(key => fingerprints.add(key));
 
     if (/us preferred|americas tz|hybrid uk|timezone.*us/i.test(blob)) {
       flags.push("ambiguous_timezone");
