@@ -29,6 +29,7 @@ export function TodayTabs({
   const [pending, startTransition] = useTransition();
   const [jobsSearching, setJobsSearching] = useState(false);
   const [companiesSearching, setCompaniesSearching] = useState(false);
+
   const onJobsSearchingChange = useCallback((next: boolean) => {
     setJobsSearching(next);
   }, []);
@@ -52,28 +53,20 @@ export function TodayTabs({
         <SetupChecklistBanner items={checklistItems} />
       ) : null}
 
-      <div className="space-y-6">
-        <ModeSwitch
-          ariaLabel="Today view"
-          value={mode}
-          disabled={pending || searching}
-          disabledHint="Stay on this page until the search finishes."
-          onChange={switchMode}
-          options={[
-            {
-              id: "jobs",
-              label: "Jobs",
-              count: jobRows.length,
-              description: "Roles that match your profile",
-            },
-            {
-              id: "clients",
-              label: "Companies",
-              count: leadRows.length,
-              description: "Companies to research and email",
-            },
-          ]}
-        />
+      <div className="space-y-5">
+        <div className="max-w-md">
+          <ModeSwitch
+            ariaLabel="Today view"
+            value={mode}
+            disabled={pending || searching}
+            disabledHint="Stay on this page until the search finishes."
+            onChange={switchMode}
+            options={[
+              { id: "jobs", label: "Jobs", count: jobRows.length },
+              { id: "clients", label: "Companies", count: leadRows.length },
+            ]}
+          />
+        </div>
 
         <AnimateIn key={mode} variant="fade">
           {mode === "jobs" ? (
