@@ -157,10 +157,11 @@ export function SearchRadar({
         ) : null}
       </div>
 
+      {/* Clamped so edge blips don't push the card off a phone screen. */}
       {active ? (
         <div
-          className="bg-popover/95 border-border pointer-events-none absolute z-20 w-56 -translate-x-1/2 rounded-xl border px-3 py-2 text-left backdrop-blur"
-          style={{ left: `${active.x}%`, top: `calc(${active.y}% + 14px)` }}
+          className="bg-popover/95 border-border pointer-events-none absolute z-20 w-56 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-xl border px-3 py-2 text-left backdrop-blur"
+          style={{ left: `clamp(7rem, ${active.x}%, calc(100% - 7rem))`, top: `calc(${active.y}% + 14px)` }}
           role="status"
         >
           <p className="truncate text-[13px] font-medium text-[var(--card-foreground)]">{active.item.label}</p>

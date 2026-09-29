@@ -1312,6 +1312,19 @@
   min-height: 220px;
 }
 
+/* Phones: A4 margins would leave a thin text column, so tighten on screen only. */
+@media screen and (max-width: 640px) {
+  .app-doc-inner {
+    min-height: 0;
+    padding: 7mm 6mm 9mm;
+  }
+
+  .app-doc-contact,
+  .app-doc-entry-head {
+    overflow-wrap: anywhere;
+  }
+}
+
 .app-doc-preview-stage {
   background:
     radial-gradient(

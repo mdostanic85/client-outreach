@@ -246,7 +246,7 @@ export function QueueBoard({
               {board.failed.map((item) => (
                 <li key={item.event.id} className="row-accent space-y-2 px-4 py-3">
                   <div className="flex items-start justify-between gap-4">
-                    <div>
+                    <div className="min-w-0 wrap-anywhere">
                       {item.lead ? (
                         <Link
                           href={`/leads/${item.lead.id}`}
@@ -344,7 +344,7 @@ function QueueRow({
 
   return (
     <li
-      className="row-accent interactive-row stagger-item space-y-3 px-8 py-6"
+      className="row-accent interactive-row stagger-item space-y-3 px-5 py-5 sm:px-8 sm:py-6"
       style={{ "--stagger-index": stagger } as CSSProperties}
     >
       <div className="flex items-start justify-between gap-4">

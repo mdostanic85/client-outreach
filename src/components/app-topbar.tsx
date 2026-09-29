@@ -101,6 +101,18 @@ function PageContext() {
   );
 }
 
+/** Phones hide the breadcrumb, so they still need to know which page is open. */
+function MobilePageTitle() {
+  const pathname = usePathname();
+  const context = navContextFor(pathname);
+  if (!context) return null;
+  return (
+    <span className="min-w-0 truncate text-[15px] font-medium text-[var(--card-foreground)] max-[374px]:hidden md:hidden">
+      {context.item.label}
+    </span>
+  );
+}
+
 /**
  * The topbar's main job: start job discovery from anywhere and follow it while
  * browsing. Idle → last run + unreviewed count; running → live stage and %.
@@ -243,7 +255,7 @@ function BudgetPill({ budget }: { budget: BudgetMeter }) {
         <span className="hidden font-medium tracking-wide uppercase sm:inline">AI</span>
         <span className="tabular text-[var(--card-foreground)]">
           <span className="font-medium">${budget.spentUsd.toFixed(0)}</span>
-          <span className="text-muted-foreground"> / ${budget.budgetUsd}</span>
+          <span className="text-muted-foreground max-sm:hidden"> / ${budget.budgetUsd}</span>
         </span>
       </TooltipTrigger>
       <TooltipContent className="max-w-xs text-left leading-relaxed">{tip}</TooltipContent>
@@ -323,7 +335,7 @@ export function AppTopbar({
           >
             <Menu className="size-4" />
           </Button>
-          <SheetContent side="left" className="w-[280px] p-0 sm:max-w-[280px]">
+          <SheetContent side="left" className="p-0 data-[side=left]:w-[280px] data-[side=left]:max-w-[85vw] data-[side=left]:sm:max-w-[280px]">
             <SheetHeader className="sr-only">
               <SheetTitle>Navigation</SheetTitle>
             </SheetHeader>
@@ -338,6 +350,7 @@ export function AppTopbar({
           </SheetContent>
         </Sheet>
         <PageContext />
+        <MobilePageTitle />
       </div>
 
       <div className="flex min-w-0 flex-1 justify-end md:justify-center">

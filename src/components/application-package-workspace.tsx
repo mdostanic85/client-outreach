@@ -519,7 +519,7 @@ export function ApplicationPackageWorkspace({
               >
                 <SelectTrigger
                   id="package-market"
-                  className="h-10 w-full min-w-[220px] data-[size=default]:h-10"
+                  className="h-10 w-full data-[size=default]:h-10"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -659,7 +659,7 @@ export function ApplicationPackageWorkspace({
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-            <Surface className="max-h-[calc(100vh-11rem)] overflow-y-auto">
+            <Surface className="xl:max-h-[calc(100vh-11rem)] xl:overflow-y-auto">
               <div className="p-5 sm:p-6">
                 {tab === "cv" && cv ? (
                   <PackageCvSlotEditor
@@ -709,7 +709,7 @@ export function ApplicationPackageWorkspace({
               </div>
             </Surface>
 
-            <div className="app-doc-preview-stage max-h-[calc(100vh-11rem)] overflow-y-auto rounded-2xl p-3 sm:p-4">
+            <div className="app-doc-preview-stage rounded-2xl p-2 sm:p-4 xl:max-h-[calc(100vh-11rem)] xl:overflow-y-auto">
               <div className="app-doc-print-root">{previewNode}</div>
             </div>
           </div>
