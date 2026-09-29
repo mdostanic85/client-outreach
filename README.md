@@ -4,7 +4,7 @@ Local single-user client discovery and outreach app.
 
 **Owner:** [Miloš Dostanić](https://dostanic.net) — proprietary. See [`LICENSE`](./LICENSE) and [`OWNERSHIP.md`](./OWNERSHIP.md). All rights reserved.
 
-**Build status:** Phases 0–5 code is complete. Open items are validation/ops (daily runs, mailbox DNS, human scoring) — track them on **Admin → Validation readiness**. Phase 5 later (ATS, multi-user, remote) stays deferred.
+**Build status:** Phases 0–5 code is complete. Open items are validation/ops (daily runs, mailbox DNS, human scoring) — track them on **Admin → Validation readiness**. Direct public ATS collection is available in the staged Job Finder V2 update; multi-user isolation and remote MCP remain deferred.
 
 ## Setup
 
@@ -24,7 +24,7 @@ App binds to **127.0.0.1:3000** only.
 ```bash
 npm test                 # unit + phase2 quality
 npm run worker           # daily pipeline
-npm run backup           # SQLite backup + 7 daily / 4 weekly rotation
+npm run backup           # See backup script and current Neon deployment setup
 npm run export-data      # JSON export → data/exports/
 npm run retention        # dry-run prune; add -- --apply to delete
 npm run eval:writing     # Phase 2 model comparison scorecard
@@ -69,3 +69,7 @@ npm run mail:sync
 Admin → **Privacy**, or `npm run export-data` / `npm run retention -- --apply`.
 
 Policy notes: `docs/legal/outreach-policy.md`.
+
+## Job Finder V2
+
+Plan and source evaluation: [V2 plan](docs/product/job-finder-v2.md). Implementation, validation, job-only worker and read-only MCP: [V2 operations](docs/operations/job-finder-v2.md). The current database is Neon PostgreSQL (`DATABASE_URL`), not SQLite.

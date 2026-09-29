@@ -15,6 +15,7 @@ import {
   progressFor,
   type JobSearchProgressCallback,
 } from "@/modules/jobs/progress";
+import { plannedAtsBoards, collectDirectBoard } from "./direct-ats";
 import { collectArbeitnow } from "./arbeitnow";
 import { collectRemotive } from "./remotive";
 import type { CollectorQuery, RawCollectedJob } from "./types";
@@ -28,7 +29,7 @@ function queryDetail(query: CollectorQuery): string {
 }
 
 const FREE_SOURCES = new Set<JobSource>(["remotive", "arbeitnow"]);
-const ATS_SOURCES = new Set<JobSource>(["greenhouse", "lever", "ashby", "apify"]);
+
 const PAID_BOARD_SOURCES = new Set<JobSource>([
   "linkedin",
   "helloworld",
@@ -199,8 +200,8 @@ async function runOneQuery(
  * Run focused collectors for an approved search profile.
  *
  * Daily mix (target ≤ $0.50 Apify):
- * 1. Remotive / Arbeitnow — free baseline
- * 2. ATS boards — one batched run (primary title)
+ * 1. Direct public ATS boards, then Remotive / Arbeitnow
+ * 2. Optional explicit Apify ATS fallback
  * 3. LinkedIn — 2–3 focused queries
  * 4. HelloWorld (+ Infostud if enabled) — regional
  */
@@ -222,6 +223,7 @@ export async function collectJobsForProfile(options: {
 
   const pushJobs = (jobs: RawCollectedJob[]) => {
     for (const job of jobs) {
+      if (raw.length >= options.params.maxDailyRawJobs) break;
       const k = `${job.source}|${job.externalId}`;
       if (seen.has(k)) continue;
       seen.add(k);
@@ -239,13 +241,14 @@ export async function collectJobsForProfile(options: {
   const regionalQueries = expandRegionalQueries(options.params).filter((q) =>
     PAID_BOARD_SOURCES.has(q.source),
   );
-  const wantsAts = options.params.sourcesEnabled.some((s) => ATS_SOURCES.has(s));
+  const directBoards = plannedAtsBoards(options.params);
+  const wantsAts = options.params.sourcesEnabled.includes("apify");
   const hasApify = Boolean(getApifyToken());
   const willRunAts = Boolean(wantsAts && hasApify && afford("ats"));
   const linkedInPlanned = hasApify ? linkedInQueries : [];
   const regionalPlanned = hasApify ? regionalQueries : [];
   const collectTotal =
-    freeQueries.length +
+    directBoards.length + freeQueries.length +
     (willRunAts ? 1 : 0) +
     linkedInPlanned.length +
     regionalPlanned.length;
@@ -273,6 +276,33 @@ export async function collectJobsForProfile(options: {
     ),
   );
 
+  // Direct public boards run first; no token or paid fallback is required.
+  for (const entry of directBoards) {
+    if (!roomForJobs()) break;
+    const db = getDb();
+    const runId = newId("crun");
+    await db.insert(collectorRuns).values({
+      id: runId, searchProfileVersion: options.searchProfileVersion,
+      source: entry.board?.source ?? "direct_ats",
+      queryJson: JSON.stringify({ board: entry.url, mode: "direct" }),
+      startedAt: nowIso(), status: "running",
+    });
+    try {
+      if (!entry.board) throw new Error(entry.error);
+      const found = await collectDirectBoard(entry.board, options.params,
+        Math.min(options.params.maxResultsPerQuery, options.params.maxDailyRawJobs - raw.length));
+      pushJobs(found);
+      await db.update(collectorRuns).set({ status: "ok", finishedAt: nowIso(), resultCount: found.length, costUsd: 0 })
+        .where(eq(collectorRuns.id, runId));
+      await markCollect(`${entry.board.source} · ${entry.board.slug} · ${found.length} found`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await db.update(collectorRuns).set({ status: "error", finishedAt: nowIso(), error: message.slice(0, 500), costUsd: 0 })
+        .where(eq(collectorRuns.id, runId));
+      await markCollect(`${entry.board?.source ?? "ATS"} · failed`);
+    }
+  }
+
   // 1) Free APIs
   for (const query of freeQueries) {
     if (!roomForJobs()) break;
@@ -295,7 +325,7 @@ export async function collectJobsForProfile(options: {
   }
 
   // 2) Apify ATS — single run on primary title (quality/$ winner)
-  if (willRunAts) {
+  if (willRunAts && roomForJobs()) {
     const title = options.params.targetTitles[0];
     if (title) {
       const maxItems = Math.max(
@@ -366,7 +396,7 @@ export async function collectJobsForProfile(options: {
     }
   } else if (wantsAts && !getApifyToken()) {
     logger.info(
-      "ATS sources enabled but APIFY_TOKEN missing — using Remotive/Arbeitnow only",
+      "Optional Apify source enabled but APIFY_TOKEN missing — direct public sources remain available",
     );
   }
 

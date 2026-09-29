@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { evaluationCacheVersion, opportunitySignal } from "./v2-signals";
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { jobMatches, jobs } from "@/db/schema";
@@ -123,12 +124,7 @@ async function evaluateOne(
   const user = JSON.stringify(
     {
       profile: JSON.parse(profileJson),
-      searchHints: {
-        targetTitles: searchParams.targetTitles,
-        excludedTitles: searchParams.excludedTitles,
-        locations: searchParams.locations,
-        remoteRequired: searchParams.remoteRequired,
-      },
+      searchHints: searchParams,
       job: {
         title: jobRow.title,
         companyLocation: jobRow.location,
@@ -206,15 +202,17 @@ export async function evaluateJobsBatch(options: {
   /** Defaults from settings when omitted. */
   usePortfolioInMatching?: boolean;
   onProgress?: JobSearchProgressCallback;
-}): Promise<{ evaluated: number; recommended: number }> {
+}): Promise<{ evaluated: number; recommended: number; evaluatedJobIds: string[]; matchIds: Record<string, string> }> {
   const db = getDb();
   let evaluated = 0;
   let recommended = 0;
+  const evaluatedJobIds: string[] = [];
+  const matchIds: Record<string, string> = {};
   const matchingConfig = await getMatchingSourcesConfig();
   if (options.usePortfolioInMatching != null) {
     matchingConfig.portfolioProjects = options.usePortfolioInMatching;
   }
-  const promptVersion = matchPromptVersion(matchingConfig);
+  const basePromptVersion = matchPromptVersion(matchingConfig);
   const total = options.jobIds.length;
   let done = 0;
 
@@ -230,6 +228,17 @@ export async function evaluateJobsBatch(options: {
   );
 
   for (const jobId of options.jobIds) {
+    const jobRow = (await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1))[0];
+    if (!jobRow) {
+      done++;
+      continue;
+    }
+
+    const promptVersion = evaluationCacheVersion({
+      promptVersion: basePromptVersion, model: resolveModel("jobMatch"),
+      profileJson: options.profileJson, searchProfileVersion: options.searchProfileVersion,
+      searchParams: options.searchParams, job: jobRow,
+    });
     const existing = (await db
       .select()
       .from(jobMatches)
@@ -241,7 +250,9 @@ export async function evaluateJobsBatch(options: {
         ),
       ).limit(1))[0];
     if (existing) {
+      matchIds[jobId] = existing.id;
       evaluated++;
+      evaluatedJobIds.push(jobId);
       if (existing.recommend) recommended++;
       done++;
       await options.onProgress?.(
@@ -256,12 +267,6 @@ export async function evaluateJobsBatch(options: {
           },
         ),
       );
-      continue;
-    }
-
-    const jobRow = (await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1))[0];
-    if (!jobRow) {
-      done++;
       continue;
     }
 
@@ -285,9 +290,10 @@ export async function evaluateJobsBatch(options: {
         options.searchParams,
       );
 
+      const matchId = newId("jmatch");
       await db.insert(jobMatches)
         .values({
-          id: newId("jmatch"),
+          id: matchId,
           jobId,
           profileVersion: options.profileVersion,
           searchProfileVersion: options.searchProfileVersion,
@@ -297,14 +303,16 @@ export async function evaluateJobsBatch(options: {
           recommendation: result.recommendation ?? "skip",
           matchingReasonsJson: JSON.stringify(result.matchingReasons),
           concernsJson: JSON.stringify(result.concerns),
-          scoreJson: JSON.stringify(result),
+          scoreJson: JSON.stringify({ ...result, opportunity: opportunitySignal(jobRow) }),
           modelId: model,
           promptVersion,
           costUsd,
           createdAt: nowIso(),
         });
 
+      matchIds[jobId] = matchId;
       evaluated++;
+      evaluatedJobIds.push(jobId);
       if (result.recommend && result.eligibility !== "ineligible") recommended++;
       done++;
       await options.onProgress?.(
@@ -335,7 +343,7 @@ export async function evaluateJobsBatch(options: {
     }
   }
 
-  return { evaluated, recommended };
+  return { evaluated, recommended, evaluatedJobIds, matchIds };
 }
 
 export type RankedJob = {
@@ -353,6 +361,8 @@ export type RankedJob = {
  * Strong band keeps a hard quality floor; worth-a-look is a separate secondary band.
  */
 export async function rankJobsForPublish(options: {
+  jobIds?: string[];
+  matchIds?: Record<string, string>;
   minScore?: number;
   maxScoreExclusive?: number;
   limit: number;
@@ -373,6 +383,7 @@ export async function rankJobsForPublish(options: {
 
   const ranked: RankedJob[] = [];
   for (const job of active) {
+    if (options.jobIds && !options.jobIds.includes(job.id)) continue;
     if (
       job.triageState === "rejected" ||
       job.triageState === "interested" ||
@@ -383,7 +394,9 @@ export async function rankJobsForPublish(options: {
     const match = (await db
       .select()
       .from(jobMatches)
-      .where(eq(jobMatches.jobId, job.id)))
+      .where(options.matchIds
+        ? and(eq(jobMatches.jobId, job.id), eq(jobMatches.id, options.matchIds[job.id] ?? ""))
+        : eq(jobMatches.jobId, job.id)))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
     if (!match) continue;
     if (!match.recommend) continue;
@@ -450,17 +463,21 @@ async function markJobsPublished(ranked: RankedJob[]): Promise<string[]> {
   return jobIds;
 }
 
-export async function publishDailyJobList(limit: number): Promise<{
+export async function publishDailyJobList(limit: number, jobIdsToPublish?: string[], matchIds?: Record<string, string>): Promise<{
   published: number;
   strong: number;
   worthALook: number;
   jobIds: string[];
 }> {
   const strong = await rankJobsForPublish({
+    jobIds: jobIdsToPublish,
+    matchIds,
     minScore: STRONG_MATCH_MIN,
     limit,
   });
   const worthALook = await rankJobsForPublish({
+    jobIds: jobIdsToPublish,
+    matchIds,
     minScore: WORTH_A_LOOK_MIN,
     maxScoreExclusive: STRONG_MATCH_MIN,
     limit: WORTH_A_LOOK_LIMIT,

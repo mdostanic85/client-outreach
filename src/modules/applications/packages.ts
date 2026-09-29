@@ -19,6 +19,7 @@ import {
   packageFilenameBase,
   packageToPlainText,
 } from "./export-text";
+import { validateGrounding } from "./grounding";
 import { suggestMarket } from "./market";
 import {
   personalizeApplicationPackage,
@@ -484,7 +485,14 @@ export async function approvePackage(
   if (!view) throw new Error("Package not found");
   if (view.state === "superseded") throw new Error("Package was superseded");
 
-  const block = view.warnings.find((w) => w.severity === "block");
+  const profile = await getApprovedProfile();
+  if (!profile) throw new Error("Approve your profile before approving a package");
+  const grounding = validateGrounding({ profile: profile.profile, cv: view.cv, letter: view.letter,
+    companyName: view.companyName, jobTitle: view.jobTitle });
+  if (!grounding.ok) throw new Error(grounding.rejectedClaims.join("; "));
+  // Revalidate edited documents; stale generated grounding warnings must not block a corrected CV.
+  const warnings = view.warnings.filter(w => w.code !== "grounding_failed");
+  const block = warnings.find((w) => w.severity === "block");
   if (block) {
     throw new Error(block.message);
   }
@@ -495,6 +503,8 @@ export async function approvePackage(
     .update(applicationPackages)
     .set({
       state: "approved",
+      groundingJson: JSON.stringify(grounding),
+      warningsJson: JSON.stringify(warnings),
       contentHash: hash,
       approvedAt: now,
       updatedAt: now,

@@ -15,7 +15,7 @@ export const JobSourceSchema = z.enum([
 
 export type JobSource = z.infer<typeof JobSourceSchema>;
 
-/** Default SaaS / product-design ATS boards for focused Apify collection. */
+/** Default SaaS / product-design ATS boards for direct public collection. */
 export const DEFAULT_ATS_BOARD_URLS = [
   "https://boards.greenhouse.io/figma",
   "https://boards.greenhouse.io/notion",
@@ -53,7 +53,7 @@ export const JobSearchParamsSchema = z.object({
       notes: z.string().optional(),
     })
     .optional(),
-  /** Public Greenhouse / Lever / Ashby board URLs for Apify ATS actor. */
+  /** Public Greenhouse / Lever / Ashby board URLs for direct public collection. */
   atsBoardUrls: z.array(z.string()).default([...DEFAULT_ATS_BOARD_URLS]),
   sourcesEnabled: z
     .array(JobSourceSchema)
@@ -63,8 +63,6 @@ export const JobSearchParamsSchema = z.object({
       "greenhouse",
       "lever",
       "ashby",
-      "linkedin",
-      "helloworld",
     ]),
   maxResultsPerQuery: z.number().int().positive().default(12),
   maxDailyRawJobs: z.number().int().positive().default(80),
@@ -113,8 +111,6 @@ export const EMPTY_SEARCH_PARAMS: JobSearchParams = {
     "greenhouse",
     "lever",
     "ashby",
-    "linkedin",
-    "helloworld",
   ],
   maxResultsPerQuery: 12,
   maxDailyRawJobs: 80,
@@ -135,27 +131,13 @@ export function parseJobSearchParams(json: string): JobSearchParams {
 const WORK_MODE_AS_EMPLOYMENT = /^(remote|hybrid|on[- ]?site|onsite|wfh|work from home)$/i;
 
 /**
- * Upgrade legacy search profiles to the $0.50/day collector mix.
- * - Adds linkedin + helloworld when baseline sources exist
+ * Preserve explicitly selected sources while normalizing legacy numeric defaults.
  * - Migrates old numeric defaults (1.5 / 100 / 15) → (0.5 / 80 / 12)
  * - Hard-caps Apify spend at 0.5 so Collect never plans above the MVP budget
  * - Moves mistaken work-mode values ("Remote") out of employmentTypes
  */
 export function normalizeCollectorParams(params: JobSearchParams): JobSearchParams {
   const sources = new Set(params.sourcesEnabled);
-  const hasBaseline =
-    sources.has("remotive") ||
-    sources.has("arbeitnow") ||
-    sources.has("greenhouse") ||
-    sources.has("lever") ||
-    sources.has("ashby") ||
-    sources.has("apify");
-
-  if (hasBaseline) {
-    sources.add("linkedin");
-    sources.add("helloworld");
-  }
-
   let maxDailyApifyUsd = params.maxDailyApifyUsd;
   if (maxDailyApifyUsd === 1.5 || maxDailyApifyUsd > 0.5) {
     maxDailyApifyUsd = 0.5;
