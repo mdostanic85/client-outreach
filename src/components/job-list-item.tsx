@@ -40,6 +40,11 @@ const REJECT_REASONS = [
 
 export type JobListVariant = "today" | "interested";
 
+function reasonText(reason: string) {
+  const [, detail] = reason.split(/:(.+)/);
+  return (detail ?? reason).trim();
+}
+
 export function JobListItem({
   row,
   expanded,
@@ -67,7 +72,6 @@ export function JobListItem({
   rejecting?: boolean;
   rejectReason?: string;
   packageMeta?: PackageListMeta | null;
-  /** When false, hide TZ chips (all cards share the same overlap). */
   showTimezoneChip?: boolean;
   onToggle: () => void;
   onInterested?: () => void;
@@ -94,10 +98,7 @@ export function JobListItem({
 
   const packageCta = (() => {
     if (alreadySent) {
-      return {
-        href: "/queue?tab=applications",
-        label: "View in Queue",
-      };
+      return { href: "/queue?tab=applications", label: "View in Queue" };
     }
     if (readyToSend) {
       return {
@@ -105,10 +106,7 @@ export function JobListItem({
         label: "Send",
       };
     }
-    return {
-      href: `/interested/${row.jobId}/package`,
-      label: "Prepare",
-    };
+    return { href: `/interested/${row.jobId}/package`, label: "Prepare" };
   })();
 
   const packageBadgeLabel = (() => {
@@ -130,9 +128,11 @@ export function JobListItem({
       </Button>
     ) : null;
 
-  const roleLine = [row.title, row.location, row.companySnapshot.salaryText]
+  const roleMeta = [row.companyName, row.location, row.companySnapshot.salaryText]
     .filter(Boolean)
     .join(" · ");
+
+  const topReasons = row.matchingReasons.slice(0, 2).map(reasonText);
 
   const insightsProps = {
     title: row.title,
@@ -152,46 +152,102 @@ export function JobListItem({
   } as const;
 
   return (
-    <Surface className="interactive-lift overflow-hidden">
+    <Surface className="overflow-hidden">
       <div className="px-5 py-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <div className="flex min-w-0 flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-start justify-between gap-4">
+          <button
+            type="button"
+            className="min-w-0 flex-1 text-left"
+            onClick={onToggle}
+          >
+            <p className="text-foreground text-[17px] font-semibold leading-snug">
+              {row.title}
+            </p>
+            <p className="text-muted-foreground mt-1 text-[14px] leading-snug">
+              {roleMeta}
+            </p>
+          </button>
+
+          <ScoreBadge
+            score={row.matchScore}
+            kind="match"
+            size="sm"
+            className="shrink-0"
+            onClick={onToggle}
+          />
+        </div>
+
+        {variant === "today" ? (
+          <>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <MatchConstraintChips
                 remoteFit={row.remoteFit}
                 showTimezone={showTimezoneChip}
                 onOpen={() => setRationaleOpen(true)}
               />
-              {variant === "interested" && packageBadgeLabel ? (
-                <Badge variant="secondary" className="text-[13px]">
-                  {packageBadgeLabel}
-                </Badge>
-              ) : null}
             </div>
-            <button
-              type="button"
-              className="w-full min-w-0 text-left transition-colors duration-150 ease-[var(--ease-out-soft)] hover:bg-transparent"
-              onClick={onToggle}
-            >
-              <p className="text-foreground text-[17px] font-medium leading-snug">
-                {row.companyName}
-              </p>
-              <p className="text-muted-foreground pt-1 text-[15px] leading-snug">
-                {roleLine}
-              </p>
-            </button>
+
+            {topReasons.length > 0 ? (
+              <ul className="text-muted-foreground mt-3 space-y-1 text-[14px] leading-snug">
+                {topReasons.map((reason) => (
+                  <li key={reason} className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    <span>{reason}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Button size="sm" disabled={pending} onClick={onInterested}>
+                Interested
+              </Button>
+              <Button size="sm" variant="outline" onClick={onToggle}>
+                {expanded ? "Hide details" : "Details"}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={<Button size="sm" variant="ghost" disabled={pending} />}
+                >
+                  <MoreHorizontal className="size-4" />
+                  <span className="sr-only">More actions</span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-48">
+                  <DropdownMenuItem onClick={onSaveForLater} disabled={pending}>
+                    Save for later
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onAlreadyApplied} disabled={pending}>
+                    Already applied
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={onStartReject}
+                    disabled={pending}
+                  >
+                    Not interested
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </>
+        ) : (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <MatchConstraintChips
+              remoteFit={row.remoteFit}
+              showTimezone={showTimezoneChip}
+              onOpen={() => setRationaleOpen(true)}
+            />
+            {packageBadgeLabel ? (
+              <Badge variant="secondary" className="text-[13px]">
+                {packageBadgeLabel}
+              </Badge>
+            ) : null}
           </div>
-          <ScoreBadge
-            score={row.matchScore}
-            kind="match"
-            size={variant === "interested" ? "sm" : "md"}
-            className="self-start sm:self-center"
-            onClick={onToggle}
-          />
-        </div>
+        )}
 
         {expanded ? (
-          <div className="animate-expand mt-3 space-y-3 border-t pt-3">
+          <div className="animate-expand mt-4 space-y-3 border-t pt-4">
             <CompanySnapshotCard
               snapshot={row.companySnapshot}
               location={row.location}
@@ -204,147 +260,91 @@ export function JobListItem({
         )}
       </div>
 
-      {expanded ? (
+      {expanded && variant === "interested" ? (
         <div className="animate-expand space-y-3 border-t px-5 py-3">
           <div className="flex flex-wrap items-center gap-2">
-            {variant === "today" ? (
-              <>
-                <Button size="sm" disabled={pending} onClick={onInterested}>
-                  Interested
-                </Button>
-                <a
-                  href={row.sourceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="border-border hover:bg-muted inline-flex h-[34px] items-center gap-1.5 rounded-lg border px-3 text-[14px]"
-                >
-                  Open posting
-                  <ExternalLink className="size-3.5" />
-                </a>
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button size="sm" variant="ghost" disabled={pending} />
-                    }
-                  >
-                    <MoreHorizontal className="size-4" />
-                    <span className="sr-only">More actions</span>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="min-w-48">
-                    <DropdownMenuItem
-                      onClick={onSaveForLater}
-                      disabled={pending}
-                      title="Keep on Today for later — not the same as Interested."
-                    >
-                      Save for later
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={onAlreadyApplied}
-                      disabled={pending}
-                    >
-                      Already applied
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onClick={onStartReject}
-                      disabled={pending}
-                    >
-                      Not interested
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
-            ) : (
-              <>
-                <Link
-                  href={packageCta.href}
-                  className="bg-primary text-primary-foreground hover:bg-primary/80 inline-flex h-[34px] items-center rounded-lg px-3 text-[14px] font-medium"
-                >
-                  {packageCta.label}
-                </Link>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        size="sm"
-                        disabled={pending}
-                        onClick={onMarkApplied}
-                      />
-                    }
-                  >
-                    Mark applied
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    Removes it from Interested and records that you already
-                    applied outside Optra.
-                  </TooltipContent>
-                </Tooltip>
-                <a
-                  href={row.sourceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="border-border hover:bg-muted inline-flex h-[34px] items-center gap-1.5 rounded-lg border px-3 text-[14px]"
-                >
-                  Open posting
-                  <ExternalLink className="size-3.5" />
-                </a>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={pending}
-                  onClick={onMoveToToday}
-                >
-                  Move to Today
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  disabled={pending}
-                  onClick={onStartReject}
-                >
-                  Not interested
-                </Button>
-              </>
-            )}
+            <Link
+              href={packageCta.href}
+              className="bg-primary text-primary-foreground hover:bg-primary/80 inline-flex h-[34px] items-center rounded-lg px-3 text-[14px] font-medium"
+            >
+              {packageCta.label}
+            </Link>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button size="sm" disabled={pending} onClick={onMarkApplied} />
+                }
+              >
+                Mark applied
+              </TooltipTrigger>
+              <TooltipContent>
+                Removes it from Interested and records that you already applied
+                outside Optra.
+              </TooltipContent>
+            </Tooltip>
+            <a
+              href={row.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="border-border hover:bg-muted inline-flex h-[34px] items-center gap-1.5 rounded-lg border px-3 text-[14px]"
+            >
+              Open posting
+              <ExternalLink className="size-3.5" />
+            </a>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={pending}
+              onClick={onMoveToToday}
+            >
+              Move to Today
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={pending}
+              onClick={onStartReject}
+            >
+              Not interested
+            </Button>
           </div>
+        </div>
+      ) : null}
 
-          {rejecting ? (
-            <div className="space-y-2">
-              <div className="flex flex-wrap gap-1.5">
-                {REJECT_REASONS.map((reason) => (
-                  <Button
-                    key={reason}
-                    size="sm"
-                    variant={rejectReason === reason ? "secondary" : "outline"}
-                    disabled={pending}
-                    onClick={() => onRejectReason(reason)}
-                  >
-                    {reason}
-                  </Button>
-                ))}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Input
-                  placeholder="Or type a reason"
-                  value={rejectReason ?? ""}
-                  onChange={(e) => onRejectReason(e.target.value)}
-                />
-                <Button
-                  size="sm"
-                  disabled={pending || !rejectReason?.trim()}
-                  onClick={onConfirmReject}
-                >
-                  Confirm
-                </Button>
-                {onCancelReject ? (
-                  <Button size="sm" variant="ghost" onClick={onCancelReject}>
-                    Cancel
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
+      {rejecting ? (
+        <div className="space-y-2 border-t px-5 py-3">
+          <div className="flex flex-wrap gap-1.5">
+            {REJECT_REASONS.map((reason) => (
+              <Button
+                key={reason}
+                size="sm"
+                variant={rejectReason === reason ? "secondary" : "outline"}
+                disabled={pending}
+                onClick={() => onRejectReason(reason)}
+              >
+                {reason}
+              </Button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              placeholder="Or type a reason"
+              value={rejectReason ?? ""}
+              onChange={(e) => onRejectReason(e.target.value)}
+            />
+            <Button
+              size="sm"
+              disabled={pending || !rejectReason?.trim()}
+              onClick={onConfirmReject}
+            >
+              Confirm
+            </Button>
+            {onCancelReject ? (
+              <Button size="sm" variant="ghost" onClick={onCancelReject}>
+                Cancel
+              </Button>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </Surface>
