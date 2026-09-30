@@ -14,25 +14,25 @@ type Row = { href: string; label: string; description: string };
 function Section({ title, rows }: { title: string; rows: Row[] }) {
   return (
     <section>
-      <h2 className="text-muted-foreground mb-3 text-[13px] font-medium tracking-[0.12em] uppercase">
+      <h2 className="text-muted-foreground mb-3 text-body-sm font-medium">
         {title}
       </h2>
-      <ul className="border-border divide-border divide-y rounded-2xl border">
+      <ul className="bg-card shadow-card divide-y divide-border overflow-hidden rounded-card">
         {rows.map((row) => (
           <li key={row.href}>
             <Link
               href={row.href}
-              className="hover:bg-card/60 flex items-center justify-between gap-4 px-5 py-4 transition-colors first:rounded-t-2xl last:rounded-b-2xl"
+              className="group interactive-row flex items-center justify-between gap-4 px-5 py-4 focus-visible:-outline-offset-2"
             >
               <span>
-                <span className="block text-[15px] font-medium text-foreground">
+                <span className="text-foreground block text-body">
                   {row.label}
                 </span>
-                <span className="text-muted-foreground mt-0.5 block text-[14px]">
+                <span className="text-muted-foreground mt-0.5 block text-body-sm">
                   {row.description}
                 </span>
               </span>
-              <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden />
+              <ChevronRight className="text-muted-foreground group-hover:text-foreground size-4 shrink-0 transition-colors duration-150" aria-hidden />
             </Link>
           </li>
         ))}
@@ -85,11 +85,11 @@ export default async function SettingsPage() {
         ) : null}
 
         <section>
-          <h2 className="text-muted-foreground mb-3 text-[13px] font-medium tracking-[0.12em] uppercase">
+          <h2 className="text-muted-foreground mb-3 text-body-sm font-medium">
             Account
           </h2>
-          <div className="border-border flex flex-wrap items-center justify-between gap-4 rounded-2xl border px-5 py-4">
-            <span className="min-w-0 text-[15px] break-all">{user?.email}</span>
+          <div className="bg-card shadow-card flex flex-wrap items-center justify-between gap-4 rounded-card px-5 py-4">
+            <span className="min-w-0 text-body break-all">{user?.email}</span>
             <form action={signOutAction}>
               <Button type="submit" variant="outline">
                 Sign out

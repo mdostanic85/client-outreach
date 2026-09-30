@@ -11,7 +11,7 @@ export default async function SettingsPage() {
   if (!row) {
     return (
       <PageShell width="setup">
-        <p className="text-muted-foreground text-sm">Settings not initialized.</p>
+        <p className="text-muted-foreground text-body-sm">Settings not initialized.</p>
       </PageShell>
     );
   }

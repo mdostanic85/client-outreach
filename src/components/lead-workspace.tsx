@@ -34,7 +34,7 @@ import { ScoreBadge } from "@/components/score-badge";
 import { StickyFormActions } from "@/components/sticky-form-actions";
 import { StatePill } from "@/components/status-pill";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -209,7 +209,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
           description="Need-now evidence, fit, and uncertainty."
         />
       </PanelHeader>
-      <PanelBody className="text-sm">
+      <PanelBody className="text-body-sm">
         {!detail.brief ? (
           <p className="text-muted-foreground">No research yet.</p>
         ) : (
@@ -257,7 +257,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                   <p className="mb-1 font-medium">Evidence</p>
                   <ul className="space-y-2">
                     {detail.brief.evidence.map((e) => (
-                      <li key={e.id} className="rounded-md bg-muted/50 p-2">
+                      <li key={e.id} className="rounded-tile bg-subtle p-3">
                         <p className="font-medium">
                           {e.id}:{" "}
                           <a
@@ -269,7 +269,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                             {e.pageTitle ?? e.url}
                           </a>
                         </p>
-                        <p className="text-muted-foreground line-clamp-3 text-sm">
+                        <p className="text-muted-foreground line-clamp-3 text-body-sm">
                           {e.excerpt}
                         </p>
                       </li>
@@ -280,7 +280,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
             ) : (
               <div>
                 <p className="mb-1 font-medium">Uncertainty</p>
-                <ul className="text-muted-foreground list-disc space-y-2 pl-5 text-sm">
+                <ul className="text-muted-foreground list-disc space-y-2 pl-5 text-body-sm">
                   {detail.brief.result.risksAndUnknowns.slice(0, 3).map((r) => (
                     <li key={r}>{r}</li>
                   ))}
@@ -300,7 +300,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
 
       <header className="border-border flex flex-wrap items-start justify-between gap-6 border-b pb-8">
         <div className="min-w-0 max-w-3xl space-y-4">
-          <nav className="text-muted-foreground text-[13px] font-medium tracking-wide">
+          <nav className="text-muted-foreground text-body-sm font-medium">
             <Link
               href="/"
               className="hover:text-foreground transition-colors"
@@ -310,19 +310,19 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
             <span> / {detail.company.name}</span>
           </nav>
           <div className="flex flex-wrap items-center gap-4">
-            <h1 className="text-[34px] leading-[1.15] font-medium tracking-tight text-balance text-foreground">
+            <h1 className="text-h4 leading-[1.15] font-medium text-balance text-foreground">
               {detail.company.name}
             </h1>
             <StatePill state={detail.lead.state} />
           </div>
-          <p className="text-muted-foreground text-[16px]">
+          <p className="text-muted-foreground text-body">
             {[detail.company.domain ?? "No domain", detail.company.country]
               .filter(Boolean)
               .join(" · ")}
             {" · "}
             research {detail.lead.researchStatus}
           </p>
-          <p className="text-muted-foreground text-[15px]">
+          <p className="text-muted-foreground text-body">
             {labelPolicy(detail.policy.policy)}
             {detail.policy.code ? ` · ${detail.policy.code}` : ""}
             {detail.lead.recommendedContactRole
@@ -339,7 +339,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
       </header>
 
       {breakdown ? (
-        <div className="text-muted-foreground flex flex-wrap gap-x-5 gap-y-1.5 text-[15px]">
+        <div className="text-muted-foreground flex flex-wrap gap-x-5 gap-y-1.5 text-body">
           {(
             [
               "needNow",
@@ -370,7 +370,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
         </div>
       ) : null}
 
-      <nav className="bg-card border-border flex flex-wrap gap-2 rounded-[18px] border p-1.5">
+      <nav className="bg-card border-border flex flex-wrap gap-2 rounded-card border p-1.5 shadow-card">
         {STAGES.map((s, i) => {
           const autoIndex = STAGES.findIndex((x) => x.id === autoStage);
           const unlocked = i <= Math.max(autoIndex, stageIndex);
@@ -385,15 +385,15 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                 setStageOverride(s.id === autoStage ? null : s.id);
               }}
               className={cn(
-                "flex-1 rounded-xl px-4 py-3 text-left text-[15px] transition-colors duration-150 sm:min-w-28",
+                "flex-1 rounded-xl px-4 py-3 text-left text-body transition-colors duration-150 sm:min-w-28",
                 active
                   ? "bg-accent-wash text-brand-ink font-medium"
                   : unlocked
-                    ? "text-foreground hover:bg-white/5"
+                    ? "text-foreground hover:bg-subtle"
                     : "text-muted-foreground/40",
               )}
             >
-              <span className="tabular text-muted-foreground mr-2 text-[14px]">
+              <span className="tabular text-muted-foreground mr-2 text-body-sm">
                 {i + 1}
               </span>
               {s.label}
@@ -472,18 +472,18 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                     </Button>
                   </>
                 ) : canDecide ? (
-                  <p className="text-muted-foreground text-sm">
+                  <p className="text-muted-foreground text-body-sm">
                     Research must complete before you can accept.
                   </p>
                 ) : (
-                  <p className="text-muted-foreground text-sm">
+                  <p className="text-muted-foreground text-body-sm">
                     Decision already made — continue to Contact.
                   </p>
                 )}
               </PanelBody>
             </Surface>
             {detail.signals[0] ? (
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground text-body-sm">
                 Signal: {detail.signals[0].title} ·{" "}
                 <a
                   className="underline"
@@ -511,8 +511,8 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
             </PanelHeader>
             <PanelBody>
               {contactEditable ? (
-                <details className="border-border rounded-xl border">
-                  <summary className="cursor-pointer px-4 py-3 text-[14px] font-medium select-none">
+                <details className="bg-subtle rounded-panel">
+                  <summary className="cursor-pointer px-4 py-3 text-body-sm font-medium select-none">
                     Advanced
                   </summary>
                   <div className="border-border space-y-4 border-t px-4 pt-4 pb-4">
@@ -562,7 +562,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                       ) : null}
                     </div>
                     {mxStatus ? (
-                      <p className="text-muted-foreground text-sm">{mxStatus}</p>
+                      <p className="text-muted-foreground text-body-sm">{mxStatus}</p>
                     ) : null}
                     <Button
                       disabled={pending || !name || !detail.company.domain}
@@ -586,7 +586,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                       Suggest patterns
                     </Button>
                     {patternSuggestions.length > 0 ? (
-                      <ul className="space-y-2 text-sm">
+                      <ul className="space-y-2 text-body-sm">
                         <li className="text-muted-foreground">
                           Patterns are unverified — confirm manually before send.
                         </li>
@@ -612,12 +612,12 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                   </div>
                 </details>
               ) : (
-                <p className="text-muted-foreground text-sm">
+                <p className="text-muted-foreground text-body-sm">
                   Accept the lead to enter a contact.
                 </p>
               )}
 
-              <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-body-sm">
                 {(
                   [
                     ["Team page", detail.lookupLinks.teamPage],
@@ -640,8 +640,8 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
 
               {peopleHints.length > 0 ? (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">People from team page</p>
-                  <ul className="text-muted-foreground space-y-2 text-sm">
+                  <p className="text-body-sm font-medium">People from team page</p>
+                  <ul className="text-muted-foreground space-y-2 text-body-sm">
                     {peopleHints.map((p) => (
                       <li key={`${p.name}-${p.role}`}>
                         <button
@@ -662,12 +662,12 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
               ) : null}
 
               {detail.contacts.length > 0 ? (
-                <ul className="space-y-2 text-sm">
+                <ul className="space-y-2 text-body-sm">
                   {detail.contacts.map((c) => (
                     <li
                       key={c.id}
                       className={cn(
-                        "flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2",
+                        "flex flex-wrap items-center justify-between gap-2 rounded-tile bg-subtle px-3 py-2",
                         selectedContactId === c.id && "border-foreground/40",
                       )}
                     >
@@ -748,7 +748,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                       <Label htmlFor="confidence">Confidence</Label>
                       <select
                         id="confidence"
-                        className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+                        className="border-input bg-card h-9 rounded-full border px-3 text-body-sm"
                         value={confidence}
                         onChange={(e) =>
                           setConfidence(e.target.value as ContactConfidence)
@@ -849,8 +849,8 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                   >
                     Generate draft
                   </Button>
-                  <details className="border-border rounded-xl border">
-                    <summary className="cursor-pointer px-4 py-3 text-[14px] font-medium select-none">
+                  <details className="bg-subtle rounded-panel">
+                    <summary className="cursor-pointer px-4 py-3 text-body-sm font-medium select-none">
                       Advanced
                     </summary>
                     <div className="border-border space-y-3 border-t px-4 pt-4 pb-4">
@@ -873,7 +873,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                       >
                         Generate + critique
                       </Button>
-                      <p className="text-muted-foreground text-[13px]">
+                      <p className="text-muted-foreground text-body-sm">
                         Writes a draft, then runs an extra quality check (uses
                         more AI budget).
                       </p>
@@ -928,7 +928,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
               ) : null}
 
               {qualityIssues.length > 0 ? (
-                <ul className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                <ul className="space-y-2 rounded-tile bg-destructive-wash px-3 py-2 text-body-sm text-destructive">
                   {qualityIssues.map((i) => (
                     <li key={`${i.code}-${i.message}`}>
                       {i.code}: {i.message}
@@ -939,7 +939,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
 
               {draft ? (
                 <>
-                  <div className="flex flex-wrap gap-2 text-sm">
+                  <div className="flex flex-wrap gap-2 text-body-sm">
                     <Badge variant="outline">{draft.kind}</Badge>
                     <Badge variant="secondary">{draft.state}</Badge>
                   </div>
@@ -1005,8 +1005,8 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                           Copy
                         </Button>
                       </div>
-                      <details className="border-border rounded-xl border">
-                        <summary className="cursor-pointer px-4 py-3 text-[14px] font-medium select-none">
+                      <details className="bg-subtle rounded-panel">
+                        <summary className="cursor-pointer px-4 py-3 text-body-sm font-medium select-none">
                           Advanced
                         </summary>
                         <div className="border-border border-t px-4 pt-4 pb-4">
@@ -1041,7 +1041,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                   )}
                 </>
               ) : (
-                <p className="text-muted-foreground text-sm">
+                <p className="text-muted-foreground text-body-sm">
                   {!selectedContact?.email
                     ? "Confirm a contact email first."
                     : "No draft yet — generate one above."}
@@ -1055,7 +1055,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
               <PanelHeader>
                 <SectionTitle title="Recipient" />
               </PanelHeader>
-              <PanelBody className="space-y-2 text-sm">
+              <PanelBody className="space-y-2 text-body-sm">
                 {selectedContact ? (
                   <>
                     <p className="font-medium">
@@ -1093,13 +1093,13 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
               />
             </PanelHeader>
             <PanelBody>
-              <div className="rounded-lg border bg-muted/20 p-4 text-sm">
-                <p className="text-muted-foreground text-sm">To</p>
+              <div className="bg-subtle rounded-tile p-4 text-body-sm">
+                <p className="text-muted-foreground text-body-sm">To</p>
                 <p className="font-medium">
                   {selectedContact?.email ?? "—"}
                 </p>
                 <Separator className="my-3" />
-                <p className="text-muted-foreground text-sm">Subject</p>
+                <p className="text-muted-foreground text-body-sm">Subject</p>
                 <p className="font-medium">{subject || draft.subject}</p>
                 <Separator className="my-3" />
                 <pre className="whitespace-pre-wrap font-sans leading-relaxed">
@@ -1107,7 +1107,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                 </pre>
               </div>
               {detail.mail.approvals[0] ? (
-                <p className="text-muted-foreground text-sm">
+                <p className="text-muted-foreground text-body-sm">
                   Latest approval: {detail.mail.approvals[0].status}
                   {detail.mail.approvals[0].status === "invalidated"
                     ? " (edit invalidated hash — re-approve)"
@@ -1153,7 +1153,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                   Edit draft
                 </Button>
                 <a
-                  className="border-border bg-background hover:bg-muted inline-flex h-11 w-full items-center justify-center rounded-xl border px-4 text-[15px] font-medium"
+                  className={buttonVariants({ variant: "outline", className: "w-full" })}
                   href={gmailComposeUrl(
                     subject || draft.subject,
                     body || draft.bodyFinal,
@@ -1164,8 +1164,8 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                 >
                   Open Gmail
                 </a>
-                <details className="border-border rounded-xl border">
-                  <summary className="cursor-pointer px-4 py-3 text-[14px] font-medium select-none">
+                <details className="bg-subtle rounded-panel">
+                  <summary className="cursor-pointer px-4 py-3 text-body-sm font-medium select-none">
                     Advanced
                   </summary>
                   <div className="border-border space-y-2 border-t px-4 pt-4 pb-4">
@@ -1184,7 +1184,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                 {draft.state === "approved" ? (
                   <Link
                     href="/queue"
-                    className="hover:bg-muted inline-flex h-11 w-full items-center justify-center rounded-xl px-4 text-[15px] font-medium"
+                    className="hover:bg-muted inline-flex h-11 w-full items-center justify-center rounded-xl px-4 text-body font-medium"
                   >
                     Open send queue →
                   </Link>
@@ -1198,7 +1198,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
       {stage === "approve" && !draft ? (
         <Surface>
           <PanelBody className="py-10 text-center">
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-body-sm">
               No draft to approve yet.
             </p>
             <Button
@@ -1292,8 +1292,8 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                   </Button>
                 ) : null}
               </div>
-              <details className="border-border rounded-xl border">
-                <summary className="cursor-pointer px-4 py-3 text-[14px] font-medium select-none">
+              <details className="bg-subtle rounded-panel">
+                <summary className="cursor-pointer px-4 py-3 text-body-sm font-medium select-none">
                   Advanced
                 </summary>
                 <div className="border-border border-t px-4 pt-4 pb-4">
@@ -1308,7 +1308,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                   >
                     Suppress company
                   </Button>
-                  <p className="text-muted-foreground mt-2 text-[13px]">
+                  <p className="text-muted-foreground mt-2 text-body-sm">
                     Never suggest this company again.
                   </p>
                 </div>
@@ -1325,26 +1325,26 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                   description="Synced replies and scheduled follow-ups."
                 />
               </PanelHeader>
-              <PanelBody className="text-sm">
+              <PanelBody className="text-body-sm">
                 {detail.mail.messages.map((m) => (
-                  <div key={m.id} className="rounded-md border px-3 py-2">
+                  <div key={m.id} className="rounded-tile bg-subtle px-3 py-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline">{m.direction}</Badge>
                       {m.classification ? (
                         <Badge variant="secondary">{m.classification}</Badge>
                       ) : null}
-                      <span className="text-muted-foreground text-sm">
+                      <span className="text-muted-foreground text-body-sm">
                         {m.createdAt.slice(0, 16).replace("T", " ")}
                       </span>
                     </div>
                     <p className="mt-1 font-medium">{m.subject}</p>
-                    <p className="text-muted-foreground line-clamp-3 text-sm">
+                    <p className="text-muted-foreground line-clamp-3 text-body-sm">
                       {m.bodyText}
                     </p>
                   </div>
                 ))}
                 {detail.mail.followUps.length > 0 ? (
-                  <ul className="text-muted-foreground space-y-2 text-sm">
+                  <ul className="text-muted-foreground space-y-2 text-body-sm">
                     {detail.mail.followUps.map((f) => (
                       <li key={f.id}>
                         Follow-up #{f.sequence}: {f.state} · due{" "}
@@ -1357,7 +1357,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
             </Surface>
           ) : (
             <Surface>
-              <PanelBody className="text-muted-foreground py-10 text-center text-sm">
+              <PanelBody className="text-muted-foreground py-10 text-center text-body-sm">
                 No mailbox activity yet.
               </PanelBody>
             </Surface>

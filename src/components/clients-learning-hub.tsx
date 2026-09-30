@@ -62,7 +62,7 @@ export function ClientsLearningHub({
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="bg-muted/50 border-border inline-flex rounded-xl border p-1">
+        <div className="bg-subtle inline-flex gap-0.5 rounded-full p-1">
           {(
             [
               ["sources", "Sources"],
@@ -78,9 +78,9 @@ export function ClientsLearningHub({
               type="button"
               onClick={() => setTab(id)}
               className={cn(
-                "rounded-lg px-3 py-1.5 text-[15px] font-medium transition-colors",
+                "h-9 rounded-full px-4 text-body-sm font-medium transition-colors duration-150 ease-standard",
                 tab === id
-                  ? "bg-background text-foreground shadow-sm"
+                  ? "bg-card text-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -135,9 +135,9 @@ export function ClientsLearningHub({
               />
             ) : (
               <div className="overflow-x-auto px-4 py-2 sm:px-5">
-                <table className="w-full text-left text-[15px]">
+                <table className="w-full text-left text-body">
                   <thead>
-                    <tr className="text-muted-foreground border-b text-[14px]">
+                    <tr className="text-muted-foreground border-b text-body-sm">
                       <th className="py-2.5 pr-3 font-medium">Source</th>
                       <th className="py-2.5 pr-3 font-medium">Sig</th>
                       <th className="py-2.5 pr-3 font-medium">Leads</th>
@@ -186,11 +186,11 @@ export function ClientsLearningHub({
                 <div key={p.id} className="space-y-3 px-4 py-4 sm:px-5">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="outline">{p.kind}</Badge>
-                    <span className="text-[14px] font-medium">
+                    <span className="text-body-sm font-medium">
                       {p.title}
                     </span>
                   </div>
-                  <p className="text-muted-foreground text-[15px] leading-snug">
+                  <p className="text-muted-foreground text-body leading-snug">
                     {p.summary}
                   </p>
                   <ProposalActions proposalId={p.id} />
@@ -215,11 +215,11 @@ export function ClientsLearningHub({
                 <div key={r.id} className="space-y-2 px-4 py-4 sm:px-5">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="secondary">{r.kind}</Badge>
-                    <span className="text-[14px] font-medium">
+                    <span className="text-body-sm font-medium">
                       {r.title}
                     </span>
                   </div>
-                  <p className="text-muted-foreground line-clamp-6 whitespace-pre-wrap text-[14px] leading-relaxed">
+                  <p className="text-muted-foreground line-clamp-6 whitespace-pre-wrap text-body-sm leading-relaxed">
                     {r.bodyMd}
                   </p>
                 </div>

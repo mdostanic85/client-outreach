@@ -16,7 +16,7 @@ export function PrivacyControls() {
   const [contactId, setContactId] = useState("");
 
   return (
-    <div className="space-y-4 text-sm">
+    <div className="space-y-4 text-body-sm">
       <p className="text-muted-foreground">
         Export and deletion are always available (not blocked by AI budget).
         Suppressions are never removed by retention.
@@ -142,7 +142,7 @@ export function PrivacyControls() {
       </div>
 
       {message ? (
-        <p className="bg-muted/50 break-all rounded-md p-3 text-sm">{message}</p>
+        <p className="bg-subtle break-all rounded-tile p-3 text-body-sm">{message}</p>
       ) : null}
     </div>
   );

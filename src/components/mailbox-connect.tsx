@@ -8,7 +8,7 @@ import {
   saveGoogleOauthClientAction,
 } from "@/app/actions";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { MailboxConnectionStatus } from "@/modules/mail/oauth-google";
@@ -108,23 +108,23 @@ export function MailboxConnect({
   return (
     <div className="space-y-4">
       {info ? (
-        <p className="bg-muted/40 text-[14px] rounded-xl px-4 py-3">{info}</p>
+        <p className="bg-subtle text-body-sm rounded-xl px-4 py-3">{info}</p>
       ) : null}
       {error ? (
-        <p className="text-destructive border-destructive/20 bg-destructive/5 rounded-xl border px-4 py-3 text-[14px]">
+        <p role="alert" className="text-destructive bg-destructive-wash rounded-tile px-4 py-3 text-body-sm">
           {error}
         </p>
       ) : null}
 
       {status.connected ? (
-        <div className="border-border divide-border divide-y rounded-2xl border">
+        <div className="bg-card shadow-card divide-y divide-border rounded-card in-[.bg-card]:bg-subtle in-[.bg-card]:shadow-none">
           <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
             <div className="min-w-0 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="truncate text-[15px] font-medium">{status.email}</p>
+                <p className="truncate text-body font-medium">{status.email}</p>
                 <Badge variant="secondary">Connected</Badge>
               </div>
-              <p className="text-muted-foreground text-[14px]">
+              <p className="text-muted-foreground text-body-sm">
                 {status.mode === "oauth"
                   ? "Gmail · signed in with Google"
                   : "Other email · SMTP + IMAP"}
@@ -142,19 +142,19 @@ export function MailboxConnect({
           </div>
         </div>
       ) : (
-        <div className="border-border divide-border divide-y rounded-2xl border">
+        <div className="bg-card shadow-card divide-y divide-border rounded-card in-[.bg-card]:bg-subtle in-[.bg-card]:shadow-none">
           <div className="px-5 py-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="min-w-0 space-y-1">
-                <p className="text-[15px] font-medium">Gmail</p>
-                <p className="text-muted-foreground text-[14px]">
+                <p className="text-body font-medium">Gmail</p>
+                <p className="text-muted-foreground text-body-sm">
                   Sign in with Google — one click.
                 </p>
               </div>
               {status.googleOauthReady ? (
                 <a
                   href="/api/mail/oauth/google/start"
-                  className="bg-primary text-primary-foreground hover:bg-primary/85 pressable inline-flex h-9 items-center justify-center rounded-lg px-3.5 text-[14px] font-medium"
+                  className={buttonVariants({ size: "sm" })}
                 >
                   Connect
                 </a>
@@ -174,10 +174,10 @@ export function MailboxConnect({
 
             {expand === "gmail-setup" && !status.googleOauthReady ? (
               <div className="mt-4 space-y-3 border-t border-[var(--border)] pt-4">
-                <p className="text-muted-foreground text-[13px] leading-relaxed">
+                <p className="text-muted-foreground text-body-sm leading-relaxed">
                   One-time: Google Cloud → OAuth client (Web). Redirect URI must
                   match this app, e.g.{" "}
-                  <code className="text-[12px]">
+                  <code className="text-caption">
                     http://127.0.0.1:3003/api/mail/oauth/google/callback
                   </code>
                 </p>
@@ -217,8 +217,8 @@ export function MailboxConnect({
           <div className="px-5 py-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="min-w-0 space-y-1">
-                <p className="text-[15px] font-medium">Other email</p>
-                <p className="text-muted-foreground text-[14px]">
+                <p className="text-body font-medium">Other email</p>
+                <p className="text-muted-foreground text-body-sm">
                   Username, password, SMTP + IMAP.
                 </p>
               </div>

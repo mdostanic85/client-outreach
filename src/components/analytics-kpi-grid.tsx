@@ -1,13 +1,18 @@
 "use client";
 
-import { Stagger, StaggerItem } from "@/components/motion";
-import { Surface } from "@/components/page-shell";
+import { Info } from "lucide-react";
+import { StatTile } from "@/components/ui/stat-tile";
+import { CountUp } from "@/components/ui/value-motion";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+/**
+ * Four headline numbers as stat tiles in the 12-column grid. Each number
+ * counts up once on first view (skipped under reduced motion).
+ */
 export function AnalyticsKpiGrid({
   totalLeads,
   sent,
@@ -20,46 +25,47 @@ export function AnalyticsKpiGrid({
   replyRate: number;
 }) {
   const kpis = [
-    { label: "Companies", value: String(totalLeads), tooltip: null },
-    { label: "Sent", value: String(sent), tooltip: null },
-    { label: "Replies", value: String(replies), tooltip: null },
+    { label: "Companies", value: totalLeads, format: undefined, tooltip: null },
+    { label: "Sent", value: sent, format: undefined, tooltip: null },
+    { label: "Replies", value: replies, format: undefined, tooltip: null },
     {
       label: "Reply rate",
-      value: `${(replyRate * 100).toFixed(0)}%`,
-      tooltip:
-        "Replies divided by emails sent. Small samples swing wildly.",
+      value: replyRate * 100,
+      format: (n: number) => `${n.toFixed(0)}%`,
+      tooltip: "Replies divided by emails sent. Small samples swing wildly.",
     },
   ];
 
   return (
-    <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {kpis.map((k, index) => (
-        <StaggerItem key={k.label} index={index}>
-          <Surface interactive className="px-5 py-5">
-            {k.tooltip ? (
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-12">
+      {kpis.map((k) => (
+        <StatTile
+          key={k.label}
+          surface="card"
+          className="md:col-span-3"
+          label={
+            k.tooltip ? (
               <Tooltip>
                 <TooltipTrigger
                   render={
-                    <p className="text-muted-foreground w-fit cursor-help text-[14px] font-medium tracking-wide uppercase">
-                      {k.label}
-                    </p>
+                    <button
+                      type="button"
+                      className="inline-flex cursor-help items-center gap-1 rounded-md"
+                    />
                   }
-                />
-                <TooltipContent className="max-w-xs text-left leading-relaxed">
-                  {k.tooltip}
-                </TooltipContent>
+                >
+                  {k.label}
+                  <Info className="size-3" aria-hidden />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-left">{k.tooltip}</TooltipContent>
               </Tooltip>
             ) : (
-              <p className="text-muted-foreground text-[14px] font-medium tracking-wide uppercase">
-                {k.label}
-              </p>
-            )}
-            <p className="tabular mt-2 text-[28px] font-medium tracking-tight text-foreground">
-              {k.value}
-            </p>
-          </Surface>
-        </StaggerItem>
+              k.label
+            )
+          }
+          value={<CountUp value={k.value} format={k.format} />}
+        />
       ))}
-    </Stagger>
+    </div>
   );
 }

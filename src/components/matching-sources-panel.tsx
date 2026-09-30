@@ -31,16 +31,16 @@ function ToggleRow({
     <label className="flex cursor-pointer items-start gap-3 py-3">
       <input
         type="checkbox"
-        className="border-input bg-background text-foreground mt-0.5 size-4 shrink-0 rounded"
+        className="border-input mt-0.5 size-4 shrink-0 rounded"
         checked={checked}
         disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
       />
       <span className="min-w-0">
-        <span className="block text-[15px] font-medium text-foreground">
+        <span className="block text-body font-medium text-foreground">
           {label}
         </span>
-        <span className="text-muted-foreground mt-0.5 block text-[13px] leading-snug">
+        <span className="text-muted-foreground mt-0.5 block text-body-sm leading-snug">
           {helper}
         </span>
       </span>
@@ -77,10 +77,10 @@ export function MatchingSourcesPanel({
   return (
     <div className="space-y-1">
       <div>
-        <p className="text-[16px] font-medium tracking-tight">
+        <p className="text-body font-medium">
           Also used in scoring
         </p>
-        <p className="text-muted-foreground mt-0.5 text-[14px] leading-relaxed">
+        <p className="text-muted-foreground mt-0.5 text-body-sm leading-relaxed">
           Portfolio evidence and job preferences. Each file is switched on its own row.
         </p>
       </div>

@@ -79,10 +79,10 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
       {tab === "mail" ? (
         <section className="space-y-3">
           <header className="space-y-1">
-            <h2 className="text-[22px] font-medium tracking-tight">
+            <h2 className="text-h5 font-medium">
               Mailbox
             </h2>
-            <p className="text-muted-foreground max-w-xl text-[15px] leading-relaxed">
+            <p className="text-muted-foreground max-w-xl text-body leading-relaxed">
               Where Optra sends mail and reads replies.
             </p>
           </header>
@@ -93,12 +93,12 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
       {tab === "keys" ? (
         <section className="space-y-3">
           <header className="space-y-1">
-            <h2 className="text-[22px] font-medium tracking-tight">
+            <h2 className="text-h5 font-medium">
               API keys
             </h2>
-            <p className="text-muted-foreground max-w-xl text-[15px] leading-relaxed">
+            <p className="text-muted-foreground max-w-xl text-body leading-relaxed">
               Models and job collectors. Stored in Keychain or{" "}
-              <code className="text-[13px]">.env</code>.
+              <code className="text-body-sm">.env</code>.
             </p>
           </header>
           <SecretsStatus
@@ -112,15 +112,15 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
       {tab === "status" ? (
         <section className="space-y-8">
           <header className="space-y-1">
-            <h2 className="text-[22px] font-medium tracking-tight">
+            <h2 className="text-h5 font-medium">
               Status
             </h2>
-            <p className="text-muted-foreground max-w-xl text-[15px] leading-relaxed">
+            <p className="text-muted-foreground max-w-xl text-body leading-relaxed">
               Budget, last pipeline run, and what still needs attention.
             </p>
           </header>
 
-          <div className="border-border divide-border divide-y rounded-2xl border">
+          <div className="bg-card shadow-card divide-y divide-border rounded-card in-[.bg-card]:bg-subtle in-[.bg-card]:shadow-none">
             <StatusRow
               label="Mailbox"
               value={
@@ -159,8 +159,8 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
 
           {props.actionItems.length > 0 ? (
             <div className="space-y-3">
-              <h3 className="text-[15px] font-medium">Needs attention</h3>
-              <ul className="text-muted-foreground list-disc space-y-2 pl-5 text-[15px]">
+              <h3 className="text-body font-medium">Needs attention</h3>
+              <ul className="text-muted-foreground list-disc space-y-2 pl-5 text-body">
                 {props.actionItems.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
@@ -180,8 +180,8 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
 
           {props.usageByTask.length > 0 ? (
             <div className="space-y-3">
-              <h3 className="text-[15px] font-medium">Usage by task</h3>
-              <ul className="border-border divide-border divide-y rounded-2xl border text-[14px]">
+              <h3 className="text-body font-medium">Usage by task</h3>
+              <ul className="bg-card shadow-card divide-y divide-border rounded-card in-[.bg-card]:bg-subtle in-[.bg-card]:shadow-none text-body-sm">
                 {props.usageByTask.map((u) => (
                   <li
                     key={`${u.task}-${u.provider}`}
@@ -200,12 +200,12 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
           ) : null}
 
           {props.latestRun ? (
-            <details className="border-border rounded-2xl border">
-              <summary className="cursor-pointer px-5 py-4 text-[15px] font-medium select-none">
+            <details className="bg-subtle rounded-panel">
+              <summary className="cursor-pointer px-5 py-4 text-body font-medium select-none">
                 Last run details
               </summary>
-              <div className="border-border space-y-4 border-t px-5 py-4 text-[14px]">
-                <p className="text-muted-foreground font-mono text-[13px]">
+              <div className="border-border space-y-4 border-t px-5 py-4 text-body-sm">
+                <p className="text-muted-foreground font-mono text-body-sm">
                   {props.latestRun.id}
                 </p>
                 <p>Started {props.latestRun.startedAt}</p>
@@ -235,18 +235,18 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
             </details>
           ) : null}
 
-          <details className="border-border rounded-2xl border">
-            <summary className="cursor-pointer px-5 py-4 text-[15px] font-medium select-none">
+          <details className="bg-subtle rounded-panel">
+            <summary className="cursor-pointer px-5 py-4 text-body font-medium select-none">
               Advanced diagnostics
             </summary>
             <div className="border-border space-y-8 border-t p-5">
               <div className="grid gap-6 lg:grid-cols-2">
                 <div className="space-y-3">
-                  <h3 className="text-[15px] font-medium">Lead states</h3>
+                  <h3 className="text-body font-medium">Lead states</h3>
                   {props.stateCounts.length === 0 ? (
-                    <p className="text-muted-foreground text-[14px]">No leads yet.</p>
+                    <p className="text-muted-foreground text-body-sm">No leads yet.</p>
                   ) : (
-                    <ul className="border-border divide-border divide-y rounded-xl border text-[14px]">
+                    <ul className="bg-subtle divide-y divide-border rounded-panel text-body-sm">
                       {props.stateCounts.map((s) => (
                         <li
                           key={s.state}
@@ -262,11 +262,11 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
                   )}
                 </div>
                 <div className="space-y-3">
-                  <h3 className="text-[15px] font-medium">Reject reasons</h3>
+                  <h3 className="text-body font-medium">Reject reasons</h3>
                   {props.rejectReasons.length === 0 ? (
-                    <p className="text-muted-foreground text-[14px]">None yet.</p>
+                    <p className="text-muted-foreground text-body-sm">None yet.</p>
                   ) : (
-                    <ul className="border-border divide-border divide-y rounded-xl border text-[14px]">
+                    <ul className="bg-subtle divide-y divide-border rounded-panel text-body-sm">
                       {props.rejectReasons.map((r) => (
                         <li
                           key={r.reason ?? "null"}
@@ -284,7 +284,7 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
               </div>
 
               <div className="space-y-3">
-                <h3 className="text-[15px] font-medium">Validation readiness</h3>
+                <h3 className="text-body font-medium">Validation readiness</h3>
                 <ReadinessPanel
                   phase1={props.readiness.phase1}
                   phase2={props.readiness.phase2}
@@ -301,10 +301,10 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
       {tab === "privacy" ? (
         <section className="space-y-3">
           <header className="space-y-1">
-            <h2 className="text-[22px] font-medium tracking-tight">
+            <h2 className="text-h5 font-medium">
               Privacy
             </h2>
-            <p className="text-muted-foreground max-w-xl text-[15px] leading-relaxed">
+            <p className="text-muted-foreground max-w-xl text-body leading-relaxed">
               Export and delete personal data. Always available.
             </p>
           </header>
@@ -335,9 +335,9 @@ function StatusRow({
           }
           aria-hidden
         />
-        <span className="text-[15px] font-medium">{label}</span>
+        <span className="text-body font-medium">{label}</span>
       </div>
-      <span className="text-muted-foreground text-[14px]">{value}</span>
+      <span className="text-muted-foreground text-body-sm">{value}</span>
     </div>
   );
 }

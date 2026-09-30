@@ -81,7 +81,7 @@ export function LearningControls({ gatesReady }: { gatesReady: boolean }) {
         Positioning
       </Button>
       {error ? (
-        <span className="text-destructive text-[14px]">{error}</span>
+        <span className="text-destructive text-body-sm">{error}</span>
       ) : null}
     </div>
   );
@@ -121,7 +121,7 @@ export function ProposalActions({ proposalId }: { proposalId: string }) {
       >
         Reject
       </Button>
-      {error ? <span className="text-destructive text-[14px]">{error}</span> : null}
+      {error ? <span className="text-destructive text-body-sm">{error}</span> : null}
     </div>
   );
 }

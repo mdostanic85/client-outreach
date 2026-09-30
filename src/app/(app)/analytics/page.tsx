@@ -2,13 +2,15 @@ import Link from "next/link";
 import { AnalyticsKpiGrid } from "@/components/analytics-kpi-grid";
 import { EmptyState } from "@/components/empty-state";
 import {
+  PageGrid,
   PageHeader,
   PageShell,
   PanelBody,
   PanelHeader,
   Surface,
 } from "@/components/page-shell";
-import { Badge } from "@/components/ui/badge";
+import { BarList } from "@/components/ui/bar-list";
+import { StatTile } from "@/components/ui/stat-tile";
 import { buttonVariants } from "@/components/ui/button";
 import { ensureDb } from "@/db/ensure";
 import { getLearningDashboard } from "@/modules/learning/queries";
@@ -58,73 +60,76 @@ export default async function AnalyticsPage() {
         </Surface>
       ) : (
         <>
-          <Surface>
-            <PanelHeader>
-              <p className="text-[16px] font-medium tracking-tight">
-                Pipeline states
-              </p>
-            </PanelHeader>
-            <ul className="grid gap-0 text-[15px] sm:grid-cols-2">
-              {Object.entries(funnel.stateCounts)
-                .sort((a, b) => b[1] - a[1])
-                .map(([state, count]) => (
-                  <li
-                    key={state}
-                    className="border-border flex justify-between gap-4 border-b px-6 py-3.5 last:border-0 sm:px-8 sm:odd:border-r"
-                  >
-                    <span>{labelLeadState(state)}</span>
-                    <span className="tabular font-medium">{count}</span>
-                  </li>
-                ))}
-            </ul>
-          </Surface>
+          <PageGrid>
+            <Surface className="md:col-span-7">
+              <PanelHeader>
+                <h2 className="text-foreground text-body font-medium">Pipeline states</h2>
+              </PanelHeader>
+              <PanelBody className="px-2 py-3 sm:px-4 sm:py-4">
+                <BarList
+                  items={Object.entries(funnel.stateCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([state, count]) => ({
+                      key: state,
+                      label: labelLeadState(state),
+                      value: count,
+                    }))}
+                />
+              </PanelBody>
+            </Surface>
 
-          <Surface>
-            <PanelHeader>
-              <p className="text-[16px] font-medium tracking-tight">
-                Draft quality
-              </p>
-            </PanelHeader>
-            <PanelBody className="flex flex-wrap gap-2.5">
-              <Badge variant="outline">edits {funnel.editedDrafts}</Badge>
-              <Badge variant="outline">
-                avg edit {(funnel.avgEditRatio * 100).toFixed(0)}%
-              </Badge>
-              <Badge variant="outline">
-                major rewrite {(funnel.majorRewriteRate * 100).toFixed(0)}%
-              </Badge>
-            </PanelBody>
-          </Surface>
+            <Surface className="md:col-span-5">
+              <PanelHeader>
+                <h2 className="text-foreground text-body font-medium">Draft quality</h2>
+              </PanelHeader>
+              <PanelBody className="grid grid-cols-3 gap-3">
+                <StatTile label="Edited" value={funnel.editedDrafts} />
+                <StatTile
+                  label="Avg edit"
+                  value={`${(funnel.avgEditRatio * 100).toFixed(0)}%`}
+                />
+                <StatTile
+                  label="Rewrites"
+                  value={`${(funnel.majorRewriteRate * 100).toFixed(0)}%`}
+                />
+              </PanelBody>
+            </Surface>
 
-          <Surface>
-            <PanelHeader>
-              <p className="text-[16px] font-medium tracking-tight">
-                By source
-              </p>
-            </PanelHeader>
-            {source.rows.length === 0 ? (
-              <EmptyState
-                title="No source data"
-                description="Source breakdown appears after you accept leads from discovery."
-                actionLabel="Go to Today"
-                actionHref="/"
-              />
-            ) : (
-              <ul className="divide-border divide-y text-[15px]">
-                {source.rows.map((r) => (
-                  <li
-                    key={r.source}
-                    className="flex justify-between gap-4 px-6 py-4 sm:px-8"
-                  >
-                    <span className="font-medium">{r.source}</span>
-                    <span className="text-muted-foreground tabular text-[15px]">
-                      {r.accepted}/{r.leads} accept · {r.replied}/{r.sent} reply
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Surface>
+            <Surface className="md:col-span-12">
+              <PanelHeader>
+                <h2 className="text-foreground text-body font-medium">By source</h2>
+                <p className="text-muted-foreground text-body-sm">Reply rate per source</p>
+              </PanelHeader>
+              {source.rows.length === 0 ? (
+                <EmptyState
+                  title="No source data"
+                  description="Source breakdown appears after you accept leads from discovery."
+                  actionLabel="Go to Today"
+                  actionHref="/"
+                />
+              ) : (
+                <PanelBody className="px-2 py-3 sm:px-4 sm:py-4">
+                  <BarList
+                    max={1}
+                    items={source.rows.map((r) => ({
+                      key: r.source,
+                      label: r.source,
+                      value: r.sent > 0 ? r.replied / r.sent : 0,
+                      display: (
+                        <span>
+                          {r.replied}/{r.sent} reply
+                          <span className="text-muted-foreground">
+                            {" "}
+                            · {r.accepted}/{r.leads} accept
+                          </span>
+                        </span>
+                      ),
+                    }))}
+                  />
+                </PanelBody>
+              )}
+            </Surface>
+          </PageGrid>
         </>
       )}
     </PageShell>

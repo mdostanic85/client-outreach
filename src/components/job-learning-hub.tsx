@@ -78,7 +78,7 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="bg-muted/50 border-border inline-flex rounded-xl border p-1">
+        <div className="bg-subtle inline-flex gap-0.5 rounded-full p-1">
           {(
             [
               ["insights", "Results"],
@@ -94,9 +94,9 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
               type="button"
               onClick={() => setTab(id)}
               className={cn(
-                "rounded-lg px-3 py-1.5 text-[15px] font-medium transition-colors",
+                "h-9 rounded-full px-4 text-body-sm font-medium transition-colors duration-150 ease-standard",
                 tab === id
-                  ? "bg-background text-foreground shadow-sm"
+                  ? "bg-card text-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -168,7 +168,7 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
           ) : null}
           <Link
             href="/search-criteria"
-            className="text-muted-foreground text-[14px] underline-offset-4 hover:underline"
+            className="text-muted-foreground text-body-sm underline-offset-4 hover:underline"
           >
             Criteria
           </Link>
@@ -176,7 +176,7 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
       </div>
 
       {error ? (
-        <p className="text-destructive text-[15px]">{error}</p>
+        <p className="text-destructive text-body">{error}</p>
       ) : null}
 
       {tab === "insights" ? (
@@ -209,14 +209,14 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
                 },
               ].map((card) => (
                 <Surface key={card.label} className="px-4 py-3">
-                  <p className="text-muted-foreground text-[14px] font-medium tracking-wide uppercase">
+                  <p className="text-muted-foreground text-body-sm font-medium">
                     {card.label}
                   </p>
-                  <p className="tabular mt-1 text-[22px] font-medium tracking-tight">
+                  <p className="tabular mt-1 text-h5 font-medium">
                     {card.value}
                   </p>
                   {card.hint ? (
-                    <p className="text-muted-foreground mt-0.5 text-[14px]">
+                    <p className="text-muted-foreground mt-0.5 text-body-sm">
                       {card.hint}
                     </p>
                   ) : null}
@@ -228,10 +228,10 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
           <div className="grid gap-4 lg:grid-cols-5">
             <Surface className="lg:col-span-2">
               <div className="border-border flex items-center justify-between border-b px-4 py-3">
-                <p className="text-[14px] font-medium tracking-tight">
+                <p className="text-body-sm font-medium">
                   What worked
                 </p>
-                <span className="text-muted-foreground text-[14px]">
+                <span className="text-muted-foreground text-body-sm">
                   {dash.gates.cycleProgress.current}/
                   {dash.gates.cycleProgress.target} cycle
                 </span>
@@ -246,7 +246,7 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
               ) : (
                 <PanelBody className="space-y-3 px-4 py-4">
                   {dash.latestInsights.length > 0 ? (
-                    <ul className="space-y-1.5 text-[15px] leading-snug">
+                    <ul className="space-y-1.5 text-body leading-snug">
                       {dash.latestInsights.slice(0, 5).map((insight) => (
                         <li key={insight} className="flex gap-2">
                           <span className="text-muted-foreground mt-1.5 size-1 shrink-0 rounded-full bg-current" />
@@ -256,7 +256,7 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
                     </ul>
                   ) : null}
                   {dash.weeklyReports[0] ? (
-                    <p className="text-muted-foreground line-clamp-4 text-[14px] leading-relaxed">
+                    <p className="text-muted-foreground line-clamp-4 text-body-sm leading-relaxed">
                       {dash.weeklyReports[0].bodyMd}
                     </p>
                   ) : null}
@@ -278,10 +278,10 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
 
             <Surface className="lg:col-span-3">
               <div className="border-border flex items-center justify-between border-b px-4 py-3">
-                <p className="text-[14px] font-medium tracking-tight">
+                <p className="text-body-sm font-medium">
                   After you applied
                 </p>
-                <span className="text-muted-foreground tabular text-[14px]">
+                <span className="text-muted-foreground tabular text-body-sm">
                   {dash.appliedJobs.length}
                 </span>
               </div>
@@ -301,17 +301,17 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
                       className="flex items-center gap-3 px-4 py-2.5"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[15px] font-medium">
+                        <p className="truncate text-body font-medium">
                           {job.title}
                         </p>
                         {job.searchProfileVersion != null ? (
-                          <p className="text-muted-foreground text-[14px]">
+                          <p className="text-muted-foreground text-body-sm">
                             v{job.searchProfileVersion}
                           </p>
                         ) : null}
                       </div>
                       <select
-                        className="border-border bg-background h-8 max-w-[9.5rem] shrink-0 rounded-lg border px-2 text-[14px]"
+                        className="border-input bg-card h-8 max-w-[9.5rem] shrink-0 rounded-full border px-3 text-body-sm"
                         disabled={pending}
                         value={job.outcome === "none" ? "none" : job.outcome}
                         onChange={(e) => {
@@ -374,15 +374,15 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
                   <div key={p.id} className="space-y-3 px-4 py-4 sm:px-5">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline">{p.kind}</Badge>
-                      <span className="text-[14px] font-medium">
+                      <span className="text-body-sm font-medium">
                         {p.title}
                       </span>
                     </div>
-                    <p className="text-muted-foreground text-[15px] leading-snug">
+                    <p className="text-muted-foreground text-body leading-snug">
                       {p.summary}
                     </p>
                     {changes.length > 0 ? (
-                      <ul className="text-muted-foreground space-y-1 text-[14px]">
+                      <ul className="text-muted-foreground space-y-1 text-body-sm">
                         {changes.slice(0, 5).map((c) => (
                           <li key={c} className="flex gap-2">
                             <span className="mt-1.5 size-1 shrink-0 rounded-full bg-current opacity-50" />
@@ -412,9 +412,9 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
             />
           ) : (
             <div className="overflow-x-auto px-4 py-2 sm:px-5">
-              <table className="w-full text-left text-[15px]">
+              <table className="w-full text-left text-body">
                 <thead>
-                  <tr className="text-muted-foreground border-b text-[14px]">
+                  <tr className="text-muted-foreground border-b text-body-sm">
                     <th className="py-2.5 pr-3 font-medium">Ver</th>
                     <th className="py-2.5 pr-3 font-medium">Apps</th>
                     <th className="py-2.5 pr-3 font-medium">Int%</th>
@@ -464,7 +464,7 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
                             Reactivate
                           </Button>
                         ) : (
-                          <span className="text-muted-foreground text-[14px]">
+                          <span className="text-muted-foreground text-body-sm">
                             —
                           </span>
                         )}

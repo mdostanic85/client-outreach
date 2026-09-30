@@ -54,7 +54,7 @@ export function QueueControls({ paused }: { paused: boolean }) {
           </Button>
         ) : null}
       </div>
-      {error ? <p className="text-destructive text-sm">{error}</p> : null}
+      {error ? <p className="text-destructive text-body-sm">{error}</p> : null}
     </div>
   );
 }

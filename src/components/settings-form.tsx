@@ -273,14 +273,14 @@ export function SettingsForm({ initial }: { initial: FormInitial }) {
 
       <Surface>
         <PanelHeader className="flex-col items-start gap-1">
-          <p className="text-[16px] font-medium tracking-tight">
+          <p className="text-body font-medium">
             How you introduce yourself
           </p>
         </PanelHeader>
         <PanelBody className="space-y-5">
           <div className="space-y-2">
             <Label htmlFor="profile">About you (for emails)</Label>
-            <p className="text-muted-foreground text-[14px] leading-snug">
+            <p className="text-muted-foreground text-body-sm leading-snug">
               Short positioning used in cold emails. This is not your
               job-matching Profile.
             </p>
@@ -304,10 +304,10 @@ export function SettingsForm({ initial }: { initial: FormInitial }) {
 
       <Surface>
         <PanelHeader className="flex-col items-start gap-1">
-          <p className="text-[16px] font-medium tracking-tight">
+          <p className="text-body font-medium">
             Email writing style
           </p>
-          <p className="text-muted-foreground text-[15px]">
+          <p className="text-muted-foreground text-body">
             Tone notes, do/don&apos;t lists, and example emails.
           </p>
         </PanelHeader>
@@ -356,13 +356,13 @@ export function SettingsForm({ initial }: { initial: FormInitial }) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="examples">Examples (3–5)</Label>
-            <p className="text-muted-foreground text-[14px] leading-snug">
+            <p className="text-muted-foreground text-body-sm leading-snug">
               Paste 3–5 emails you like. Separate with a line that only contains
               ---.
             </p>
             <Textarea
               id="examples"
-              className="min-h-40 font-mono text-[15px]"
+              className="min-h-40 font-mono text-body"
               value={examples}
               onChange={(e) => setExamples(e.target.value)}
               placeholder={"Example email 1\n---\nExample email 2"}
@@ -373,10 +373,10 @@ export function SettingsForm({ initial }: { initial: FormInitial }) {
 
       <Surface>
         <PanelHeader className="flex-col items-start gap-1">
-          <p className="text-[16px] font-medium tracking-tight">
+          <p className="text-body font-medium">
             Send volume
           </p>
-          <p className="text-muted-foreground text-[15px]">
+          <p className="text-muted-foreground text-body">
             Daily company review limits, AI budget, and outreach send caps.
           </p>
         </PanelHeader>
@@ -424,11 +424,11 @@ export function SettingsForm({ initial }: { initial: FormInitial }) {
               />
             </div>
           </div>
-          <label className="text-muted-foreground flex cursor-pointer items-start gap-2.5 text-[14px] leading-snug">
+          <label className="text-muted-foreground flex cursor-pointer items-start gap-2.5 text-body-sm leading-snug">
             <input
               id="weekdaysOnly"
               type="checkbox"
-              className="border-input bg-background text-foreground mt-0.5 size-4 shrink-0 rounded"
+              className="border-input mt-0.5 size-4 shrink-0 rounded"
               checked={weekdaysOnly}
               onChange={(e) => setWeekdaysOnly(e.target.checked)}
             />
@@ -441,18 +441,18 @@ export function SettingsForm({ initial }: { initial: FormInitial }) {
         <details className="group">
           <summary className="border-border flex cursor-pointer list-none items-center justify-between gap-3 border-b px-5 py-5 font-medium sm:px-8 sm:py-6 select-none [&::-webkit-details-marker]:hidden">
             <div className="space-y-1">
-              <p className="text-[16px] font-medium tracking-tight">
+              <p className="text-body font-medium">
                 Advanced
               </p>
-              <p className="text-muted-foreground text-[15px] font-normal">
+              <p className="text-muted-foreground text-body font-normal">
                 Raw filter and country-policy JSON — leave alone unless you need
                 custom rules.
               </p>
             </div>
-            <span className="text-muted-foreground text-[14px] group-open:hidden">
+            <span className="text-muted-foreground text-body-sm group-open:hidden">
               Show
             </span>
-            <span className="text-muted-foreground hidden text-[14px] group-open:inline">
+            <span className="text-muted-foreground hidden text-body-sm group-open:inline">
               Hide
             </span>
           </summary>
@@ -461,7 +461,7 @@ export function SettingsForm({ initial }: { initial: FormInitial }) {
               <Label htmlFor="filters">Target filters JSON</Label>
               <Textarea
                 id="filters"
-                className="min-h-28 font-mono text-[15px]"
+                className="min-h-28 font-mono text-body"
                 value={filtersJson}
                 onChange={(e) => setFiltersJson(e.target.value)}
               />
@@ -470,11 +470,11 @@ export function SettingsForm({ initial }: { initial: FormInitial }) {
               <Label htmlFor="policy">Country policy JSON</Label>
               <Textarea
                 id="policy"
-                className="min-h-24 font-mono text-[15px]"
+                className="min-h-24 font-mono text-body"
                 value={policyJson}
                 onChange={(e) => setPolicyJson(e.target.value)}
               />
-              <p className="text-muted-foreground text-[14px]">
+              <p className="text-muted-foreground text-body-sm">
                 Values: draft_allowed · manual_review_required ·
                 prior_interaction_required · blocked · unknown
               </p>
