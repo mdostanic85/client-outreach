@@ -69,6 +69,19 @@ function flowOrder(survey: SurveyAnswers): FlowStep[] {
   ];
 }
 
+/** Screens the person actually sees. Several old steps share one screen. */
+const QUESTION_GROUPS: FlowStep[][] = [
+  ["intro", "role"],
+  ["family"],
+  ["experience", "level"],
+  ["engagement", "workMode"],
+  ["location"],
+  ["pay", "availability"],
+  ["details"],
+  ["languages", "priorities"],
+  ["cv", "website", "linkedin"],
+];
+
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -123,15 +136,19 @@ export function OnboardingFlow({
   }
 
   function back() {
-    const idx = order.indexOf(step);
-    if (idx > 0) go(order[idx - 1]!);
+    if (backTarget) go(backTarget);
   }
 
-  /** Save one answer, then move to the next screen of the (possibly new) order. */
-  function answer(patch: SurveyAnswers) {
+  /**
+   * Save one answer. `covers` is every step this screen finishes, so a combined
+   * screen jumps past all of them instead of stopping on the next old step.
+   */
+  function answer(patch: SurveyAnswers, covers: FlowStep[] = [step]) {
     const merged = { ...survey, ...patch };
     const nextOrder = flowOrder(merged);
-    const next = nextOrder[nextOrder.indexOf(step) + 1] ?? "cv";
+    const indexes = covers.map((item) => nextOrder.indexOf(item)).filter((index) => index >= 0);
+    const last = indexes.length ? Math.max(...indexes) : nextOrder.indexOf(step);
+    const next = nextOrder[last + 1] ?? "cv";
     setSurvey(merged);
     startTransition(async () => {
       const result = await saveSurveyStepAction(patch);
@@ -143,20 +160,25 @@ export function OnboardingFlow({
     });
   }
 
-  const questionSteps = order.slice(1, order.indexOf("analyzing"));
-  const questionIndex = questionSteps.indexOf(step);
-  const progress =
-    step === "intro"
-      ? 0
-      : questionIndex >= 0
-        ? (questionIndex + 1) / questionSteps.length
-        : 1;
-  const canGoBack = step !== "intro" && step !== "analyzing" && step !== "review";
-  const afterCv = order[order.indexOf("cv") + 1] ?? "analyzing";
+  const visibleGroups = QUESTION_GROUPS.map((group) => group.filter((item) => order.includes(item))).filter(
+    (group) => group.length > 0,
+  );
+  const groupIndex = visibleGroups.findIndex((group) => group.includes(step));
+  const progress = groupIndex < 0 ? 1 : (groupIndex + 1) / visibleGroups.length;
+  const backTarget = (() => {
+    const group = QUESTION_GROUPS.find((item) => item.includes(step));
+    const first = group?.find((item) => order.includes(item)) ?? step;
+    const index = order.indexOf(first);
+    return index > 0 ? order[index - 1]! : null;
+  })();
+  const canGoBack = backTarget !== null && step !== "analyzing" && step !== "review";
+  const asksForWebsite = family ? FAMILY_PROFILES[family].asksForWebsite : true;
+  const asksForLinkedin = family ? FAMILY_PROFILES[family].usesLevels : true;
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-1 flex-col px-6 pb-12">
-      <div className="mb-10 flex h-9 items-center gap-4 sm:mb-14">
+    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 py-6 sm:px-10">
+      <div className="my-auto flex w-full flex-col">
+      <div className="mx-auto mb-8 flex h-9 w-full max-w-lg items-center gap-4">
         {canGoBack ? (
           <button
             type="button"
@@ -193,27 +215,21 @@ export function OnboardingFlow({
           exit={reducedMotion ? undefined : { opacity: 0, x: -24 * direction, transition: { duration: 0.15 } }}
           transition={{ duration: 0.3, ease: EASE }}
         >
-          {step === "intro" ? (
-            <Screen
-              eyebrow="About 3 minutes"
-              title={`${userName?.trim() ? `Hi, ${userName.trim().split(" ")[0]}. ` : ""}Let's find jobs that fit you.`}
-              hint="A few quick questions, then your CV. At the end you get an honest score for your CV and what to fix first."
-            >
-              <PrimaryButton onClick={() => go("role")}>Start</PrimaryButton>
-            </Screen>
-          ) : null}
-
-          {step === "role" ? (
+          {step === "intro" || step === "role" ? (
             <RoleStep
+              userName={userName}
               initial={survey.role ?? ""}
               pending={pending}
               onPick={(occupation) =>
-                answer({
-                  role: occupation.en,
-                  occupationId: occupation.id,
-                  occupationFamily: occupation.family,
-                  occupationSynonyms: occupationSearchTerms(occupation),
-                })
+                answer(
+                  {
+                    role: occupation.en,
+                    occupationId: occupation.id,
+                    occupationFamily: occupation.family,
+                    occupationSynonyms: occupationSearchTerms(occupation),
+                  },
+                  ["intro", "role"],
+                )
               }
               onUnknown={(role) =>
                 startTransition(async () => {
@@ -224,23 +240,28 @@ export function OnboardingFlow({
                   }
                   const { data } = result;
                   if (data.occupationId && data.family) {
-                    answer({
-                      role,
-                      occupationId: data.occupationId,
-                      occupationFamily: data.family,
-                      occupationSynonyms: [data.en, data.sr, ...data.synonyms],
-                    });
+                    answer(
+                      {
+                        role,
+                        occupationId: data.occupationId,
+                        occupationFamily: data.family,
+                        occupationSynonyms: [data.en, data.sr, ...data.synonyms],
+                      },
+                      ["intro", "role"],
+                    );
                     return;
                   }
                   setSuggestedFamily(data.family);
-                  // No family yet: the next screen asks the person to confirm it.
-                  answer({
-                    role,
-                    occupationId: null,
-                    occupationFamily: undefined,
-                    occupationSynonyms:
-                      data.source === "model" ? [data.en, data.sr, ...data.synonyms] : [],
-                  });
+                  answer(
+                    {
+                      role,
+                      occupationId: null,
+                      occupationFamily: undefined,
+                      occupationSynonyms:
+                        data.source === "model" ? [data.en, data.sr, ...data.synonyms] : [],
+                    },
+                    ["intro", "role"],
+                  );
                 })
               }
             />
@@ -268,63 +289,24 @@ export function OnboardingFlow({
             </Screen>
           ) : null}
 
-          {step === "experience" ? (
-            <Screen title="How much experience do you have in this job?">
-              <Choices
-                value={survey.experience}
-                disabled={pending}
-                onPick={(experience) => answer({ experience })}
-                options={EXPERIENCE.map((id) => ({ id, label: EXPERIENCE_LABELS[id] }))}
-              />
-            </Screen>
-          ) : null}
-
-          {step === "level" ? (
-            <Screen title="What level are you aiming for?">
-              <Choices
-                value={survey.level}
-                disabled={pending}
-                onPick={(level) => answer({ level })}
-                options={[
-                  { id: "junior", label: "Junior" },
-                  { id: "mid", label: "Mid-level" },
-                  { id: "senior", label: "Senior" },
-                  { id: "lead", label: "Lead" },
-                  { id: "head", label: "Head or Director" },
-                ]}
-              />
-            </Screen>
-          ) : null}
-
-          {step === "engagement" ? (
-            <EngagementStep
-              initial={survey.engagement ?? []}
+          {step === "experience" || step === "level" ? (
+            <BackgroundStep
+              experience={survey.experience}
+              level={survey.level}
+              usesLevels={Boolean(family && FAMILY_PROFILES[family].usesLevels)}
               pending={pending}
-              onSubmit={(engagement) => answer({ engagement })}
+              onSubmit={(patch) => answer(patch, ["experience", "level"])}
             />
           ) : null}
 
-          {step === "workMode" ? (
-            <Screen title="Where do you want to work?">
-              <Choices
-                value={survey.workMode}
-                disabled={pending}
-                onPick={(workMode) => answer({ workMode })}
-                options={
-                  remoteOffered(family)
-                    ? [
-                        { id: "onsite", label: "At the workplace" },
-                        { id: "hybrid", label: "Hybrid" },
-                        { id: "remote", label: "Remote only" },
-                        { id: "any", label: "Any of these" },
-                      ]
-                    : [
-                        { id: "onsite", label: "At the workplace" },
-                        { id: "any", label: "Doesn't matter" },
-                      ]
-                }
-              />
-            </Screen>
+          {step === "engagement" || step === "workMode" ? (
+            <EngagementStep
+              initial={survey.engagement ?? []}
+              workMode={survey.workMode}
+              remote={remoteOffered(family)}
+              pending={pending}
+              onSubmit={(engagement, workMode) => answer({ engagement, workMode }, ["engagement", "workMode"])}
+            />
           ) : null}
 
           {step === "location" ? (
@@ -337,29 +319,15 @@ export function OnboardingFlow({
             />
           ) : null}
 
-          {step === "pay" ? (
+          {step === "pay" || step === "availability" ? (
             <PayStep
               initial={survey.pay ?? null}
+              availability={survey.availability}
               serbia={(survey.locations ?? []).some((l) => /serbia|belgrade|novi sad|ni[sš]|kragujevac/i.test(l))}
               freelance={Boolean(survey.engagement?.includes("freelance") || survey.workType === "contract")}
               pending={pending}
-              onSubmit={(pay) => answer({ pay })}
+              onSubmit={(pay, availability) => answer({ pay, availability }, ["pay", "availability"])}
             />
-          ) : null}
-
-          {step === "availability" ? (
-            <Screen title="When could you start?">
-              <Choices
-                value={survey.availability}
-                disabled={pending}
-                onPick={(availability) => answer({ availability })}
-                options={[
-                  { id: "now", label: "Right away" },
-                  { id: "soon", label: "In 1–2 months" },
-                  { id: "exploring", label: "Just looking for now" },
-                ]}
-              />
-            </Screen>
           ) : null}
 
           {step === "details" ? (
@@ -371,39 +339,38 @@ export function OnboardingFlow({
             />
           ) : null}
 
-          {step === "languages" ? (
+          {step === "languages" || step === "priorities" ? (
             <LanguagesStep
               initial={survey.languages ?? []}
-              pending={pending}
-              onSubmit={(languages) => answer({ languages })}
-            />
-          ) : null}
-
-          {step === "priorities" ? (
-            <PrioritiesStep
               family={family}
-              initial={survey.priorities ?? []}
+              priorities={survey.priorities ?? []}
               pending={pending}
-              onSubmit={(priorities) => answer({ priorities })}
+              onSubmit={(languages, priorities) =>
+                answer({ languages, priorities }, ["languages", "priorities"])
+              }
             />
           ) : null}
 
-          {step === "cv" ? (
+          {step === "cv" || step === "website" || step === "linkedin" ? (
             <CvStep
               uploaded={cvUploaded}
-              onUploaded={() => setCvUploaded(true)}
-              onContinue={() => go(afterCv)}
-            />
-          ) : null}
-
-          {step === "website" ? (
-            <WebsiteStep
+              askWebsite={asksForWebsite}
+              askLinkedin={asksForLinkedin}
               initialWebsite={survey.websiteUrl ?? ""}
-              onDone={(websiteUrl) => answer({ websiteUrl })}
+              onUploaded={() => setCvUploaded(true)}
+              onContinue={async (websiteUrl) => {
+                if (websiteUrl) {
+                  const result = await saveSurveyStepAction({ websiteUrl });
+                  if (!result.ok) {
+                    setError(result.error);
+                    return;
+                  }
+                  setSurvey((current) => ({ ...current, websiteUrl }));
+                }
+                go("analyzing");
+              }}
             />
           ) : null}
-
-          {step === "linkedin" ? <LinkedinStep onDone={() => go("analyzing")} /> : null}
 
           {step === "analyzing" ? (
             <AnalyzingStep
@@ -464,12 +431,13 @@ export function OnboardingFlow({
           ) : null}
 
           {error && step !== "summary" && step !== "review" ? (
-            <p role="alert" className="text-destructive mt-4 text-[14px]">
+            <p role="alert" className="text-destructive mt-4 text-center text-[15px]">
               {error}
             </p>
           ) : null}
         </motion.div>
       </AnimatePresence>
+      </div>
     </div>
   );
 }
@@ -486,19 +454,19 @@ function Screen({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col items-center text-center">
       {eyebrow ? (
         <p className="text-primary mb-3 text-[13px] font-medium tracking-[0.14em] uppercase">
           {eyebrow}
         </p>
       ) : null}
-      <h1 className="font-display text-[clamp(1.75rem,4.5vw,2.4rem)] leading-[1.12] font-semibold tracking-tight text-[var(--card-foreground)]">
+      <h1 className="font-display max-w-3xl text-[clamp(2.25rem,5.5vw,3.75rem)] leading-[1.05] font-semibold tracking-tight text-[var(--card-foreground)]">
         {title}
       </h1>
       {hint ? (
-        <p className="text-muted-foreground mt-3 text-[16px] leading-relaxed">{hint}</p>
+        <p className="text-muted-foreground mt-4 max-w-xl text-[18px] leading-relaxed sm:text-[20px]">{hint}</p>
       ) : null}
-      <div className="mt-9">{children}</div>
+      <div className="mt-10 w-full">{children}</div>
     </div>
   );
 }
@@ -522,7 +490,7 @@ function PrimaryButton({
       size="lg"
       disabled={disabled || pending}
       onClick={onClick}
-      className="h-12 w-full rounded-xl text-[15px] sm:w-auto sm:min-w-[11rem]"
+      className="mx-auto h-14 w-full max-w-sm rounded-2xl text-[18px]"
     >
       {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
       {children}
@@ -557,7 +525,10 @@ function Choices<T extends string>({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-3" role="radiogroup">
+    <div
+      className={cn("grid w-full gap-3", options.length > 3 ? "sm:grid-cols-2" : "mx-auto max-w-xl")}
+      role="radiogroup"
+    >
       {options.map((option) => {
         const selected = option.id === value;
         return (
@@ -569,7 +540,7 @@ function Choices<T extends string>({
             disabled={disabled}
             onClick={() => onPick(option.id)}
             className={cn(
-              "flex min-h-14 items-center justify-between gap-3 rounded-2xl border px-5 py-3 text-left text-[16px] font-medium transition-colors disabled:opacity-60",
+              "flex min-h-20 items-center justify-between gap-4 rounded-3xl border px-6 py-4 text-left text-[1.2rem] font-medium transition-colors disabled:opacity-60 sm:min-h-24 sm:text-[1.45rem]",
               selected
                 ? "border-primary bg-primary/10 text-[var(--card-foreground)]"
                 : "border-border bg-card/40 hover:border-primary/50 hover:bg-card/70",
@@ -607,7 +578,7 @@ function Chip({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "h-11 rounded-full border px-4 text-[15px] font-medium transition-colors disabled:opacity-40",
+        "h-14 rounded-full border px-6 text-[17px] font-medium transition-colors disabled:opacity-40",
         selected
           ? "border-primary bg-primary/12 text-[var(--card-foreground)]"
           : "border-border bg-card/40 hover:border-primary/50",
@@ -619,11 +590,13 @@ function Chip({
 }
 
 function RoleStep({
+  userName,
   initial,
   pending,
   onPick,
   onUnknown,
 }: {
+  userName: string | null;
   initial: string;
   pending: boolean;
   onPick: (occupation: Occupation) => void;
@@ -641,20 +614,21 @@ function RoleStep({
     else onUnknown(trimmed);
   }
 
+  const firstName = userName?.trim().split(" ")[0];
   return (
     <Screen
-      title="What job are you looking for?"
-      hint="Type it the way you'd say it, in English or Serbian. You can add more later."
+      title={firstName ? `${firstName}, what job are you looking for?` : "What job are you looking for?"}
+      hint="Type it the way you'd say it, in English or Serbian."
     >
-      <form onSubmit={submit} className="flex flex-col gap-4">
+      <form onSubmit={submit} className="mx-auto flex w-full max-w-xl flex-col gap-5">
         <Input
           autoFocus
           value={role}
           onChange={(event) => setRole(event.target.value)}
-          placeholder="e.g. Nurse, Vozač C kategorije, Accountant"
+          placeholder="Nurse, vozač, accountant"
           maxLength={80}
           aria-autocomplete="list"
-          className="h-14 rounded-2xl text-[17px]"
+          className="h-16 rounded-2xl text-center text-[22px]"
         />
         {matches.length > 0 ? (
           <ul className="border-border divide-border divide-y overflow-hidden rounded-2xl border" role="listbox">
@@ -680,7 +654,7 @@ function RoleStep({
             ))}
           </ul>
         ) : trimmed.length < 2 ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-center gap-3">
             {ROLE_SUGGESTIONS.map((suggestion) => (
               <Chip key={suggestion} label={suggestion} selected={false} onClick={() => setRole(suggestion)} />
             ))}
@@ -696,30 +670,115 @@ function RoleStep({
   );
 }
 
+function BackgroundStep({
+  experience,
+  level,
+  usesLevels,
+  pending,
+  onSubmit,
+}: {
+  experience: SurveyAnswers["experience"];
+  level: SurveyAnswers["level"];
+  usesLevels: boolean;
+  pending: boolean;
+  onSubmit: (patch: Pick<SurveyAnswers, "experience" | "level">) => void;
+}) {
+  const [years, setYears] = useState(experience);
+  const [aim, setAim] = useState(level);
+
+  return (
+    <Screen title="Your experience" hint="How long you've done this job, and the level you want.">
+      <div className="flex flex-col gap-10">
+        <div>
+          <p className="mb-4 text-[18px] font-medium">How long have you done this?</p>
+          <Choices
+            value={years}
+            disabled={pending}
+            onPick={setYears}
+            options={EXPERIENCE.map((id) => ({ id, label: EXPERIENCE_LABELS[id] }))}
+          />
+        </div>
+        {usesLevels ? (
+          <div>
+            <p className="mb-4 text-[18px] font-medium">What level are you aiming for?</p>
+            <Choices
+              value={aim}
+              disabled={pending}
+              onPick={setAim}
+              options={[
+                { id: "junior", label: "Junior" },
+                { id: "mid", label: "Mid-level" },
+                { id: "senior", label: "Senior" },
+                { id: "lead", label: "Lead" },
+                { id: "head", label: "Head or Director" },
+              ]}
+            />
+          </div>
+        ) : null}
+      </div>
+      <div className="mt-10">
+        <PrimaryButton disabled={!years || (usesLevels && !aim)} pending={pending} onClick={() => onSubmit({ experience: years, level: aim })}>
+          Continue
+        </PrimaryButton>
+      </div>
+    </Screen>
+  );
+}
+
 function EngagementStep({
   initial,
+  workMode,
+  remote,
   pending,
   onSubmit,
 }: {
   initial: Array<(typeof ENGAGEMENTS)[number]>;
+  workMode: SurveyAnswers["workMode"];
+  remote: boolean;
   pending: boolean;
-  onSubmit: (engagement: Array<(typeof ENGAGEMENTS)[number]>) => void;
+  onSubmit: (engagement: Array<(typeof ENGAGEMENTS)[number]>, workMode: NonNullable<SurveyAnswers["workMode"]>) => void;
 }) {
   const [picked, setPicked] = useState(initial.length ? initial : (["full_time"] as typeof initial));
+  const [place, setPlace] = useState(workMode);
 
   function toggle(id: (typeof ENGAGEMENTS)[number]) {
     setPicked((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
   }
 
+  const places = remote
+    ? ([
+        { id: "onsite" as const, label: "At the workplace" },
+        { id: "hybrid" as const, label: "Hybrid" },
+        { id: "remote" as const, label: "Remote only" },
+        { id: "any" as const, label: "Any of these" },
+      ] as const)
+    : ([
+        { id: "onsite" as const, label: "At the workplace" },
+        { id: "any" as const, label: "Doesn't matter" },
+      ] as const);
+
   return (
-    <Screen title="What kind of work are you open to?" hint="Pick all that apply.">
-      <div className="flex flex-wrap gap-2">
-        {ENGAGEMENTS.map((id) => (
-          <Chip key={id} label={ENGAGEMENT_LABELS[id]} selected={picked.includes(id)} onClick={() => toggle(id)} />
-        ))}
+    <Screen title="How do you want to work?">
+      <div className="flex flex-col gap-10">
+        <div>
+          <p className="mb-4 text-[18px] font-medium">What are you open to?</p>
+          <div className="flex flex-wrap justify-center gap-3">
+            {ENGAGEMENTS.map((id) => (
+              <Chip key={id} label={ENGAGEMENT_LABELS[id]} selected={picked.includes(id)} onClick={() => toggle(id)} />
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="mb-4 text-[18px] font-medium">Where?</p>
+          <Choices value={place} disabled={pending} onPick={setPlace} options={[...places]} />
+        </div>
       </div>
-      <div className="mt-8">
-        <PrimaryButton disabled={picked.length === 0} pending={pending} onClick={() => onSubmit(picked)}>
+      <div className="mt-10">
+        <PrimaryButton
+          disabled={picked.length === 0 || !place}
+          pending={pending}
+          onClick={() => place && onSubmit(picked, place)}
+        >
           Continue
         </PrimaryButton>
       </div>
@@ -776,7 +835,7 @@ function LocationStep({
       title={remote ? "Which regions can you work for?" : "Where should the job be?"}
       hint={remote ? "Pick any that apply." : "Pick your city or add another one."}
     >
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap justify-center gap-3">
         {options.map((location) => (
           <Chip key={location} label={location} selected={picked.includes(location)} onClick={() => toggle(location)} />
         ))}
@@ -826,16 +885,18 @@ type Currency = "EUR" | "USD" | "GBP" | "CHF" | "RSD";
 
 function PayStep({
   initial,
+  availability,
   serbia,
   freelance,
   pending,
   onSubmit,
 }: {
   initial: SurveyAnswers["pay"];
+  availability: SurveyAnswers["availability"];
   serbia: boolean;
   freelance: boolean;
   pending: boolean;
-  onSubmit: (pay: SurveyAnswers["pay"]) => void;
+  onSubmit: (pay: SurveyAnswers["pay"], availability: NonNullable<SurveyAnswers["availability"]>) => void;
 }) {
   // Serbia: monthly net in RSD. Elsewhere: yearly gross, or hourly for freelance.
   const [mode, setMode] = useState<PayMode>(
@@ -843,12 +904,12 @@ function PayStep({
   );
   const [currency, setCurrency] = useState<Currency>(initial?.currency ?? (serbia ? "RSD" : "EUR"));
   const [amount, setAmount] = useState(initial?.min ? String(initial.min) : "");
+  const [start, setStart] = useState(availability);
   const value = Number(amount.replace(/[^\d.]/g, ""));
   const valid = Number.isFinite(value) && value > 0;
 
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (valid) onSubmit({ mode, currency, min: value });
+  function submit(pay: SurveyAnswers["pay"]) {
+    if (start) onSubmit(pay, start);
   }
 
   const placeholder =
@@ -856,25 +917,27 @@ function PayStep({
 
   return (
     <Screen
-      title="What's the lowest pay you'd accept?"
-      hint={
-        mode === "monthly"
-          ? "Monthly, after tax. Used to skip jobs that pay too little. Only you see this."
-          : "Used to skip jobs that pay too little. Only you see this."
-      }
+      title="Pay and when you can start"
+      hint={mode === "monthly" ? "Monthly, after tax. Only you see the number." : "Only you see the number."}
     >
-      <form onSubmit={submit} className="flex flex-col gap-5">
-        <div className="flex flex-wrap gap-2">
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (valid && start) submit({ mode, currency, min: value });
+        }}
+        className="mx-auto flex w-full max-w-xl flex-col gap-8"
+      >
+        <div className="flex flex-wrap justify-center gap-3">
           <Chip label="Per month" selected={mode === "monthly"} onClick={() => setMode("monthly")} />
           <Chip label="Per year" selected={mode === "salary"} onClick={() => setMode("salary")} />
           <Chip label="Per hour" selected={mode === "hourly"} onClick={() => setMode("hourly")} />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <select
             value={currency}
             onChange={(event) => setCurrency(event.target.value as Currency)}
             aria-label="Currency"
-            className="border-input dark:bg-input/30 h-14 rounded-2xl border bg-transparent px-4 text-[16px]"
+            className="border-input dark:bg-input/30 h-16 rounded-2xl border bg-transparent px-4 text-[18px]"
           >
             {(["RSD", "EUR", "USD", "GBP", "CHF"] as const).map((c) => (
               <option key={c} value={c}>
@@ -888,18 +951,31 @@ function PayStep({
             value={amount}
             onChange={(event) => setAmount(event.target.value)}
             placeholder={placeholder}
-            className="h-14 rounded-2xl text-[17px]"
+            className="h-16 rounded-2xl text-center text-[22px]"
           />
         </div>
-        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-          <PrimaryButton type="submit" disabled={!valid} pending={pending}>
+        <div>
+          <p className="mb-4 text-[18px] font-medium">When could you start?</p>
+          <Choices
+            value={start}
+            disabled={pending}
+            onPick={setStart}
+            options={[
+              { id: "now", label: "Right away" },
+              { id: "soon", label: "In 1–2 months" },
+              { id: "exploring", label: "Just looking for now" },
+            ]}
+          />
+        </div>
+        <div className="flex flex-col items-center gap-3">
+          <PrimaryButton type="submit" disabled={!valid || !start} pending={pending}>
             Continue
           </PrimaryButton>
           <button
             type="button"
-            onClick={() => onSubmit(null)}
-            disabled={pending}
-            className="text-muted-foreground hover:text-foreground h-12 px-3 text-[15px] font-medium transition-colors"
+            onClick={() => start && onSubmit(null, start)}
+            disabled={pending || !start}
+            className="text-muted-foreground hover:text-foreground h-12 px-3 text-[16px] font-medium transition-colors"
           >
             I&apos;d rather not say
           </button>
@@ -1149,15 +1225,21 @@ const LANGUAGE_LEVEL_LABELS: Record<(typeof LANGUAGE_LEVELS)[number], string> = 
 
 function LanguagesStep({
   initial,
+  family,
+  priorities,
   pending,
   onSubmit,
 }: {
   initial: LanguageAnswer[];
+  family: OccupationFamily | undefined;
+  priorities: Priority[];
   pending: boolean;
-  onSubmit: (languages: LanguageAnswer[]) => void;
+  onSubmit: (languages: LanguageAnswer[], priorities: Priority[]) => void;
 }) {
   const [rows, setRows] = useState<LanguageAnswer[]>(initial);
+  const [picked, setPicked] = useState<Priority[]>(priorities);
   const [custom, setCustom] = useState("");
+  const full = picked.length >= 3;
   const has = (name: string) => rows.some((r) => r.language.toLowerCase() === name.toLowerCase());
 
   function add(language: string) {
@@ -1166,9 +1248,13 @@ function LanguagesStep({
     setRows((prev) => [...prev, row].slice(0, 8));
   }
 
+  function togglePriority(id: Priority) {
+    setPicked((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : full ? prev : [...prev, id]));
+  }
+
   return (
-    <Screen title="Which languages do you speak?" hint="Add each one and pick how well you speak it.">
-      <div className="flex flex-wrap gap-2">
+    <Screen title="Languages, and what matters" hint="Both are optional. Skip if you'd rather move on.">
+      <div className="flex flex-wrap justify-center gap-3">
         {LANGUAGE_SUGGESTIONS.filter((l) => !has(l)).map((language) => (
           <Chip key={language} label={`+ ${language}`} selected={false} onClick={() => add(language)} />
         ))}
@@ -1223,11 +1309,25 @@ function LanguagesStep({
           ))}
         </ul>
       ) : null}
-      <div className="mt-8 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-        <PrimaryButton disabled={rows.length === 0} pending={pending} onClick={() => onSubmit(rows)}>
+      <div className="mt-10">
+        <p className="mb-4 text-[18px] font-medium">What matters most? Up to 3.</p>
+        <div className="flex flex-wrap justify-center gap-3">
+          {prioritiesFor(family).map((id) => (
+            <Chip
+              key={id}
+              label={PRIORITY_LABELS[id]}
+              selected={picked.includes(id)}
+              disabled={full && !picked.includes(id)}
+              onClick={() => togglePriority(id)}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+        <PrimaryButton pending={pending} onClick={() => onSubmit(rows, picked)}>
           Continue
         </PrimaryButton>
-        <SkipButton disabled={pending} onClick={() => onSubmit([])} />
+        <SkipButton disabled={pending} onClick={() => onSubmit([], [])} />
       </div>
     </Screen>
   );
@@ -1243,47 +1343,6 @@ function prioritiesFor(family: OccupationFamily | undefined): Priority[] {
     if (p === "close_to_home" || p === "fixed_schedule") return !remote;
     return true;
   });
-}
-
-function PrioritiesStep({
-  family,
-  initial,
-  pending,
-  onSubmit,
-}: {
-  family: OccupationFamily | undefined;
-  initial: Priority[];
-  pending: boolean;
-  onSubmit: (priorities: Priority[]) => void;
-}) {
-  const [picked, setPicked] = useState<Priority[]>(initial);
-  const full = picked.length >= 3;
-
-  function toggle(id: Priority) {
-    setPicked((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : full ? prev : [...prev, id]));
-  }
-
-  return (
-    <Screen title="What matters most to you?" hint="Pick up to 3. We use this to rank jobs.">
-      <div className="flex flex-wrap gap-2">
-        {prioritiesFor(family).map((id) => (
-          <Chip
-            key={id}
-            label={PRIORITY_LABELS[id]}
-            selected={picked.includes(id)}
-            disabled={full && !picked.includes(id)}
-            onClick={() => toggle(id)}
-          />
-        ))}
-      </div>
-      <div className="mt-8 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-        <PrimaryButton disabled={picked.length === 0} pending={pending} onClick={() => onSubmit(picked)}>
-          Continue
-        </PrimaryButton>
-        <SkipButton disabled={pending} onClick={() => onSubmit([])} />
-      </div>
-    </Screen>
-  );
 }
 
 function useFileUpload(kind: "cv" | "linkedin_text", onUploaded: (name: string) => void) {
@@ -1352,7 +1411,7 @@ function DropZone({
       disabled={pending}
       className={cn(
         "flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-center transition-colors",
-        compact ? "px-5 py-6" : "px-6 py-12",
+        compact ? "px-6 py-10" : "min-h-64 px-6 py-16 sm:min-h-72 sm:py-20",
         dragging ? "border-primary bg-primary/10" : "border-border bg-card/30 hover:border-primary/50",
         doneLabel && "border-primary/60 border-solid",
       )}
@@ -1365,13 +1424,13 @@ function DropZone({
         onChange={(event) => onFile(event.target.files?.[0])}
       />
       {pending ? (
-        <Loader2 className="text-primary size-7 animate-spin" aria-hidden />
+        <Loader2 className="text-primary size-10 animate-spin" aria-hidden />
       ) : doneLabel ? (
-        <FileText className="text-primary size-7" aria-hidden />
+        <FileText className="text-primary size-10" aria-hidden />
       ) : (
-        <UploadCloud className="text-muted-foreground size-7" aria-hidden />
+        <UploadCloud className="text-muted-foreground size-10" aria-hidden />
       )}
-      <span className="text-[16px] font-medium text-[var(--card-foreground)]">
+      <span className="text-[22px] font-medium text-[var(--card-foreground)]">
         {pending ? "Reading your file…" : doneLabel ?? title}
       </span>
       <span className="text-muted-foreground text-[14px]">{doneLabel ? "Click to replace" : hint}</span>
@@ -1381,139 +1440,84 @@ function DropZone({
 
 function CvStep({
   uploaded,
+  askWebsite,
+  askLinkedin,
+  initialWebsite,
   onUploaded,
   onContinue,
 }: {
   uploaded: boolean;
+  askWebsite: boolean;
+  askLinkedin: boolean;
+  initialWebsite: string;
   onUploaded: () => void;
-  onContinue: () => void;
+  onContinue: (websiteUrl?: string) => Promise<void>;
 }) {
   const [fileName, setFileName] = useState<string | null>(uploaded ? "CV uploaded" : null);
+  const [website, setWebsite] = useState(initialWebsite);
+  const [siteError, setSiteError] = useState<string | null>(null);
+  const [busy, startBusy] = useTransition();
   const { upload, pending, error } = useFileUpload("cv", (name) => {
     setFileName(name);
     onUploaded();
   });
+  const [linkedinName, setLinkedinName] = useState<string | null>(null);
+  const linkedin = useFileUpload("linkedin_text", setLinkedinName);
 
-  return (
-    <Screen title="Upload your CV" hint="PDF works best. We read it to understand your experience and score it for you.">
-      <DropZone
-        title="Drop your CV here"
-        hint="or click to choose a PDF"
-        doneLabel={fileName}
-        pending={pending}
-        onFile={upload}
-      />
-      {error ? (
-        <p role="alert" className="text-destructive mt-3 text-[14px]">
-          {error}
-        </p>
-      ) : null}
-      <div className="mt-8">
-        <PrimaryButton disabled={!fileName || pending} onClick={onContinue}>
-          Continue
-        </PrimaryButton>
-      </div>
-    </Screen>
-  );
-}
-
-function WebsiteStep({
-  initialWebsite,
-  onDone,
-}: {
-  initialWebsite: string;
-  onDone: (websiteUrl: string) => void;
-}) {
-  const [website, setWebsite] = useState(initialWebsite);
-  const [error, setError] = useState<string | null>(null);
-  const [readPages, setReadPages] = useState<number | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
+  function finish() {
     const url = website.trim();
-    if (!url) return;
-    const normalized = /^https?:\/\//i.test(url) ? url : `https://${url}`;
-    setError(null);
-    startTransition(async () => {
-      const result = await ingestPortfolioUrlAction(normalized);
-      if (!result.ok) {
-        setError("We couldn't open that site. Check the address and try again.");
+    startBusy(async () => {
+      if (askWebsite && url) {
+        const normalized = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+        const result = await ingestPortfolioUrlAction(normalized);
+        if (!result.ok) {
+          setSiteError("We couldn't open that site. Check the address, or leave it blank.");
+          return;
+        }
+        await onContinue(normalized);
         return;
       }
-      setReadPages(result.data.pages);
-      // Let the confirmation register before moving on.
-      setTimeout(() => onDone(normalized), 1200);
+      await onContinue(undefined);
     });
   }
 
   return (
-    <Screen
-      title="Your website or portfolio"
-      hint="Optional, and it tells us a lot. We read your projects and About page to understand how you work and which companies you'd fit."
-    >
-      <form onSubmit={submit} className="flex flex-col gap-5">
-        <Input
-          autoFocus
-          value={website}
-          onChange={(event) => {
-            setWebsite(event.target.value);
-            setReadPages(null);
-          }}
-          placeholder="yourname.com"
-          inputMode="url"
-          className="h-14 rounded-2xl text-[17px]"
+    <Screen title="Your CV" hint="PDF works best. A site or LinkedIn export is optional.">
+      <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
+        <DropZone
+          title="Drop your CV here"
+          hint="or click to choose a PDF"
+          doneLabel={fileName}
+          pending={pending}
+          onFile={upload}
         />
-        {error ? (
-          <p role="alert" className="text-destructive text-[14px]">
-            {error}
-          </p>
+        {error ? <p role="alert" className="text-destructive text-[15px]">{error}</p> : null}
+        {askWebsite ? (
+          <Input
+            value={website}
+            onChange={(event) => {
+              setWebsite(event.target.value);
+              setSiteError(null);
+            }}
+            placeholder="yourname.com — optional"
+            inputMode="url"
+            className="h-16 rounded-2xl text-center text-[20px]"
+          />
         ) : null}
-        {readPages ? (
-          <p className="text-primary flex items-center gap-2 text-[15px]">
-            <Check className="size-4" aria-hidden />
-            Read {readPages} {readPages === 1 ? "page" : "pages"} from your site
-          </p>
+        {siteError ? <p role="alert" className="text-destructive text-[15px]">{siteError}</p> : null}
+        {askLinkedin ? (
+          <DropZone
+            compact
+            title="LinkedIn PDF, if you have one"
+            hint="More → Save to PDF. Optional."
+            doneLabel={linkedinName}
+            pending={linkedin.pending}
+            onFile={linkedin.upload}
+          />
         ) : null}
-        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-          <PrimaryButton type="submit" disabled={!website.trim() || Boolean(readPages)} pending={pending}>
-            {pending ? "Reading your site…" : "Continue"}
-          </PrimaryButton>
-          <button
-            type="button"
-            onClick={() => onDone("")}
-            disabled={pending}
-            className="text-muted-foreground hover:text-foreground h-12 px-3 text-[15px] font-medium"
-          >
-            I don&apos;t have one
-          </button>
-        </div>
-      </form>
-    </Screen>
-  );
-}
-
-function LinkedinStep({ onDone }: { onDone: () => void }) {
-  const [fileName, setFileName] = useState<string | null>(null);
-  const linkedin = useFileUpload("linkedin_text", setFileName);
-
-  return (
-    <Screen title="Add your LinkedIn" hint="Optional. On your LinkedIn profile, click More → Save to PDF, then drop the file here.">
-      <DropZone
-        title="Drop your LinkedIn PDF"
-        hint="or click to choose it"
-        doneLabel={fileName}
-        pending={linkedin.pending}
-        onFile={linkedin.upload}
-      />
-      {linkedin.error ? (
-        <p role="alert" className="text-destructive mt-3 text-[14px]">
-          {linkedin.error}
-        </p>
-      ) : null}
-      <div className="mt-8 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-        <PrimaryButton disabled={linkedin.pending} onClick={onDone}>
-          {fileName ? "Analyze" : "Skip and analyze"}
+        {linkedin.error ? <p role="alert" className="text-destructive text-[15px]">{linkedin.error}</p> : null}
+        <PrimaryButton disabled={!fileName || pending || busy || linkedin.pending} onClick={finish}>
+          {busy ? "Opening your site…" : "Analyze"}
         </PrimaryButton>
       </div>
     </Screen>
