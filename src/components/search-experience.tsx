@@ -231,44 +231,40 @@ function SearchExperienceInner({
         </h2>
 
         <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-10 px-6 pt-20 pb-10 sm:gap-16 sm:px-10 sm:py-20">
-          <ol aria-label="Search stages" className="flex flex-wrap items-center justify-center gap-y-3">
+          {/* Four equal columns: never wraps, so no step ends up alone on its own line. */}
+          <ol aria-label="Search stages" className="grid w-full max-w-xl grid-cols-4 gap-2 sm:gap-3">
             {SEARCH_UX_STAGES.map((stage, index) => {
               const done = index < activeIdx || resolving;
               const current = index === activeIdx && !resolving;
               return (
-                <li key={stage.id} className="flex items-center">
-                  {index > 0 ? (
-                    <span
-                      className={cn(
-                        "mx-2 h-px w-4 sm:mx-5 sm:w-12",
-                        done ? "bg-primary/45" : "bg-border",
-                      )}
-                      aria-hidden
-                    />
-                  ) : null}
-                  <span className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "flex size-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold",
-                        done && "border-primary bg-primary text-primary-foreground",
-                        current && "border-primary text-primary",
-                        !done && !current && "border-border text-muted-foreground/40",
-                      )}
-                    >
-                      {done ? <Check className="size-3.5" strokeWidth={2.5} /> : index + 1}
-                    </span>
-                    <span
-                      className={cn(
-                        "text-[14px] sm:text-[15px]",
-                        // Phones keep only the current label so the steps fit one row.
-                        !current && "hidden sm:inline",
-                        current && "text-foreground font-medium",
-                        done && "text-muted-foreground",
-                        !done && !current && "text-muted-foreground/45",
-                      )}
-                    >
-                      {STEP_SHORT[stage.id]}
-                    </span>
+                <li
+                  key={stage.id}
+                  aria-current={current ? "step" : undefined}
+                  className="flex min-w-0 flex-col items-center gap-2.5"
+                >
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "h-1 w-full overflow-hidden rounded-full",
+                      done ? "bg-primary/45" : "bg-muted-foreground/20",
+                    )}
+                  >
+                    {current ? <span className="search-progress-fill block h-full w-full" /> : null}
+                  </span>
+                  <span
+                    className={cn(
+                      "flex max-w-full items-center gap-1.5 text-[13px] sm:text-[15px]",
+                      current && "text-foreground font-medium",
+                      done && "text-muted-foreground",
+                      !done && !current && "text-muted-foreground/45",
+                    )}
+                  >
+                    {done ? (
+                      <Check className="text-primary size-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
+                    ) : (
+                      <span className="tabular shrink-0 text-[12px] opacity-70 max-sm:hidden">{index + 1}</span>
+                    )}
+                    <span className="truncate">{STEP_SHORT[stage.id]}</span>
                   </span>
                 </li>
               );
