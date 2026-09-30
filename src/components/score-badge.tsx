@@ -5,6 +5,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { badgeVariants } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
   STRONG_MATCH_MIN,
@@ -54,6 +55,11 @@ function ScoreTooltipBody({
   );
 }
 
+/**
+ * The one score pattern: a pill in the badge family. Tone follows the tier
+ * (strong → verdigris, worth a look → warn, low → neutral); the number is
+ * tabular so lists line up.
+ */
 export function ScoreBadge({
   score,
   kind = "match",
@@ -71,7 +77,7 @@ export function ScoreBadge({
 }) {
   if (score == null) {
     return (
-      <span className="text-muted-foreground tabular text-[15px]" aria-hidden>
+      <span className="text-muted-foreground tabular text-body-sm" aria-hidden>
         —
       </span>
     );
@@ -81,48 +87,16 @@ export function ScoreBadge({
   const tip = TOOLTIPS[kind];
   const tipBody = tooltip ?? tip.body;
 
+  let tone: "brand" | "warn" | "secondary";
+  let label: string;
   if (kind === "fit") {
-    const strong = score >= 70;
-    return (
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <button
-              type="button"
-              className={cn(
-                "inline-flex min-w-[3.75rem] cursor-help flex-col items-end justify-center gap-0.5 rounded-2xl px-3 py-2 transition-[transform,background-color] duration-150 ease-standard hover:scale-[1.02] sm:items-center",
-                size === "sm" && "min-w-[3.25rem] px-2.5 py-1.5",
-                strong
-                  ? "bg-brand/15 text-brand-ink"
-                  : "bg-muted text-muted-foreground",
-                className,
-              )}
-              aria-label={`Fit score ${display}`}
-              onClick={onClick}
-            />
-          }
-        >
-          <span
-            className={cn(
-              "font-mono tabular leading-none font-medium tracking-tight",
-              size === "sm" ? "text-[18px]" : "text-[22px]",
-            )}
-          >
-            {display}
-          </span>
-          <span className="text-[11px] font-medium tracking-wide uppercase opacity-80">
-            Fit
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="left" sideOffset={8} className="max-w-[240px]">
-          <ScoreTooltipBody title={tip.title} body={tipBody} />
-        </TooltipContent>
-      </Tooltip>
-    );
+    tone = score >= 70 ? "brand" : "secondary";
+    label = "fit";
+  } else {
+    const tier = matchTierForScore(score);
+    tone = tier === "strong" ? "brand" : tier === "worth_a_look" ? "warn" : "secondary";
+    label = matchLabel(score, tier);
   }
-
-  const tier = matchTierForScore(score);
-  const label = matchLabel(score, tier);
 
   return (
     <Tooltip>
@@ -131,38 +105,18 @@ export function ScoreBadge({
           <button
             type="button"
             className={cn(
-              "inline-flex min-w-[4.5rem] cursor-help flex-col items-end justify-center gap-1 rounded-2xl px-3 py-2 text-right transition-[transform,background-color] duration-150 ease-standard hover:scale-[1.02] sm:items-center sm:text-center",
-              size === "sm" && "min-w-[4rem] gap-0.5 px-2.5 py-1.5",
-              tier === "strong" && "bg-brand/15 text-brand-ink",
-              tier === "worth_a_look" &&
-                "bg-amber-500/12 text-amber-100",
-              !tier && "bg-muted text-muted-foreground",
+              badgeVariants({ variant: tone }),
+              "cursor-help gap-1.5",
+              size === "md" ? "h-8 px-3 text-body-sm" : "h-7 px-2.5",
               className,
             )}
-            aria-label={`${label}, ${display}`}
+            aria-label={kind === "fit" ? `Fit score ${display}` : `${label}, ${display}`}
             onClick={onClick}
           />
         }
       >
-        <span
-          className={cn(
-            "font-mono tabular leading-none font-medium tracking-tight",
-            size === "sm" ? "text-[20px]" : "text-[24px]",
-          )}
-        >
-          {display}
-        </span>
-        <span
-          className={cn(
-            "max-w-[6.5rem] font-medium leading-tight tracking-wide",
-            size === "sm" ? "text-[11px]" : "text-[12px]",
-            tier === "strong" && "text-brand-ink/85",
-            tier === "worth_a_look" && "text-amber-100/85",
-            !tier && "text-muted-foreground",
-          )}
-        >
-          {label}
-        </span>
+        <span className="tabular font-medium">{display}</span>
+        <span className="font-normal opacity-85">{label}</span>
       </TooltipTrigger>
       <TooltipContent side="left" sideOffset={8} className="max-w-[240px]">
         <ScoreTooltipBody title={tip.title} body={tipBody} />

@@ -25,13 +25,22 @@ const Toaster = ({ ...props }: ToasterProps) => {
         {
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
+          "--normal-border": "transparent",
+          "--border-radius": "16px",
+          "--success-bg": "var(--success-wash)",
+          "--success-text": "var(--success)",
+          "--success-border": "transparent",
+          "--error-bg": "var(--destructive-wash)",
+          "--error-text": "var(--destructive)",
+          "--error-border": "transparent",
+          "--warning-bg": "var(--warn-wash)",
+          "--warning-text": "var(--warn)",
+          "--warning-border": "transparent",
         } as React.CSSProperties
       }
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          toast: "cn-toast font-sans text-body-sm",
         },
       }}
       {...props}

@@ -1,20 +1,24 @@
+import type { VariantProps } from "class-variance-authority";
+import { badgeVariants } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { labelLeadState, labelPolicy } from "@/lib/ui-labels";
 
-const STATE_TONE: Record<string, string> = {
-  suggested: "bg-white/6 text-muted-foreground",
-  researched: "bg-white/8 text-foreground",
-  saved_for_later: "bg-secondary text-secondary-foreground",
-  accepted: "bg-accent-wash text-brand-ink",
-  draft_ready: "bg-accent-wash text-brand-ink",
-  sent: "bg-secondary text-foreground",
-  follow_up_due: "bg-[#2a1f0a] text-warn",
-  replied: "bg-accent-wash text-brand-ink",
-  in_conversation: "bg-accent-wash text-brand-ink",
-  closed_won: "bg-accent-wash text-brand-ink",
-  closed_lost: "bg-white/6 text-muted-foreground",
-  rejected: "bg-white/6 text-muted-foreground",
-  suppressed: "bg-white/6 text-muted-foreground",
+type BadgeTone = NonNullable<VariantProps<typeof badgeVariants>["variant"]>;
+
+const STATE_TONE: Record<string, BadgeTone> = {
+  suggested: "secondary",
+  researched: "outline",
+  saved_for_later: "secondary",
+  accepted: "brand",
+  draft_ready: "brand",
+  sent: "outline",
+  follow_up_due: "warn",
+  replied: "brand",
+  in_conversation: "brand",
+  closed_won: "success",
+  closed_lost: "secondary",
+  rejected: "secondary",
+  suppressed: "secondary",
 };
 
 export function StatePill({
@@ -27,8 +31,7 @@ export function StatePill({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-lg px-2.5 py-1.5 text-[15px] font-medium transition-colors duration-150 ease-standard",
-        STATE_TONE[state] ?? "bg-white/6 text-muted-foreground",
+        badgeVariants({ variant: STATE_TONE[state] ?? "secondary", size: "lg" }),
         className,
       )}
     >
@@ -48,10 +51,7 @@ export function PolicyPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-lg px-2.5 py-1.5 text-[15px]",
-        blocked
-          ? "bg-destructive/15 text-destructive"
-          : "text-muted-foreground",
+        badgeVariants({ variant: blocked ? "destructive" : "ghost", size: "lg" }),
         className,
       )}
     >
@@ -77,7 +77,7 @@ export function ScoreMark({
   return (
     <span
       className={cn(
-        "tabular text-foreground text-[24px] font-medium tracking-tight",
+        "tabular text-foreground text-h4 font-medium",
         className,
       )}
       aria-label={`Score ${score}`}

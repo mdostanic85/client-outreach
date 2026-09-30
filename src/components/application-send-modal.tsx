@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { InlineAlert } from "@/components/inline-alert";
 import { Textarea } from "@/components/ui/textarea";
 import type { ApplicationEmailDraft } from "@/modules/applications/application-email";
 
@@ -73,34 +74,25 @@ export function ApplicationSendModal({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-lg"
-      >
-        <SheetHeader className="border-border border-b px-5 py-4">
-          <SheetTitle className="text-[20px] font-medium tracking-tight">
-            Send application
-          </SheetTitle>
-          <SheetDescription>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Send application</DialogTitle>
+          <DialogDescription>
             {jobTitle} · {companyName}
-          </SheetDescription>
-        </SheetHeader>
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-6 sm:px-6">
           {!mailboxConnected ? (
-            <p className="text-destructive rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-[14px]">
+            <InlineAlert variant="error">
               No mailbox connected.{" "}
-              <a href="/admin?tab=mail" className="underline">
+              <a href="/admin?tab=mail" className="underline underline-offset-2">
                 Connect in Admin
               </a>
-            </p>
+            </InlineAlert>
           ) : null}
-          {error ? (
-            <p className="text-destructive rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-[14px]">
-              {error}
-            </p>
-          ) : null}
+          {error ? <InlineAlert variant="error">{error}</InlineAlert> : null}
 
           <div className="space-y-2">
             <Label htmlFor="send-from">From</Label>
@@ -136,7 +128,7 @@ export function ApplicationSendModal({
             <Label htmlFor="send-body">Body</Label>
             <Textarea
               id="send-body"
-              className="min-h-[280px] resize-y"
+              className="min-h-[240px] resize-y"
               value={body}
               onChange={(e) => setBody(e.target.value)}
               disabled={pending}
@@ -144,7 +136,7 @@ export function ApplicationSendModal({
           </div>
         </div>
 
-        <SheetFooter className="border-border flex-row justify-end gap-2 border-t px-5 py-4">
+        <DialogFooter>
           <Button
             type="button"
             variant="outline"
@@ -160,8 +152,8 @@ export function ApplicationSendModal({
           >
             {pending ? "Sending…" : "Send"}
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

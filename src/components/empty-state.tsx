@@ -30,21 +30,21 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "animate-enter-scale flex flex-col items-center justify-center gap-5 px-6 py-14 text-center sm:px-8 sm:py-16",
+        "animate-enter flex flex-col items-center justify-center gap-5 px-6 py-12 text-center sm:px-8 sm:py-16",
         className,
       )}
     >
       <div
         aria-hidden
-        className="border-border bg-muted/40 text-muted-foreground empty-float grid size-14 place-items-center rounded-2xl border"
+        className="bg-subtle text-muted-foreground grid size-12 place-items-center rounded-tile in-[.bg-subtle]:bg-card"
       >
-        {icon ?? <Search className="size-6 opacity-70" strokeWidth={1.5} />}
+        {icon ?? <Search className="size-5" strokeWidth={1.5} />}
       </div>
-      <div className="animate-enter space-y-2" style={{ animationDelay: "60ms" }}>
-        <p className="text-[18px] font-medium text-foreground sm:text-[20px]">
+      <div className="space-y-1">
+        <p className="text-h5 text-foreground">
           {title}
         </p>
-        <p className="text-muted-foreground mx-auto max-w-sm text-[14px] leading-relaxed sm:text-[15px]">
+        <p className="text-muted-foreground mx-auto max-w-sm text-body-sm sm:text-body">
           {description}
         </p>
       </div>
@@ -55,9 +55,8 @@ export function EmptyState({
             href={actionHref}
             className={cn(
               buttonVariants({ size: "lg" }),
-              "pressable animate-enter h-12 min-w-[12rem] rounded-xl px-6 text-[16px]",
+              "min-w-[12rem]",
             )}
-            style={{ animationDelay: "120ms" }}
           >
             {actionLabel}
           </Link>
@@ -67,8 +66,7 @@ export function EmptyState({
             size="lg"
             disabled={pending}
             onClick={onAction}
-            className="animate-enter h-12 min-w-[12rem] rounded-xl px-6 text-[16px]"
-            style={{ animationDelay: "120ms" }}
+            className="min-w-[12rem]"
           >
             {actionLabel}
           </Button>

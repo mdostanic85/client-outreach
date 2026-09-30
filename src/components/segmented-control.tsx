@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 export type SegmentedOption<T extends string> = {
@@ -9,6 +11,29 @@ export type SegmentedOption<T extends string> = {
   description?: string;
 };
 
+const INDICATOR_TRANSITION = {
+  type: "tween",
+  duration: 0.25,
+  ease: [0.22, 1, 0.36, 1],
+} as const;
+
+/** White active surface that glides between segments (250ms layout animation). */
+function ActiveIndicator({ className }: { className?: string }) {
+  const reduce = useReducedMotion();
+  return (
+    <motion.span
+      aria-hidden
+      layoutId="segment-indicator"
+      transition={reduce ? { duration: 0 } : INDICATOR_TRANSITION}
+      className={cn("bg-card absolute inset-0 -z-10", className)}
+    />
+  );
+}
+
+/**
+ * Pill track in the subtle tint with a white active segment. Used for tab
+ * rows and filters (Today, Queue, Admin, package editor).
+ */
 export function SegmentedControl<T extends string>({
   options,
   value,
@@ -26,49 +51,53 @@ export function SegmentedControl<T extends string>({
   size?: "sm" | "md";
   className?: string;
 }) {
+  const groupId = useId();
   return (
-    <div
-      role="tablist"
-      aria-label={ariaLabel}
-      aria-disabled={disabled || undefined}
-      className={cn(
-        "bg-muted/50 border-border inline-flex flex-wrap rounded-xl border p-1",
-        className,
-      )}
-    >
-      {options.map((option) => {
-        const selected = value === option.id;
-        return (
-          <button
-            key={option.id}
-            type="button"
-            role="tab"
-            aria-selected={selected}
-            disabled={disabled}
-            onClick={() => onChange(option.id)}
-            className={cn(
-              "segment-option rounded-lg font-medium",
-              size === "sm"
-                ? "px-3 py-1.5 text-[14px]"
-                : "px-3.5 py-2 text-[15px]",
-              selected
-                ? "bg-brand text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
-              disabled && "opacity-50",
-            )}
-          >
-            {option.label}
-            {option.count != null ? (
-              <span className="ml-1.5 tabular opacity-80">{option.count}</span>
-            ) : null}
-          </button>
-        );
-      })}
-    </div>
+    <LayoutGroup id={groupId}>
+      <div
+        role="tablist"
+        aria-label={ariaLabel}
+        aria-disabled={disabled || undefined}
+        className={cn(
+          "bg-subtle inline-flex max-w-full flex-wrap gap-0.5 rounded-full p-1 in-[.bg-subtle]:bg-card",
+          className,
+        )}
+      >
+        {options.map((option) => {
+          const selected = value === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              disabled={disabled}
+              onClick={() => onChange(option.id)}
+              className={cn(
+                "relative isolate inline-flex items-center gap-1.5 rounded-full font-medium transition-colors duration-150 ease-standard",
+                size === "sm"
+                  ? "h-8 px-3 text-body-sm"
+                  : "h-9 px-4 text-body-sm sm:text-body",
+                selected
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+                disabled && "opacity-50",
+              )}
+            >
+              {selected ? <ActiveIndicator className="rounded-full" /> : null}
+              {option.label}
+              {option.count != null ? (
+                <span className="tabular text-muted-foreground">{option.count}</span>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </LayoutGroup>
   );
 }
 
-/** Labeled mode switch used on Today / Improve (Jobs | Companies). Figma 3:173 */
+/** Labeled mode switch used on Today / Improve (Jobs | Companies). */
 export function ModeSwitch<T extends string>({
   options,
   value,
@@ -86,54 +115,49 @@ export function ModeSwitch<T extends string>({
   disabledHint?: string;
   className?: string;
 }) {
+  const groupId = useId();
   return (
-    <div
-      role="tablist"
-      aria-label={ariaLabel}
-      aria-disabled={disabled || undefined}
-      title={disabled ? disabledHint : undefined}
-      className={cn(
-        "grid max-w-[576px] grid-cols-2 gap-1 rounded-[18px] bg-[rgba(28,33,44,0.5)] p-1",
-        className,
-      )}
-    >
-      {options.map((option) => {
-        const selected = value === option.id;
-        return (
-          <button
-            key={option.id}
-            type="button"
-            role="tab"
-            aria-selected={selected}
-            disabled={disabled}
-            onClick={() => onChange(option.id)}
-            className={cn(
-              "segment-option flex flex-col items-start justify-center rounded-[14px] px-3.5 py-2.5 text-left transition-colors",
-              selected
-                ? "bg-brand text-primary-foreground shadow-[0_1px_1.5px_rgba(0,0,0,0.1),0_1px_1px_rgba(0,0,0,0.1)]"
-                : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
-              disabled && !selected && "opacity-50",
-            )}
-          >
-            <span className="flex items-center gap-1 text-[18px] leading-[23px] font-medium">
-              {option.label}
-              {option.count != null ? (
-                <span className="font-mono tabular">{option.count}</span>
-              ) : null}
-            </span>
-            <span
+    <LayoutGroup id={groupId}>
+      <div
+        role="tablist"
+        aria-label={ariaLabel}
+        aria-disabled={disabled || undefined}
+        title={disabled ? disabledHint : undefined}
+        className={cn(
+          "bg-subtle grid max-w-[576px] grid-cols-2 gap-1 rounded-card p-1",
+          className,
+        )}
+      >
+        {options.map((option) => {
+          const selected = value === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              disabled={disabled}
+              onClick={() => onChange(option.id)}
               className={cn(
-                "mt-0.5 block text-[13px] leading-[18px]",
-                selected
-                  ? "text-primary-foreground/80"
-                  : "text-muted-foreground/80",
+                "relative isolate flex flex-col items-start justify-center rounded-panel px-4 py-2.5 text-left transition-colors duration-150 ease-standard",
+                selected ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                disabled && !selected && "opacity-50",
               )}
             >
-              {option.description}
-            </span>
-          </button>
-        );
-      })}
-    </div>
+              {selected ? <ActiveIndicator className="rounded-panel" /> : null}
+              <span className="flex items-center gap-1.5 text-body-lg">
+                {option.label}
+                {option.count != null ? (
+                  <span className="tabular text-muted-foreground">{option.count}</span>
+                ) : null}
+              </span>
+              <span className="text-muted-foreground mt-0.5 block text-body-sm">
+                {option.description}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </LayoutGroup>
   );
 }

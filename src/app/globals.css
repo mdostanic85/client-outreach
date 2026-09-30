@@ -302,6 +302,13 @@
     text-wrap: balance;
   }
 
+  /* Native checkboxes and radios pick up the verdigris on-state. */
+  input[type="checkbox"],
+  input[type="radio"],
+  progress {
+    accent-color: var(--brand);
+  }
+
   ::selection {
     background: color-mix(in srgb, var(--brand) 22%, transparent);
   }

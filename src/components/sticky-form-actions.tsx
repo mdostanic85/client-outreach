@@ -3,7 +3,8 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Sticky footer for long forms — Clerk / Chatbase / Etsy unsaved-changes pattern.
+ * Sticky save bar for long forms: a floating white pill (a true overlay, so
+ * it carries the overlay shadow). Buttons stretch full width on phones.
  */
 export function StickyFormActions({
   children,
@@ -21,17 +22,17 @@ export function StickyFormActions({
   return (
     <div
       className={cn(
-        "border-border bg-background/90 sticky bottom-0 z-20 -mx-4 mt-8 border-t px-4 py-4 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:-mx-12 lg:px-12",
+        "bg-card/90 sticky bottom-4 z-20 mt-8 rounded-full px-4 py-2.5 shadow-overlay backdrop-blur-xl max-sm:rounded-card max-sm:py-3 sm:pl-6",
         className,
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         {message ? (
-          <p className="text-muted-foreground text-[14px]">{message}</p>
+          <p className="text-muted-foreground text-body-sm">{message}</p>
         ) : (
           <span />
         )}
-        <div className="flex flex-wrap items-center gap-3">{children}</div>
+        <div className="flex flex-wrap items-center gap-2 max-sm:w-full max-sm:[&>*]:flex-1">{children}</div>
       </div>
     </div>
   );

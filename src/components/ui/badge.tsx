@@ -4,25 +4,39 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * 12px pills with a 1px border. Neutral variants read as chips; the tinted
+ * ones (brand / success / warn / destructive) carry status. `StatePill`,
+ * `PolicyPill` and `ScoreBadge` are built on these variants.
+ */
 const badgeVariants = cva(
-  "group/badge inline-flex h-7 w-fit shrink-0 items-center justify-center gap-2 overflow-hidden rounded-4xl border border-transparent px-2.5 py-1 text-[15px] font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3.5!",
+  "group/badge inline-flex h-6 w-fit shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-full border px-2.5 text-caption font-medium whitespace-nowrap transition-colors duration-150 ease-standard has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 aria-invalid:border-destructive [&>svg]:pointer-events-none [&>svg]:size-3!",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
-        secondary:
-          "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
-        destructive:
-          "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
+        default: "border-brand/30 bg-brand-wash text-brand-ink",
+        brand: "border-brand/30 bg-brand-wash text-brand-ink",
+        secondary: "border-transparent bg-subtle text-ink-emphasis",
         outline:
-          "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
+          "border-border-strong bg-card text-foreground [a]:hover:bg-subtle",
+        success: "border-success/25 bg-success-wash text-success",
+        warn: "border-warn/25 bg-warn-wash text-warn",
+        destructive:
+          "border-destructive/25 bg-destructive-wash text-destructive",
+        inverse: "border-transparent bg-primary text-primary-foreground",
         ghost:
-          "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
-        link: "text-primary underline-offset-4 hover:underline",
+          "border-transparent text-muted-foreground hover:bg-subtle hover:text-foreground",
+        link: "border-transparent px-0 text-brand-ink underline-offset-4 hover:underline",
+      },
+      size: {
+        sm: "h-5 px-2",
+        md: "",
+        lg: "h-7 px-3 text-body-sm",
       },
     },
     defaultVariants: {
       variant: "default",
+      size: "md",
     },
   }
 )
@@ -30,6 +44,7 @@ const badgeVariants = cva(
 function Badge({
   className,
   variant = "default",
+  size = "md",
   render,
   ...props
 }: useRender.ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
@@ -37,7 +52,7 @@ function Badge({
     defaultTagName: "span",
     props: mergeProps<"span">(
       {
-        className: cn(badgeVariants({ variant }), className),
+        className: cn(badgeVariants({ variant, size }), className),
       },
       props
     ),
