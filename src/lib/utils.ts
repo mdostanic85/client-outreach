@@ -1,5 +1,20 @@
 import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { extendTailwindMerge } from "tailwind-merge"
+
+/**
+ * tailwind-merge that knows the design tokens in globals.css, so `text-body`
+ * is merged as a font size (not a color) and `rounded-card` as a radius.
+ */
+const twMerge = extendTailwindMerge({
+  extend: {
+    theme: {
+      text: ["h1", "h2", "h3", "h4", "h5", "body-lg", "body", "body-sm", "caption"],
+      radius: ["card", "panel", "tile", "box"],
+      shadow: ["overlay"],
+      ease: ["standard", "enter", "exit"],
+    },
+  },
+})
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
