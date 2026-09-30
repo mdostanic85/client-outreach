@@ -1,6 +1,16 @@
 # Optra za sve vrste poslova — plan
 
-**Status:** predlog · **Datum:** 2026-09-29
+**Status:** implementirano na grani `feat/universal-jobs` (faze 0–7) · **Datum:** 2026-09-29
+
+### Šta je urađeno i gde se razlikuje od plana (2026-09-30)
+
+- Faza 0 je već bila na `main`-u (Better Auth, `owned()`, podešavanja po nalogu).
+- Katalog ima 127 kvalifikovanih zanimanja, ne ~300. Nepoznata zanimanja klasifikuje model, korisnik potvrđuje porodicu. ESCO/ISCO mapiranje nije urađeno.
+- `relevantProjects` nije preimenovan u `evidence`; umesto toga `evidenceKind` dobija `certificate`, `work_sample`, `reference`.
+- NSZ i EURES nisu dodati kao izvori (odluka 5: tek posle provere uslova korišćenja).
+- Persona 4 je kuvar u Novom Sadu umesto kasirke bez CV-ja (odluka 1). Kasir, konobar i prodavac su izbačeni iz kataloga.
+- Ručni prolaz kroz browser uz prijavu nije urađen za persone; onboarding ekrani su provereni vizuelno.
+
 
 ## Polazna tačka
 
