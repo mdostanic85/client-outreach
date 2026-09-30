@@ -2,6 +2,12 @@
 
 import type { ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionPanel,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +21,7 @@ import {
 } from "@/modules/applications/schemas";
 import { cn } from "@/lib/utils";
 
+/** One collapsible block of the CV editor (accordion item on a subtle tile). */
 function EditorSection({
   title,
   description,
@@ -27,22 +34,18 @@ function EditorSection({
   children: ReactNode;
 }) {
   return (
-    <section className="space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0 space-y-1">
-          <h3 className="text-[15px] font-medium tracking-tight text-foreground">
-            {title}
-          </h3>
-          {description ? (
-            <p className="text-muted-foreground text-[13px] leading-relaxed">
-              {description}
-            </p>
-          ) : null}
-        </div>
-        {action}
-      </div>
-      {children}
-    </section>
+    <AccordionItem value={title}>
+      <AccordionTrigger className="min-h-14 text-body">
+        <span className="block">{title}</span>
+        {description ? (
+          <span className="text-muted-foreground block text-body-sm">{description}</span>
+        ) : null}
+      </AccordionTrigger>
+      <AccordionPanel className="text-foreground space-y-3 text-body-sm">
+        {action ? <div className="flex justify-end">{action}</div> : null}
+        {children}
+      </AccordionPanel>
+    </AccordionItem>
   );
 }
 
@@ -62,384 +65,386 @@ export function PackageCvSlotEditor({
   return (
     <div className="space-y-7">
       <div className="space-y-1">
-        <p className="text-[16px] font-medium tracking-tight text-foreground">
+        <p className="text-body font-medium text-foreground">
           {market === "us" ? "Resume" : "CV"} content
         </p>
-        <p className="text-muted-foreground text-[14px] leading-relaxed">
+        <p className="text-muted-foreground text-body-sm leading-relaxed">
           Edit slots that feed the live A4 preview. Include only roles and
           projects you want on the page.
         </p>
       </div>
 
-      <EditorSection
-        title="Layout"
-        description="Chosen for your field. Europass is the format many EU employers know."
-      >
-        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="CV layout">
-          {CvTemplateSchema.options.map((template) => (
-            <button
-              key={template}
-              type="button"
-              role="radio"
-              aria-checked={cv.template === template}
-              disabled={pending}
-              onClick={() => onChange({ ...cv, template })}
-              className={cn(
-                "h-9 rounded-full border px-3.5 text-[13px] font-medium transition-colors disabled:opacity-50",
-                cv.template === template
-                  ? "border-brand bg-brand/12 text-foreground"
-                  : "border-border hover:border-brand/50",
-              )}
-            >
-              {CV_TEMPLATE_LABELS[template]}
-            </button>
-          ))}
-        </div>
-      </EditorSection>
-
-      <EditorSection title="Identity">
-        <div className="space-y-3">
-          <div className="space-y-2">
-            <Label>Full name</Label>
-            <Input
-              value={cv.fullName}
-              disabled={pending}
-              onChange={(e) => onChange({ ...cv, fullName: e.target.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Headline</Label>
-            <Input
-              value={cv.headline ?? ""}
-              disabled={pending}
-              placeholder="Your job title"
-              onChange={(e) => onChange({ ...cv, headline: e.target.value })}
-            />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input
-                value={cv.email ?? ""}
+      <Accordion multiple defaultValue={["Layout", "Identity"]} className="gap-3">
+        <EditorSection
+          title="Layout"
+          description="Chosen for your field. Europass is the format many EU employers know."
+        >
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="CV layout">
+            {CvTemplateSchema.options.map((template) => (
+              <button
+                key={template}
+                type="button"
+                role="radio"
+                aria-checked={cv.template === template}
                 disabled={pending}
-                onChange={(e) => onChange({ ...cv, email: e.target.value })}
+                onClick={() => onChange({ ...cv, template })}
+                className={cn(
+                  "h-9 rounded-full border px-4 text-body-sm transition-colors duration-150 ease-standard disabled:opacity-50",
+                  cv.template === template
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card border-border-strong hover:bg-subtle",
+                )}
+              >
+                {CV_TEMPLATE_LABELS[template]}
+              </button>
+            ))}
+          </div>
+        </EditorSection>
+
+        <EditorSection title="Identity">
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>Full name</Label>
+              <Input
+                value={cv.fullName}
+                disabled={pending}
+                onChange={(e) => onChange({ ...cv, fullName: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <Label>Location</Label>
+              <Label>Headline</Label>
               <Input
-                value={cv.location ?? ""}
+                value={cv.headline ?? ""}
                 disabled={pending}
-                onChange={(e) => onChange({ ...cv, location: e.target.value })}
+                placeholder="Your job title"
+                onChange={(e) => onChange({ ...cv, headline: e.target.value })}
               />
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Links</Label>
-            <Input
-              value={cv.links.join(", ")}
-              disabled={pending}
-              placeholder="LinkedIn, portfolio…"
-              onChange={(e) =>
-                onChange({
-                  ...cv,
-                  links: e.target.value
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter(Boolean),
-                })
-              }
-            />
-          </div>
-        </div>
-      </EditorSection>
-
-      <EditorSection
-        title={market === "us" ? "Summary" : "Profile"}
-        description="2–3 lines tailored to this role."
-        action={
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            disabled={pending}
-            onClick={onRegenerateSummary}
-          >
-            <RefreshCw className="size-3.5" />
-            Regenerate
-          </Button>
-        }
-      >
-        <Textarea
-          className="min-h-24"
-          value={cv.summary}
-          disabled={pending}
-          onChange={(e) => onChange({ ...cv, summary: e.target.value })}
-        />
-      </EditorSection>
-
-      <EditorSection
-        title="Skills"
-        description="Comma-separated. Order matters for scanning."
-      >
-        <Textarea
-          className="min-h-20"
-          value={cv.skills.join(", ")}
-          disabled={pending}
-          onChange={(e) =>
-            onChange({
-              ...cv,
-              skills: e.target.value
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean),
-            })
-          }
-        />
-      </EditorSection>
-
-      <EditorSection
-        title="Experience"
-        description="Toggle roles on or off. One bullet per line."
-      >
-        <div className="space-y-3">
-          {cv.experience.map((exp, idx) => (
-            <div
-              key={exp.id}
-              className={cn(
-                "border-border space-y-3 rounded-2xl border p-4",
-                !exp.included && "opacity-55",
-              )}
-            >
-              <label className="flex cursor-pointer items-center gap-2.5 text-[14px]">
-                <input
-                  type="checkbox"
-                  className="border-input size-4 rounded"
-                  checked={exp.included}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input
+                  value={cv.email ?? ""}
                   disabled={pending}
-                  onChange={(e) => {
-                    const experience = [...cv.experience];
-                    experience[idx] = { ...exp, included: e.target.checked };
-                    onChange({ ...cv, experience });
-                  }}
+                  onChange={(e) => onChange({ ...cv, email: e.target.value })}
                 />
-                <span className="font-medium text-foreground">
-                  Include on page
-                </span>
-              </label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Role</Label>
-                  <Input
-                    value={exp.role}
+              </div>
+              <div className="space-y-2">
+                <Label>Location</Label>
+                <Input
+                  value={cv.location ?? ""}
+                  disabled={pending}
+                  onChange={(e) => onChange({ ...cv, location: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Links</Label>
+              <Input
+                value={cv.links.join(", ")}
+                disabled={pending}
+                placeholder="LinkedIn, portfolio…"
+                onChange={(e) =>
+                  onChange({
+                    ...cv,
+                    links: e.target.value
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                  })
+                }
+              />
+            </div>
+          </div>
+        </EditorSection>
+
+        <EditorSection
+          title={market === "us" ? "Summary" : "Profile"}
+          description="2–3 lines tailored to this role."
+          action={
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={pending}
+              onClick={onRegenerateSummary}
+            >
+              <RefreshCw className="size-3.5" />
+              Regenerate
+            </Button>
+          }
+        >
+          <Textarea
+            className="min-h-24"
+            value={cv.summary}
+            disabled={pending}
+            onChange={(e) => onChange({ ...cv, summary: e.target.value })}
+          />
+        </EditorSection>
+
+        <EditorSection
+          title="Skills"
+          description="Comma-separated. Order matters for scanning."
+        >
+          <Textarea
+            className="min-h-20"
+            value={cv.skills.join(", ")}
+            disabled={pending}
+            onChange={(e) =>
+              onChange({
+                ...cv,
+                skills: e.target.value
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              })
+            }
+          />
+        </EditorSection>
+
+        <EditorSection
+          title="Experience"
+          description="Toggle roles on or off. One bullet per line."
+        >
+          <div className="space-y-3">
+            {cv.experience.map((exp, idx) => (
+              <div
+                key={exp.id}
+                className={cn(
+                  "border-border space-y-3 rounded-2xl border p-4",
+                  !exp.included && "opacity-55",
+                )}
+              >
+                <label className="flex cursor-pointer items-center gap-2.5 text-body-sm">
+                  <input
+                    type="checkbox"
+                    className="border-input size-4 rounded"
+                    checked={exp.included}
                     disabled={pending}
                     onChange={(e) => {
                       const experience = [...cv.experience];
-                      experience[idx] = { ...exp, role: e.target.value };
+                      experience[idx] = { ...exp, included: e.target.checked };
                       onChange({ ...cv, experience });
                     }}
                   />
+                  <span className="font-medium text-foreground">
+                    Include on page
+                  </span>
+                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Role</Label>
+                    <Input
+                      value={exp.role}
+                      disabled={pending}
+                      onChange={(e) => {
+                        const experience = [...cv.experience];
+                        experience[idx] = { ...exp, role: e.target.value };
+                        onChange({ ...cv, experience });
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Organization</Label>
+                    <Input
+                      value={exp.organization}
+                      disabled={pending}
+                      onChange={(e) => {
+                        const experience = [...cv.experience];
+                        experience[idx] = {
+                          ...exp,
+                          organization: e.target.value,
+                        };
+                        onChange({ ...cv, experience });
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label>Start</Label>
+                    <Input
+                      value={exp.start ?? ""}
+                      disabled={pending}
+                      placeholder="2022"
+                      onChange={(e) => {
+                        const experience = [...cv.experience];
+                        experience[idx] = { ...exp, start: e.target.value };
+                        onChange({ ...cv, experience });
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>End</Label>
+                    <Input
+                      value={exp.end ?? ""}
+                      disabled={pending}
+                      placeholder="Present"
+                      onChange={(e) => {
+                        const experience = [...cv.experience];
+                        experience[idx] = { ...exp, end: e.target.value };
+                        onChange({ ...cv, experience });
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Location</Label>
+                    <Input
+                      value={exp.location ?? ""}
+                      disabled={pending}
+                      onChange={(e) => {
+                        const experience = [...cv.experience];
+                        experience[idx] = { ...exp, location: e.target.value };
+                        onChange({ ...cv, experience });
+                      }}
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Organization</Label>
-                  <Input
-                    value={exp.organization}
+                  <Label>Bullets</Label>
+                  <Textarea
+                    className="min-h-28"
+                    value={exp.bullets.join("\n")}
                     disabled={pending}
                     onChange={(e) => {
                       const experience = [...cv.experience];
                       experience[idx] = {
                         ...exp,
-                        organization: e.target.value,
+                        bullets: e.target.value
+                          .split("\n")
+                          .map((l) => l.trim())
+                          .filter(Boolean),
                       };
                       onChange({ ...cv, experience });
                     }}
                   />
                 </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <Label>Start</Label>
-                  <Input
-                    value={exp.start ?? ""}
-                    disabled={pending}
-                    placeholder="2022"
-                    onChange={(e) => {
-                      const experience = [...cv.experience];
-                      experience[idx] = { ...exp, start: e.target.value };
-                      onChange({ ...cv, experience });
-                    }}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>End</Label>
-                  <Input
-                    value={exp.end ?? ""}
-                    disabled={pending}
-                    placeholder="Present"
-                    onChange={(e) => {
-                      const experience = [...cv.experience];
-                      experience[idx] = { ...exp, end: e.target.value };
-                      onChange({ ...cv, experience });
-                    }}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Location</Label>
-                  <Input
-                    value={exp.location ?? ""}
-                    disabled={pending}
-                    onChange={(e) => {
-                      const experience = [...cv.experience];
-                      experience[idx] = { ...exp, location: e.target.value };
-                      onChange({ ...cv, experience });
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Bullets</Label>
-                <Textarea
-                  className="min-h-28"
-                  value={exp.bullets.join("\n")}
-                  disabled={pending}
-                  onChange={(e) => {
-                    const experience = [...cv.experience];
-                    experience[idx] = {
-                      ...exp,
-                      bullets: e.target.value
-                        .split("\n")
-                        .map((l) => l.trim())
-                        .filter(Boolean),
-                    };
-                    onChange({ ...cv, experience });
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </EditorSection>
-
-      {cv.projects.length ? (
-        <EditorSection
-          title="Selected work"
-          description="Projects with outcomes help where employers look at work samples."
-          action={
-            <label className="flex cursor-pointer items-center gap-2 text-[13px]">
-              <input
-                type="checkbox"
-                className="border-input size-4 rounded"
-                checked={cv.includeProjects}
-                disabled={pending}
-                onChange={(e) =>
-                  onChange({ ...cv, includeProjects: e.target.checked })
-                }
-              />
-              Show section
-            </label>
-          }
-        >
-          <div className="space-y-3">
-            {cv.projects.map((p, idx) => (
-              <div
-                key={p.id}
-                className={cn(
-                  "border-border space-y-3 rounded-2xl border p-4",
-                  !p.included && "opacity-55",
-                )}
-              >
-                <label className="flex cursor-pointer items-center gap-2.5 text-[14px]">
-                  <input
-                    type="checkbox"
-                    className="border-input size-4 rounded"
-                    checked={p.included}
-                    disabled={pending}
-                    onChange={(e) => {
-                      const projects = [...cv.projects];
-                      projects[idx] = { ...p, included: e.target.checked };
-                      onChange({ ...cv, projects });
-                    }}
-                  />
-                  <span className="font-medium text-foreground">
-                    {p.title}
-                  </span>
-                </label>
-                <Textarea
-                  className="min-h-20"
-                  value={p.summary ?? ""}
-                  disabled={pending}
-                  placeholder="Short project summary"
-                  onChange={(e) => {
-                    const projects = [...cv.projects];
-                    projects[idx] = { ...p, summary: e.target.value };
-                    onChange({ ...cv, projects });
-                  }}
-                />
-                <Textarea
-                  className="min-h-20"
-                  value={p.outcomes.join("\n")}
-                  disabled={pending}
-                  placeholder="Outcomes — one per line"
-                  onChange={(e) => {
-                    const projects = [...cv.projects];
-                    projects[idx] = {
-                      ...p,
-                      outcomes: e.target.value
-                        .split("\n")
-                        .map((l) => l.trim())
-                        .filter(Boolean),
-                    };
-                    onChange({ ...cv, projects });
-                  }}
-                />
-              </div>
             ))}
           </div>
         </EditorSection>
-      ) : null}
 
-      <EditorSection title="Extras">
-        <div className="flex flex-wrap gap-5">
-          <label className="flex cursor-pointer items-center gap-2 text-[14px]">
-            <input
-              type="checkbox"
-              className="border-input size-4 rounded"
-              checked={cv.includeLanguages}
-              disabled={pending}
-              onChange={(e) =>
-                onChange({ ...cv, includeLanguages: e.target.checked })
-              }
-            />
-            Languages
-          </label>
-          <label className="flex cursor-pointer items-center gap-2 text-[14px]">
-            <input
-              type="checkbox"
-              className="border-input size-4 rounded"
-              checked={cv.includeCertifications}
-              disabled={pending}
-              onChange={(e) =>
-                onChange({ ...cv, includeCertifications: e.target.checked })
-              }
-            />
-            Certifications
-          </label>
-          {cv.licenses.length ? (
-            <label className="flex cursor-pointer items-center gap-2 text-[14px]">
+        {cv.projects.length ? (
+          <EditorSection
+            title="Selected work"
+            description="Projects with outcomes help where employers look at work samples."
+            action={
+              <label className="flex cursor-pointer items-center gap-2 text-body-sm">
+                <input
+                  type="checkbox"
+                  className="border-input size-4 rounded"
+                  checked={cv.includeProjects}
+                  disabled={pending}
+                  onChange={(e) =>
+                    onChange({ ...cv, includeProjects: e.target.checked })
+                  }
+                />
+                Show section
+              </label>
+            }
+          >
+            <div className="space-y-3">
+              {cv.projects.map((p, idx) => (
+                <div
+                  key={p.id}
+                  className={cn(
+                    "border-border space-y-3 rounded-2xl border p-4",
+                    !p.included && "opacity-55",
+                  )}
+                >
+                  <label className="flex cursor-pointer items-center gap-2.5 text-body-sm">
+                    <input
+                      type="checkbox"
+                      className="border-input size-4 rounded"
+                      checked={p.included}
+                      disabled={pending}
+                      onChange={(e) => {
+                        const projects = [...cv.projects];
+                        projects[idx] = { ...p, included: e.target.checked };
+                        onChange({ ...cv, projects });
+                      }}
+                    />
+                    <span className="font-medium text-foreground">
+                      {p.title}
+                    </span>
+                  </label>
+                  <Textarea
+                    className="min-h-20"
+                    value={p.summary ?? ""}
+                    disabled={pending}
+                    placeholder="Short project summary"
+                    onChange={(e) => {
+                      const projects = [...cv.projects];
+                      projects[idx] = { ...p, summary: e.target.value };
+                      onChange({ ...cv, projects });
+                    }}
+                  />
+                  <Textarea
+                    className="min-h-20"
+                    value={p.outcomes.join("\n")}
+                    disabled={pending}
+                    placeholder="Outcomes — one per line"
+                    onChange={(e) => {
+                      const projects = [...cv.projects];
+                      projects[idx] = {
+                        ...p,
+                        outcomes: e.target.value
+                          .split("\n")
+                          .map((l) => l.trim())
+                          .filter(Boolean),
+                      };
+                      onChange({ ...cv, projects });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </EditorSection>
+        ) : null}
+
+        <EditorSection title="Extras">
+          <div className="flex flex-wrap gap-5">
+            <label className="flex cursor-pointer items-center gap-2 text-body-sm">
               <input
                 type="checkbox"
                 className="border-input size-4 rounded"
-                checked={cv.includeLicenses}
+                checked={cv.includeLanguages}
                 disabled={pending}
                 onChange={(e) =>
-                  onChange({ ...cv, includeLicenses: e.target.checked })
+                  onChange({ ...cv, includeLanguages: e.target.checked })
                 }
               />
-              Licences
+              Languages
             </label>
-          ) : null}
-        </div>
-      </EditorSection>
+            <label className="flex cursor-pointer items-center gap-2 text-body-sm">
+              <input
+                type="checkbox"
+                className="border-input size-4 rounded"
+                checked={cv.includeCertifications}
+                disabled={pending}
+                onChange={(e) =>
+                  onChange({ ...cv, includeCertifications: e.target.checked })
+                }
+              />
+              Certifications
+            </label>
+            {cv.licenses.length ? (
+              <label className="flex cursor-pointer items-center gap-2 text-body-sm">
+                <input
+                  type="checkbox"
+                  className="border-input size-4 rounded"
+                  checked={cv.includeLicenses}
+                  disabled={pending}
+                  onChange={(e) =>
+                    onChange({ ...cv, includeLicenses: e.target.checked })
+                  }
+                />
+                Licences
+              </label>
+            ) : null}
+          </div>
+        </EditorSection>
+      </Accordion>
     </div>
   );
 }
@@ -459,10 +464,10 @@ export function PackageLetterSlotEditor({
     <div className="space-y-7">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <p className="text-[16px] font-medium tracking-tight text-foreground">
+          <p className="text-body font-medium text-foreground">
             Cover letter
           </p>
-          <p className="text-muted-foreground max-w-md text-[14px] leading-relaxed">
+          <p className="text-muted-foreground max-w-md text-body-sm leading-relaxed">
             Keep it to a short ask with one or two proof points. Same voice as
             the apply email.
           </p>

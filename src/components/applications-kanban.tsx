@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { markApplicationGotReplyAction } from "@/app/actions";
+import { Send } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
+import { badgeVariants } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type {
@@ -44,16 +47,16 @@ function Card({
   pending: boolean;
 }) {
   return (
-    <li className="border-border bg-card space-y-3 rounded-xl border p-4">
-      <div className="space-y-1">
-        <p className="text-[15px] font-medium leading-snug">
+    <li className="bg-card space-y-3 rounded-panel p-4">
+      <div className="space-y-0.5">
+        <p className="text-foreground text-body">
           {card.companyName}
         </p>
-        <p className="text-muted-foreground text-[14px] leading-snug">
+        <p className="text-muted-foreground text-body-sm">
           {card.jobTitle}
         </p>
         {card.sentAt ? (
-          <p className="text-muted-foreground text-[13px]">
+          <p className="text-muted-foreground text-body-sm">
             Sent {formatSentAt(card.sentAt)}
           </p>
         ) : null}
@@ -96,42 +99,36 @@ export function ApplicationsKanban({ board }: { board: ApplicationMailBoard }) {
 
   if (total === 0) {
     return (
-      <div className="border-border rounded-2xl border px-6 py-12 text-center">
-        <p className="font-medium text-[15px]">No applications sent yet</p>
-        <p className="text-muted-foreground mt-2 text-[14px]">
-          Prepare a package from Saved, then Send.
-        </p>
-        <Link
-          href="/interested"
-          className={cn(
-            buttonVariants({ variant: "outline", size: "sm" }),
-            "mt-5 inline-flex",
-          )}
-        >
-          Go to Saved
-        </Link>
+      <div className="bg-card rounded-card">
+        <EmptyState
+          title="No applications sent yet"
+          description="Prepare a package from Saved, then Send."
+          icon={<Send className="size-5" strokeWidth={1.5} />}
+          actionLabel="Go to Saved"
+          actionHref="/interested"
+        />
       </div>
     );
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-3">
       {COLUMNS.map((col) => {
         const cards = board[col.id];
         return (
           <section key={col.id} className="min-w-0 space-y-3">
             <header className="space-y-0.5 px-1">
-              <div className="flex items-baseline gap-2">
-                <h3 className="text-[15px] font-medium">{col.label}</h3>
-                <span className="text-muted-foreground tabular text-[13px]">
+              <div className="flex items-center gap-2">
+                <h3 className="text-foreground text-body font-medium">{col.label}</h3>
+                <span className={badgeVariants({ variant: "outline", className: "tabular" })}>
                   {cards.length}
                 </span>
               </div>
-              <p className="text-muted-foreground text-[13px]">{col.hint}</p>
+              <p className="text-muted-foreground text-body-sm">{col.hint}</p>
             </header>
-            <ul className="bg-muted/20 space-y-3 rounded-2xl p-3 min-h-[12rem]">
+            <ul className="min-h-[12rem] space-y-3">
               {cards.length === 0 ? (
-                <li className="text-muted-foreground px-2 py-6 text-center text-[13px]">
+                <li className="text-muted-foreground border-border-strong rounded-panel border border-dashed px-2 py-10 text-center text-body-sm">
                   Empty
                 </li>
               ) : (

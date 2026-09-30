@@ -24,16 +24,16 @@ export function PackageEmailEditor({
   return (
     <div className="space-y-5">
       <div className="space-y-1">
-        <p className="text-[16px] font-medium tracking-tight text-foreground">
+        <p className="text-body font-medium text-foreground">
           Application email
         </p>
-        <p className="text-muted-foreground text-[14px] leading-relaxed">
+        <p className="text-muted-foreground text-body-sm leading-relaxed">
           Edit the email, then use Send. Body stays aligned with the cover
           letter until you change it here.
         </p>
       </div>
 
-      <div className="border-border bg-muted/20 space-y-0 overflow-hidden rounded-2xl border">
+      <div className="bg-subtle space-y-0 overflow-hidden rounded-panel">
         <EmailField
           label="From"
           value={
@@ -57,11 +57,11 @@ export function PackageEmailEditor({
           onChange={(subject) => onChange({ ...email, subject })}
         />
         <div className="space-y-2 px-4 py-3">
-          <Label className="text-muted-foreground text-[12px] font-medium tracking-wide uppercase">
+          <Label className="text-muted-foreground text-caption font-medium">
             Body
           </Label>
           <Textarea
-            className="min-h-[280px] resize-y border-0 bg-transparent px-0 text-[15px] leading-relaxed shadow-none focus-visible:ring-0"
+            className="min-h-[280px] resize-y border-0 bg-transparent px-0 text-body leading-relaxed shadow-none focus-visible:ring-0"
             value={email.body}
             disabled={pending}
             onChange={(e) => onChange({ ...email, body: e.target.value })}
@@ -88,15 +88,15 @@ function EmailField({
   onChange?: (value: string) => void;
 }) {
   return (
-    <div className="border-border flex items-center gap-3 border-b px-4 py-2.5">
-      <span className="text-muted-foreground w-16 shrink-0 text-[12px] font-medium tracking-wide uppercase">
+    <div className="flex items-center gap-3 border-b border-border px-4 py-2.5">
+      <span className="text-muted-foreground w-16 shrink-0 text-caption font-medium">
         {label}
       </span>
       {readOnly ? (
-        <p className="text-[14px] text-foreground">{value}</p>
+        <p className="text-body-sm text-foreground">{value}</p>
       ) : (
         <Input
-          className="h-8 border-0 bg-transparent px-0 text-[14px] shadow-none focus-visible:ring-0"
+          className="h-8 border-0 bg-transparent px-0 text-body-sm shadow-none focus-visible:ring-0"
           value={value}
           placeholder={placeholder}
           disabled={disabled}

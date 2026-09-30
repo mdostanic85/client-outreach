@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   Check,
+  Eye,
   Copy,
   Download,
   ExternalLink,
@@ -48,6 +49,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
@@ -116,6 +123,7 @@ export function ApplicationPackageWorkspace({
   const [info, setInfo] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("cv");
   const [showEvidence, setShowEvidence] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(openSendOnMount);
   const [market, setMarket] = useState<PackageMarket>(
     initialPackage?.marketLabel ?? suggestedMarket,
@@ -495,10 +503,10 @@ export function ApplicationPackageWorkspace({
         <Surface className="p-6 sm:p-8">
           <div className="mx-auto max-w-lg space-y-6">
             <div className="space-y-2">
-              <h2 className="text-[20px] font-medium tracking-tight">
+              <h2 className="text-h5 font-medium">
                 Prepare this application
               </h2>
-              <p className="text-muted-foreground text-[15px] leading-relaxed">
+              <p className="text-muted-foreground text-body leading-relaxed">
                 Generate a tailored one-page CV and cover letter from your
                 approved profile. Market sets US Resume vs Europe CV wording —
                 layout stays ATS-safe either way.
@@ -517,10 +525,7 @@ export function ApplicationPackageWorkspace({
                   us: "United States (Resume)",
                 }}
               >
-                <SelectTrigger
-                  id="package-market"
-                  className="h-10 w-full data-[size=default]:h-10"
-                >
+                <SelectTrigger id="package-market" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false} align="start">
@@ -549,6 +554,17 @@ export function ApplicationPackageWorkspace({
             />
 
             <div className="flex flex-wrap items-center justify-end gap-2">
+              {previewNode ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="xl:hidden"
+                  onClick={() => setPreviewOpen(true)}
+                >
+                  <Eye className="size-3.5" />
+                  Preview
+                </Button>
+              ) : null}
               {alreadySent ? (
                 <Link
                   href="/queue?tab=applications"
@@ -664,7 +680,7 @@ export function ApplicationPackageWorkspace({
             <Surface className="xl:max-h-[calc(100vh-11rem)] xl:overflow-y-auto">
               <div className="p-5 sm:p-6">
                 {tab === "letter" && pkg.letterOptional ? (
-                  <p className="text-muted-foreground bg-muted/40 mb-5 rounded-xl px-4 py-3 text-[14px] leading-relaxed">
+                  <p className="text-ink-emphasis bg-subtle mb-5 rounded-tile px-4 py-3 text-body-sm">
                     Employers in your field rarely ask for a cover letter, and this posting doesn&apos;t. You can skip it and apply with your CV.
                   </p>
                 ) : null}
@@ -716,10 +732,24 @@ export function ApplicationPackageWorkspace({
               </div>
             </Surface>
 
-            <div className="app-doc-preview-stage rounded-2xl p-2 sm:p-4 xl:max-h-[calc(100vh-11rem)] xl:overflow-y-auto">
+            <div className="app-doc-preview-stage hidden rounded-card p-4 xl:block xl:max-h-[calc(100vh-11rem)] xl:overflow-y-auto print:block">
               <div className="app-doc-print-root">{previewNode}</div>
             </div>
           </div>
+
+          {/* Below xl the live preview opens in a sheet instead of stacking under the editor. */}
+          <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
+            <SheetContent side="right" className="gap-0 p-0 data-[side=right]:sm:max-w-3xl">
+              <SheetHeader>
+                <SheetTitle>
+                  {tab === "cv" ? "CV preview" : tab === "letter" ? "Cover letter preview" : "Email preview"}
+                </SheetTitle>
+              </SheetHeader>
+              <div className="app-doc-preview-stage min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
+                {previewNode}
+              </div>
+            </SheetContent>
+          </Sheet>
 
           {pkg && email ? (
             <ApplicationSendModal
@@ -746,10 +776,10 @@ function HowToApplyPanel({ pkg }: { pkg: ApplicationPackageView }) {
   return (
     <Surface>
       <div className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:gap-5">
-        <p className="text-[15px] font-medium tracking-tight text-foreground">
+        <p className="text-body font-medium text-foreground">
           How to apply
         </p>
-        <ul className="flex flex-wrap gap-x-5 gap-y-1 text-[14px]">
+        <ul className="flex flex-wrap gap-x-5 gap-y-1 text-body-sm">
           {emails.map((email) => (
             <li key={email}>
               <a className="text-brand-ink hover:underline" href={`mailto:${email}`}>

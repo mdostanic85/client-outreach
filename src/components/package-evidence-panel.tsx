@@ -17,10 +17,10 @@ export function PackageEvidencePanel({
   return (
     <div className="space-y-7">
       <div className="space-y-1">
-        <p className="text-[16px] font-medium tracking-tight text-foreground">
+        <p className="text-body font-medium text-foreground">
           Evidence
         </p>
-        <p className="text-muted-foreground text-[14px] leading-relaxed">
+        <p className="text-muted-foreground text-body-sm leading-relaxed">
           Why this package was shaped this way — strengths, gaps, and grounding
           checks.
         </p>
@@ -39,25 +39,25 @@ export function PackageEvidencePanel({
         </div>
       ) : null}
 
-      <section className="border-border space-y-3 rounded-2xl border p-4">
-        <h3 className="text-[14px] font-medium text-foreground">
+      <section className="bg-subtle space-y-3 rounded-panel p-4">
+        <h3 className="text-body-sm font-medium text-foreground">
           Role analysis
         </h3>
         {analysis.roleSummary ? (
-          <p className="text-muted-foreground text-[14px] leading-relaxed">
+          <p className="text-muted-foreground text-body-sm leading-relaxed">
             {analysis.roleSummary}
           </p>
         ) : (
-          <p className="text-muted-foreground text-[14px]">
+          <p className="text-muted-foreground text-body-sm">
             No analysis summary.
           </p>
         )}
         {analysis.fitStrengths.length ? (
           <div>
-            <p className="text-[13px] font-medium text-foreground">
+            <p className="text-body-sm font-medium text-foreground">
               Fit strengths
             </p>
-            <ul className="text-muted-foreground mt-1.5 list-disc space-y-1 pl-5 text-[14px]">
+            <ul className="text-muted-foreground mt-1.5 list-disc space-y-1 pl-5 text-body-sm">
               {analysis.fitStrengths.map((s) => (
                 <li key={s}>{s}</li>
               ))}
@@ -66,10 +66,10 @@ export function PackageEvidencePanel({
         ) : null}
         {analysis.gaps.length ? (
           <div>
-            <p className="text-[13px] font-medium text-foreground">
+            <p className="text-body-sm font-medium text-foreground">
               Gaps
             </p>
-            <ul className="text-muted-foreground mt-1.5 list-disc space-y-1 pl-5 text-[14px]">
+            <ul className="text-muted-foreground mt-1.5 list-disc space-y-1 pl-5 text-body-sm">
               {analysis.gaps.map((s) => (
                 <li key={s}>{s}</li>
               ))}
@@ -78,26 +78,26 @@ export function PackageEvidencePanel({
         ) : null}
         {analysis.mustHaves.length ? (
           <div>
-            <p className="text-[13px] font-medium text-foreground">
+            <p className="text-body-sm font-medium text-foreground">
               Must-haves
             </p>
-            <p className="text-muted-foreground mt-1 text-[14px]">
+            <p className="text-muted-foreground mt-1 text-body-sm">
               {analysis.mustHaves.join(" · ")}
             </p>
           </div>
         ) : null}
       </section>
 
-      <section className="border-border space-y-3 rounded-2xl border p-4">
+      <section className="bg-subtle space-y-3 rounded-panel p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-[14px] font-medium text-foreground">
+          <h3 className="text-body-sm font-medium text-foreground">
             Grounding
           </h3>
           <span
             className={
               grounding.ok
-                ? "text-[13px] font-medium text-emerald-600 dark:text-emerald-400"
-                : "text-[13px] font-medium text-amber-700 dark:text-amber-300"
+                ? "text-body-sm font-medium text-success"
+                : "text-body-sm font-medium text-warn"
             }
           >
             {grounding.ok ? "Passed" : "Needs review"}
@@ -105,40 +105,40 @@ export function PackageEvidencePanel({
         </div>
         {grounding.usedFields.length ? (
           <div>
-            <p className="text-[13px] font-medium text-foreground">
+            <p className="text-body-sm font-medium text-foreground">
               Profile fields used
             </p>
-            <p className="text-muted-foreground mt-1 text-[14px]">
+            <p className="text-muted-foreground mt-1 text-body-sm">
               {grounding.usedFields.join(", ")}
             </p>
           </div>
         ) : null}
         {grounding.usedProjectIds.length ? (
           <div>
-            <p className="text-[13px] font-medium text-foreground">
+            <p className="text-body-sm font-medium text-foreground">
               Projects used
             </p>
-            <p className="text-muted-foreground mt-1 text-[14px]">
+            <p className="text-muted-foreground mt-1 text-body-sm">
               {grounding.usedProjectIds.join(", ")}
             </p>
           </div>
         ) : null}
         {grounding.usedCompanyFacts.length ? (
           <div>
-            <p className="text-[13px] font-medium text-foreground">
+            <p className="text-body-sm font-medium text-foreground">
               Company / role facts
             </p>
-            <p className="text-muted-foreground mt-1 text-[14px]">
+            <p className="text-muted-foreground mt-1 text-body-sm">
               {grounding.usedCompanyFacts.join(", ")}
             </p>
           </div>
         ) : null}
         {grounding.rejectedClaims.length ? (
           <div>
-            <p className="text-[13px] font-medium text-red-600 dark:text-red-400">
+            <p className="text-body-sm font-medium text-destructive">
               Rejected claims
             </p>
-            <ul className="mt-1.5 list-disc space-y-1 pl-5 text-[14px] text-red-700 dark:text-red-300">
+            <ul className="mt-1.5 list-disc space-y-1 pl-5 text-body-sm text-destructive">
               {grounding.rejectedClaims.map((c) => (
                 <li key={c}>{c}</li>
               ))}
