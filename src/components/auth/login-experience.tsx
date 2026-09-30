@@ -34,10 +34,10 @@ export function LoginExperience({
   const reducedMotion = useReducedMotion() ?? false;
 
   return (
-    <div className="relative flex min-h-svh flex-col overflow-hidden">
+    <div className="relative flex h-svh flex-col overflow-hidden">
       <LoginAtmosphere reducedMotion={reducedMotion} />
 
-      <header className="relative z-10 flex items-center justify-between px-6 py-6 sm:px-10">
+      <header className="relative z-10 flex shrink-0 items-center justify-between px-6 py-4 sm:px-10">
         <Link
           href="/welcome"
           className="text-muted-foreground hover:text-[var(--card-foreground)] text-[13px] font-medium transition-colors"
@@ -52,24 +52,47 @@ export function LoginExperience({
         </Link>
       </header>
 
-      <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-4">
+      <main className="relative z-10 grid min-h-0 w-full min-w-0 flex-1 items-center gap-8 px-4 sm:px-6 lg:grid-cols-2 lg:px-12">
+        <div className="mx-auto hidden w-full max-w-md lg:block">
+          <OptraLogo href="/welcome" width={120} />
+          <h1 className="font-display mt-8 text-[2.4rem] leading-[1.08] font-semibold tracking-tight text-[var(--card-foreground)]">
+            A few jobs that fit you.
+          </h1>
+          <p className="text-muted-foreground mt-4 text-[16px] leading-snug">
+            {noWidow(
+              "Optra reads your CV and shows a short list, with a plain reason for each job. Nothing is sent until you choose.",
+            )}
+          </p>
+          <ul className="mt-8 space-y-3">
+            {[
+              ["Your CV", "We read the work you've already done."],
+              ["A short list", "A handful of jobs, not a whole board."],
+              ["You decide", "Mark, save, or skip. Nothing sends itself."],
+            ].map(([title, body]) => (
+              <li key={title} className="flex gap-3">
+                <span className="bg-primary mt-1.5 size-2 shrink-0 rounded-full" aria-hidden />
+                <span>
+                  <span className="block text-[15px] font-medium text-[var(--card-foreground)]">{title}</span>
+                  <span className="text-muted-foreground text-[14px]">{body}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
         <motion.div
-          className="flex w-full max-w-md flex-col items-center"
+          className="mx-auto flex w-full min-w-0 max-w-full flex-col sm:max-w-sm"
           initial={reducedMotion ? false : { opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: EASE }}
         >
-          <div className="mb-10 flex flex-col items-center">
-            <OptraLogo href="/welcome" width={133} />
+          <div className="mb-5 flex justify-center lg:hidden">
+            <OptraLogo href="/welcome" width={112} />
           </div>
-
-          <p className="text-muted-foreground mb-8 max-w-sm text-center text-[16px] leading-relaxed">
-            {noWidow(
-              "Optra reads your CV and shows you a few jobs that fit, with a plain reason for each one. Sign in to see today's list. Nothing is applied or emailed until you choose.",
-            )}
+          <p className="text-muted-foreground mb-4 max-w-full text-center text-[14px] leading-snug text-balance lg:hidden">
+            {noWidow("Sign in to see today's jobs. Nothing is sent until you choose.")}
           </p>
-
-          <div className="border-border/60 bg-card/55 w-full rounded-[1.35rem] border px-5 py-6 backdrop-blur-xl sm:px-6 sm:py-7">
+          <div className="border-white/15 bg-card/70 w-full rounded-2xl border px-5 py-5 backdrop-blur-xl">
             <EmailFirstSignIn
               googleEnabled={googleEnabled}
               error={error}
@@ -79,7 +102,7 @@ export function LoginExperience({
         </motion.div>
       </main>
 
-      <footer className="relative z-10 px-6 pb-8">
+      <footer className="relative z-10 shrink-0 px-6 py-3">
         <MakerCredit align="center" />
       </footer>
     </div>

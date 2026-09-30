@@ -69,16 +69,17 @@ function flowOrder(survey: SurveyAnswers): FlowStep[] {
   ];
 }
 
-/** Screens the person actually sees. Several old steps share one screen. */
+/**
+ * Screens the person actually sees.
+ * Related answers share one screen so setup stays short (Wellfound-style),
+ * while search still stores the same step fields.
+ */
 const QUESTION_GROUPS: FlowStep[][] = [
   ["intro", "role"],
   ["family"],
-  ["experience", "level"],
-  ["engagement", "workMode"],
-  ["location"],
-  ["pay", "availability"],
-  ["details"],
-  ["languages", "priorities"],
+  ["experience", "level", "engagement", "workMode"],
+  ["location", "pay", "availability"],
+  ["details", "languages", "priorities"],
   ["cv", "website", "linkedin"],
 ];
 
@@ -192,7 +193,7 @@ export function OnboardingFlow({
           <span className="size-9 -ml-2" aria-hidden />
         )}
         <div
-          className="bg-border h-1 flex-1 overflow-hidden rounded-full"
+          className="bg-white/15 h-1 flex-1 overflow-hidden rounded-full"
           role="progressbar"
           aria-label="Setup progress"
           aria-valuemin={0}
@@ -204,6 +205,13 @@ export function OnboardingFlow({
             style={{ width: `${progress * 100}%` }}
           />
         </div>
+        {groupIndex >= 0 ? (
+          <p className="text-muted-foreground w-12 text-right text-[13px] tabular-nums">
+            {groupIndex + 1}/{visibleGroups.length}
+          </p>
+        ) : (
+          <span className="w-12" aria-hidden />
+        )}
       </div>
 
       <AnimatePresence mode="wait" initial={false} custom={direction}>
@@ -289,64 +297,41 @@ export function OnboardingFlow({
             </Screen>
           ) : null}
 
-          {step === "experience" || step === "level" ? (
-            <BackgroundStep
+          {step === "experience" || step === "level" || step === "engagement" || step === "workMode" ? (
+            <WorkStep
               experience={survey.experience}
               level={survey.level}
               usesLevels={Boolean(family && FAMILY_PROFILES[family].usesLevels)}
-              pending={pending}
-              onSubmit={(patch) => answer(patch, ["experience", "level"])}
-            />
-          ) : null}
-
-          {step === "engagement" || step === "workMode" ? (
-            <EngagementStep
-              initial={survey.engagement ?? []}
+              engagement={survey.engagement ?? []}
               workMode={survey.workMode}
               remote={remoteOffered(family)}
               pending={pending}
-              onSubmit={(engagement, workMode) => answer({ engagement, workMode }, ["engagement", "workMode"])}
+              onSubmit={(patch) =>
+                answer(patch, ["experience", "level", "engagement", "workMode"])
+              }
             />
           ) : null}
 
-          {step === "location" ? (
-            <LocationStep
+          {step === "location" || step === "pay" || step === "availability" ? (
+            <PlacePayStep
               remote={survey.workMode === "remote"}
-              initial={survey.locations ?? []}
-              initialCommute={survey.commuteKm ?? null}
-              pending={pending}
-              onSubmit={(locations, commuteKm) => answer({ locations, commuteKm })}
-            />
-          ) : null}
-
-          {step === "pay" || step === "availability" ? (
-            <PayStep
-              initial={survey.pay ?? null}
+              locations={survey.locations ?? []}
+              commuteKm={survey.commuteKm ?? null}
+              pay={survey.pay ?? null}
               availability={survey.availability}
-              serbia={(survey.locations ?? []).some((l) => /serbia|belgrade|novi sad|ni[sš]|kragujevac/i.test(l))}
               freelance={Boolean(survey.engagement?.includes("freelance") || survey.workType === "contract")}
               pending={pending}
-              onSubmit={(pay, availability) => answer({ pay, availability }, ["pay", "availability"])}
+              onSubmit={(patch) => answer(patch, ["location", "pay", "availability"])}
             />
           ) : null}
 
-          {step === "details" ? (
-            <DetailsStep
+          {step === "details" || step === "languages" || step === "priorities" ? (
+            <FitStep
               family={family ?? "office_business"}
               survey={survey}
               pending={pending}
-              onSubmit={(details) => answer({ ...details, detailsDone: true })}
-            />
-          ) : null}
-
-          {step === "languages" || step === "priorities" ? (
-            <LanguagesStep
-              initial={survey.languages ?? []}
-              family={family}
-              priorities={survey.priorities ?? []}
-              pending={pending}
-              onSubmit={(languages, priorities) =>
-                answer({ languages, priorities }, ["languages", "priorities"])
+              onSubmit={(patch) =>
+                answer({ ...patch, detailsDone: true }, ["details", "languages", "priorities"])
               }
             />
           ) : null}
@@ -460,7 +445,7 @@ function Screen({
           {eyebrow}
         </p>
       ) : null}
-      <h1 className="font-display max-w-3xl text-[clamp(2.25rem,5.5vw,3.75rem)] leading-[1.05] font-semibold tracking-tight text-[var(--card-foreground)]">
+      <h1 className="font-display max-w-3xl text-[clamp(1.85rem,4vw,2.75rem)] leading-[1.08] font-semibold tracking-tight text-[var(--card-foreground)]">
         {title}
       </h1>
       {hint ? (
@@ -586,12 +571,13 @@ function Chip({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "h-14 rounded-full border-2 px-6 text-[17px] font-medium transition-colors disabled:opacity-40",
+        "inline-flex h-12 items-center gap-2 rounded-full border-2 px-5 text-[16px] font-medium transition-colors disabled:opacity-40",
         selected
           ? "border-primary bg-[color-mix(in_oklch,var(--primary)_42%,#10141c)] font-semibold text-[var(--card-foreground)]"
           : "border-white/25 bg-secondary text-foreground hover:border-white/45",
       )}
     >
+      {selected ? <Check className="size-4 shrink-0" strokeWidth={2.75} aria-hidden /> : null}
       {label}
     </button>
   );
@@ -626,20 +612,20 @@ function RoleStep({
   return (
     <Screen
       title={firstName ? `${firstName}, what job are you looking for?` : "What job are you looking for?"}
-      hint="Type it the way you'd say it, in English or Serbian."
+      hint="Type the job title in English."
     >
       <form onSubmit={submit} className="mx-auto flex w-full max-w-xl flex-col gap-5">
         <Input
           autoFocus
           value={role}
           onChange={(event) => setRole(event.target.value)}
-          placeholder="Nurse, vozač, accountant"
+          placeholder="Nurse, truck driver, accountant"
           maxLength={80}
           aria-autocomplete="list"
           className="h-16 rounded-2xl text-center text-[22px]"
         />
         {matches.length > 0 ? (
-          <ul className="border-border divide-border divide-y overflow-hidden rounded-2xl border" role="listbox">
+          <ul className="divide-y divide-white/10 overflow-hidden rounded-2xl border-2 border-white/15" role="listbox">
             {matches.map((occupation) => (
               <li key={occupation.id}>
                 <button
@@ -650,10 +636,7 @@ function RoleStep({
                   onClick={() => onPick(occupation)}
                   className="hover:bg-card/70 flex w-full items-center justify-between gap-3 px-5 py-3 text-left disabled:opacity-60"
                 >
-                  <span className="flex flex-col">
-                    <span className="text-[16px] font-medium text-[var(--card-foreground)]">{occupation.en}</span>
-                    <span className="text-muted-foreground text-[14px]">{occupation.sr}</span>
-                  </span>
+                  <span className="text-[16px] font-medium text-[var(--card-foreground)]">{occupation.en}</span>
                   <span className="text-muted-foreground shrink-0 text-[13px]">
                     {FAMILY_PROFILES[occupation.family].label}
                   </span>
@@ -678,38 +661,96 @@ function RoleStep({
   );
 }
 
-function BackgroundStep({
+function Ask({ title, hint, children }: { title: string; hint: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className="text-[18px] font-medium text-[var(--card-foreground)]">{title}</p>
+      <p className="text-muted-foreground mt-1 mb-4 text-[14px]">{hint}</p>
+      {children}
+    </div>
+  );
+}
+
+function OptionChips<T extends string>({
+  options,
+  value,
+  onPick,
+  disabled,
+}: {
+  options: Array<{ id: T; label: string }>;
+  value: T | undefined;
+  onPick: (id: T) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap justify-center gap-3" role="radiogroup">
+      {options.map((option) => (
+        <Chip
+          key={option.id}
+          label={option.label}
+          selected={option.id === value}
+          disabled={disabled}
+          onClick={() => onPick(option.id)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function WorkStep({
   experience,
   level,
   usesLevels,
+  engagement,
+  workMode,
+  remote,
   pending,
   onSubmit,
 }: {
   experience: SurveyAnswers["experience"];
   level: SurveyAnswers["level"];
   usesLevels: boolean;
+  engagement: Array<(typeof ENGAGEMENTS)[number]>;
+  workMode: SurveyAnswers["workMode"];
+  remote: boolean;
   pending: boolean;
-  onSubmit: (patch: Pick<SurveyAnswers, "experience" | "level">) => void;
+  onSubmit: (patch: Pick<SurveyAnswers, "experience" | "level" | "engagement" | "workMode">) => void;
 }) {
   const [years, setYears] = useState(experience);
   const [aim, setAim] = useState(level);
+  const [picked, setPicked] = useState(engagement);
+  const [place, setPlace] = useState(workMode);
+
+  function toggle(id: (typeof ENGAGEMENTS)[number]) {
+    setPicked((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+  }
+
+  const places = remote
+    ? ([
+        { id: "onsite" as const, label: "On-site" },
+        { id: "hybrid" as const, label: "Hybrid" },
+        { id: "remote" as const, label: "Remote" },
+        { id: "any" as const, label: "Any of these" },
+      ] as const)
+    : ([
+        { id: "onsite" as const, label: "On-site" },
+        { id: "any" as const, label: "Doesn't matter" },
+      ] as const);
 
   return (
-    <Screen title="Your experience" hint="How long you've done this job, and the level you want.">
-      <div className="flex flex-col gap-10">
-        <div>
-          <p className="mb-4 text-[18px] font-medium">How long have you done this?</p>
-          <Choices
+    <Screen title="What kind of work?" hint="A few answers so the list stays relevant.">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-9">
+        <Ask title="How long have you done this?" hint="Pick one">
+          <OptionChips
             value={years}
             disabled={pending}
             onPick={setYears}
             options={EXPERIENCE.map((id) => ({ id, label: EXPERIENCE_LABELS[id] }))}
           />
-        </div>
+        </Ask>
         {usesLevels ? (
-          <div>
-            <p className="mb-4 text-[18px] font-medium">What level are you aiming for?</p>
-            <Choices
+          <Ask title="What level are you aiming for?" hint="Pick one">
+            <OptionChips
               value={aim}
               disabled={pending}
               onPick={setAim}
@@ -721,71 +762,28 @@ function BackgroundStep({
                 { id: "head", label: "Head or Director" },
               ]}
             />
-          </div>
+          </Ask>
         ) : null}
-      </div>
-      <div className="mt-10">
-        <PrimaryButton disabled={!years || (usesLevels && !aim)} pending={pending} onClick={() => onSubmit({ experience: years, level: aim })}>
-          Continue
-        </PrimaryButton>
-      </div>
-    </Screen>
-  );
-}
-
-function EngagementStep({
-  initial,
-  workMode,
-  remote,
-  pending,
-  onSubmit,
-}: {
-  initial: Array<(typeof ENGAGEMENTS)[number]>;
-  workMode: SurveyAnswers["workMode"];
-  remote: boolean;
-  pending: boolean;
-  onSubmit: (engagement: Array<(typeof ENGAGEMENTS)[number]>, workMode: NonNullable<SurveyAnswers["workMode"]>) => void;
-}) {
-  const [picked, setPicked] = useState(initial.length ? initial : (["full_time"] as typeof initial));
-  const [place, setPlace] = useState(workMode);
-
-  function toggle(id: (typeof ENGAGEMENTS)[number]) {
-    setPicked((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
-  }
-
-  const places = remote
-    ? ([
-        { id: "onsite" as const, label: "At the workplace" },
-        { id: "hybrid" as const, label: "Hybrid" },
-        { id: "remote" as const, label: "Remote only" },
-        { id: "any" as const, label: "Any of these" },
-      ] as const)
-    : ([
-        { id: "onsite" as const, label: "At the workplace" },
-        { id: "any" as const, label: "Doesn't matter" },
-      ] as const);
-
-  return (
-    <Screen title="How do you want to work?">
-      <div className="flex flex-col gap-10">
-        <div>
-          <p className="mb-4 text-[18px] font-medium">What are you open to?</p>
+        <Ask title="What are you open to?" hint="Select all that apply">
           <div className="flex flex-wrap justify-center gap-3">
             {ENGAGEMENTS.map((id) => (
-              <Chip key={id} label={ENGAGEMENT_LABELS[id]} selected={picked.includes(id)} onClick={() => toggle(id)} />
+              <Chip
+                key={id}
+                label={ENGAGEMENT_LABELS[id]}
+                selected={picked.includes(id)}
+                disabled={pending}
+                onClick={() => toggle(id)}
+              />
             ))}
           </div>
-        </div>
-        <div>
-          <p className="mb-4 text-[18px] font-medium">Where?</p>
-          <Choices value={place} disabled={pending} onPick={setPlace} options={[...places]} />
-        </div>
-      </div>
-      <div className="mt-10">
+        </Ask>
+        <Ask title="Where do you want to work?" hint="Pick one">
+          <OptionChips value={place} disabled={pending} onPick={setPlace} options={[...places]} />
+        </Ask>
         <PrimaryButton
-          disabled={picked.length === 0 || !place}
+          disabled={!years || (usesLevels && !aim) || picked.length === 0 || !place}
           pending={pending}
-          onClick={() => place && onSubmit(picked, place)}
+          onClick={() => place && onSubmit({ experience: years, level: aim, engagement: picked, workMode: place })}
         >
           Continue
         </PrimaryButton>
@@ -801,24 +799,37 @@ const COMMUTE_OPTIONS: Array<{ km: number | null; label: string }> = [
   { km: null, label: "Doesn't matter" },
 ];
 
-function LocationStep({
+function PlacePayStep({
   remote,
-  initial,
-  initialCommute,
+  locations,
+  commuteKm,
+  pay,
+  availability,
+  freelance,
   pending,
   onSubmit,
 }: {
   remote: boolean;
-  initial: string[];
-  initialCommute: number | null;
+  locations: string[];
+  commuteKm: number | null;
+  pay: SurveyAnswers["pay"];
+  availability: SurveyAnswers["availability"];
+  freelance: boolean;
   pending: boolean;
-  onSubmit: (locations: string[], commuteKm: number | null) => void;
+  onSubmit: (patch: Pick<SurveyAnswers, "locations" | "commuteKm" | "pay" | "availability">) => void;
 }) {
   const base = remote ? REGION_OPTIONS : PLACE_OPTIONS;
-  const [picked, setPicked] = useState<string[]>(initial);
+  const [picked, setPicked] = useState<string[]>(locations);
   const [custom, setCustom] = useState("");
-  const [commute, setCommute] = useState<number | null>(initialCommute);
+  const [commute, setCommute] = useState<number | null>(commuteKm);
   const options = [...base, ...picked.filter((p) => !base.includes(p))];
+  const serbia = picked.some((place) => /serbia|belgrade|novi sad|ni[sš]|kragujevac/i.test(place));
+  const [mode, setMode] = useState<PayMode>(pay?.mode ?? (freelance ? "hourly" : serbia ? "monthly" : "salary"));
+  const [currency, setCurrency] = useState<Currency>(pay?.currency ?? (serbia ? "RSD" : "EUR"));
+  const [amount, setAmount] = useState(pay?.min ? String(pay.min) : "");
+  const [start, setStart] = useState(availability);
+  const value = Number(amount.replace(/[^\d.]/g, ""));
+  const valid = Number.isFinite(value) && value > 0;
 
   function toggle(location: string) {
     setPicked((prev) =>
@@ -838,11 +849,23 @@ function LocationStep({
     return locations.map((l) => (l === "Anywhere in Serbia" ? "Serbia" : l === "Abroad (EU)" ? "Europe" : l));
   }
 
+  function finish(nextPay: SurveyAnswers["pay"]) {
+    if (!start || picked.length === 0) return;
+    onSubmit({
+      locations: forSearch(picked),
+      commuteKm: remote ? null : commute,
+      pay: nextPay,
+      availability: start,
+    });
+  }
+
+  const placeholder =
+    mode === "hourly" ? "e.g. 15" : mode === "monthly" ? (currency === "RSD" ? "e.g. 120000" : "e.g. 1500") : "e.g. 40000";
+
   return (
-    <Screen
-      title={remote ? "Which regions can you work for?" : "Where should the job be?"}
-      hint={remote ? "Pick any that apply." : "Pick your city or add another one."}
-    >
+    <Screen title="Where, and what pay?" hint="Pick every place that works. The number stays private.">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-9">
+      <Ask title={remote ? "Which regions?" : "Which places?"} hint="Select all that apply">
       <div className="flex flex-wrap justify-center gap-3">
         {options.map((location) => (
           <Chip key={location} label={location} selected={picked.includes(location)} onClick={() => toggle(location)} />
@@ -860,10 +883,10 @@ function LocationStep({
           Add
         </Button>
       </form>
+      </Ask>
       {!remote ? (
-        <div className="mt-8">
-          <p className="mb-3 text-[15px] font-medium">How far can you commute?</p>
-          <div className="flex flex-wrap gap-2">
+        <Ask title="How far can you commute?" hint="Pick one">
+          <div className="flex flex-wrap justify-center gap-3">
             {COMMUTE_OPTIONS.map((option) => (
               <Chip
                 key={option.label}
@@ -873,16 +896,65 @@ function LocationStep({
               />
             ))}
           </div>
-        </div>
+        </Ask>
       ) : null}
-      <div className="mt-8">
+      <Ask title="Minimum pay" hint={mode === "monthly" ? "Per month, after tax. Or skip the number." : "Or skip the number."}>
+        <div className="flex flex-wrap justify-center gap-3">
+          <Chip label="Per month" selected={mode === "monthly"} onClick={() => setMode("monthly")} />
+          <Chip label="Per year" selected={mode === "salary"} onClick={() => setMode("salary")} />
+          <Chip label="Per hour" selected={mode === "hourly"} onClick={() => setMode("hourly")} />
+        </div>
+        <div className="mt-4 flex gap-3">
+          <select
+            value={currency}
+            onChange={(event) => setCurrency(event.target.value as Currency)}
+            aria-label="Currency"
+            className="border-white/25 bg-secondary h-14 rounded-2xl border-2 px-4 text-[16px]"
+          >
+            {(["EUR", "USD", "GBP", "CHF", "RSD"] as const).map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
+            ))}
+          </select>
+          <Input
+            inputMode="numeric"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            placeholder={placeholder}
+            className="h-14 rounded-2xl text-center text-[20px]"
+          />
+        </div>
+      </Ask>
+      <Ask title="When could you start?" hint="Pick one">
+        <OptionChips
+          value={start}
+          disabled={pending}
+          onPick={setStart}
+          options={[
+            { id: "now", label: "Right away" },
+            { id: "soon", label: "In 1–2 months" },
+            { id: "exploring", label: "Just looking for now" },
+          ]}
+        />
+      </Ask>
+      <div className="flex flex-col items-center gap-3">
         <PrimaryButton
-          disabled={picked.length === 0}
+          disabled={picked.length === 0 || !start || (amount.trim().length > 0 && !valid)}
           pending={pending}
-          onClick={() => onSubmit(forSearch(picked), remote ? null : commute)}
+          onClick={() => finish(valid ? { mode, currency, min: value } : null)}
         >
           Continue
         </PrimaryButton>
+        <button
+          type="button"
+          onClick={() => finish(null)}
+          disabled={pending || !start || picked.length === 0}
+          className="text-muted-foreground hover:text-foreground h-12 px-3 text-[16px] font-medium transition-colors"
+        >
+          Skip the pay
+        </button>
+      </div>
       </div>
     </Screen>
   );
@@ -890,108 +962,6 @@ function LocationStep({
 
 type PayMode = "salary" | "monthly" | "hourly";
 type Currency = "EUR" | "USD" | "GBP" | "CHF" | "RSD";
-
-function PayStep({
-  initial,
-  availability,
-  serbia,
-  freelance,
-  pending,
-  onSubmit,
-}: {
-  initial: SurveyAnswers["pay"];
-  availability: SurveyAnswers["availability"];
-  serbia: boolean;
-  freelance: boolean;
-  pending: boolean;
-  onSubmit: (pay: SurveyAnswers["pay"], availability: NonNullable<SurveyAnswers["availability"]>) => void;
-}) {
-  // Serbia: monthly net in RSD. Elsewhere: yearly gross, or hourly for freelance.
-  const [mode, setMode] = useState<PayMode>(
-    initial?.mode ?? (freelance ? "hourly" : serbia ? "monthly" : "salary"),
-  );
-  const [currency, setCurrency] = useState<Currency>(initial?.currency ?? (serbia ? "RSD" : "EUR"));
-  const [amount, setAmount] = useState(initial?.min ? String(initial.min) : "");
-  const [start, setStart] = useState(availability);
-  const value = Number(amount.replace(/[^\d.]/g, ""));
-  const valid = Number.isFinite(value) && value > 0;
-
-  function submit(pay: SurveyAnswers["pay"]) {
-    if (start) onSubmit(pay, start);
-  }
-
-  const placeholder =
-    mode === "hourly" ? "e.g. 15" : mode === "monthly" ? (currency === "RSD" ? "e.g. 120000" : "e.g. 1500") : "e.g. 40000";
-
-  return (
-    <Screen
-      title="Pay and when you can start"
-      hint={mode === "monthly" ? "Monthly, after tax. Only you see the number." : "Only you see the number."}
-    >
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (valid && start) submit({ mode, currency, min: value });
-        }}
-        className="mx-auto flex w-full max-w-xl flex-col gap-8"
-      >
-        <div className="flex flex-wrap justify-center gap-3">
-          <Chip label="Per month" selected={mode === "monthly"} onClick={() => setMode("monthly")} />
-          <Chip label="Per year" selected={mode === "salary"} onClick={() => setMode("salary")} />
-          <Chip label="Per hour" selected={mode === "hourly"} onClick={() => setMode("hourly")} />
-        </div>
-        <div className="flex gap-3">
-          <select
-            value={currency}
-            onChange={(event) => setCurrency(event.target.value as Currency)}
-            aria-label="Currency"
-            className="border-input dark:bg-input/30 h-16 rounded-2xl border bg-transparent px-4 text-[18px]"
-          >
-            {(["RSD", "EUR", "USD", "GBP", "CHF"] as const).map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-          <Input
-            autoFocus
-            inputMode="numeric"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-            placeholder={placeholder}
-            className="h-16 rounded-2xl text-center text-[22px]"
-          />
-        </div>
-        <div>
-          <p className="mb-4 text-[18px] font-medium">When could you start?</p>
-          <Choices
-            value={start}
-            disabled={pending}
-            onPick={setStart}
-            options={[
-              { id: "now", label: "Right away" },
-              { id: "soon", label: "In 1–2 months" },
-              { id: "exploring", label: "Just looking for now" },
-            ]}
-          />
-        </div>
-        <div className="flex flex-col items-center gap-3">
-          <PrimaryButton type="submit" disabled={!valid || !start} pending={pending}>
-            Continue
-          </PrimaryButton>
-          <button
-            type="button"
-            onClick={() => start && onSubmit(null, start)}
-            disabled={pending || !start}
-            className="text-muted-foreground hover:text-foreground h-12 px-3 text-[16px] font-medium transition-colors"
-          >
-            I&apos;d rather not say
-          </button>
-        </div>
-      </form>
-    </Screen>
-  );
-}
 
 type Details = Pick<
   SurveyAnswers,
@@ -1072,7 +1042,7 @@ function TagInput({
 }
 
 /** The questions that only matter for this family of jobs. */
-function DetailsStep({
+function FitStep({
   family,
   survey,
   pending,
@@ -1081,7 +1051,7 @@ function DetailsStep({
   family: OccupationFamily;
   survey: SurveyAnswers;
   pending: boolean;
-  onSubmit: (details: Details) => void;
+  onSubmit: (patch: Details & Pick<SurveyAnswers, "languages" | "priorities">) => void;
 }) {
   const [d, setD] = useState<Details>({
     licenses: survey.licenses ?? [],
@@ -1098,10 +1068,28 @@ function DetailsStep({
   });
   const set = (patch: Details) => setD((prev) => ({ ...prev, ...patch }));
   const licences = d.licenses ?? [];
+  const [rows, setRows] = useState<LanguageAnswer[]>(survey.languages ?? []);
+  const [priorities, setPriorities] = useState<Priority[]>(survey.priorities ?? []);
+  const [languageDraft, setLanguageDraft] = useState("");
+  const priorityFull = priorities.length >= 3;
+  const hasLanguage = (name: string) => rows.some((row) => row.language.toLowerCase() === name.toLowerCase());
+
+  function addLanguage(language: string) {
+    const name = language.trim();
+    if (!name || hasLanguage(name)) return;
+    setRows((prev) => [...prev, { language: name, level: "conversational" as const }].slice(0, 8));
+  }
+
+  function togglePriority(id: Priority) {
+    setPriorities((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : priorityFull ? prev : [...prev, id],
+    );
+  }
 
   const schedule = (
     <div>
-      <p className="mb-3 text-[15px] font-medium">I can work</p>
+      <p className="mb-1 text-[15px] font-medium">I can work</p>
+      <p className="text-muted-foreground mb-3 text-[14px]">Select all that apply</p>
       <div className="flex flex-wrap gap-2">
         <Toggle label="Shifts" value={d.shifts} onChange={(shifts) => set({ shifts })} />
         <Toggle label="Nights" value={d.nights} onChange={(nights) => set({ nights })} />
@@ -1116,6 +1104,8 @@ function DetailsStep({
     onSubmit({
       ...d,
       ...(asksSchedule ? { shifts: Boolean(d.shifts), nights: Boolean(d.nights), weekends: Boolean(d.weekends) } : {}),
+      languages: rows,
+      priorities,
     });
   }
 
@@ -1125,7 +1115,8 @@ function DetailsStep({
       body: (
         <>
           <div>
-            <p className="mb-3 text-[15px] font-medium">Driving licence categories</p>
+            <p className="mb-1 text-[15px] font-medium">Driving licence categories</p>
+            <p className="text-muted-foreground mb-3 text-[14px]">Select all that apply</p>
             <div className="flex flex-wrap gap-2">
               {LICENCE_CATEGORIES.map((cat) => (
                 <Chip
@@ -1210,9 +1201,87 @@ function DetailsStep({
   };
 
   return (
-    <Screen title={content[family].title} hint="Only what employers in your field usually ask for.">
-      <div className="flex flex-col gap-7">{content[family].body}</div>
-      <div className="mt-8 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+    <Screen title={content[family].title} hint="Only what this kind of job usually needs. Languages and priorities are optional.">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-8">
+        {content[family].body}
+        <Ask title="Languages you can work in" hint="Select all that apply. Set a level after you add one.">
+          <div className="flex flex-wrap justify-center gap-3">
+            {LANGUAGE_SUGGESTIONS.filter((language) => !hasLanguage(language)).map((language) => (
+              <Chip key={language} label={language} selected={false} onClick={() => addLanguage(language)} />
+            ))}
+          </div>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              addLanguage(languageDraft);
+              setLanguageDraft("");
+            }}
+            className="mt-4 flex gap-2"
+          >
+            <Input
+              value={languageDraft}
+              onChange={(event) => setLanguageDraft(event.target.value)}
+              placeholder="Another language"
+              maxLength={40}
+              className="h-12 rounded-xl"
+            />
+            <Button type="submit" variant="outline" size="lg" className="h-12 rounded-xl" disabled={!languageDraft.trim()}>
+              Add
+            </Button>
+          </form>
+          {rows.length ? (
+            <ul className="mt-4 divide-y divide-white/10 rounded-2xl border-2 border-white/15">
+              {rows.map((row) => (
+                <li key={row.language} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <span className="text-[16px] font-medium">{row.language}</span>
+                  <span className="flex items-center gap-2">
+                    <select
+                      value={row.level}
+                      aria-label={`${row.language} level`}
+                      onChange={(event) =>
+                        setRows((prev) =>
+                          prev.map((item) =>
+                            item.language === row.language
+                              ? { ...item, level: event.target.value as LanguageAnswer["level"] }
+                              : item,
+                          ),
+                        )
+                      }
+                      className="border-white/25 bg-secondary h-10 rounded-xl border-2 px-3 text-[15px]"
+                    >
+                      {LANGUAGE_LEVELS.map((level) => (
+                        <option key={level} value={level}>
+                          {LANGUAGE_LEVEL_LABELS[level]}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${row.language}`}
+                      onClick={() => setRows((prev) => prev.filter((item) => item.language !== row.language))}
+                      className="text-muted-foreground hover:text-foreground grid size-9 place-items-center rounded-full"
+                    >
+                      <X className="size-4" aria-hidden />
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </Ask>
+        <Ask title="What matters most?" hint="Pick up to 3">
+          <div className="flex flex-wrap justify-center gap-3">
+            {prioritiesFor(family).map((id) => (
+              <Chip
+                key={id}
+                label={PRIORITY_LABELS[id]}
+                selected={priorities.includes(id)}
+                disabled={priorityFull && !priorities.includes(id)}
+                onClick={() => togglePriority(id)}
+              />
+            ))}
+          </div>
+        </Ask>
         <PrimaryButton pending={pending} onClick={submit}>
           Continue
         </PrimaryButton>
@@ -1222,6 +1291,7 @@ function DetailsStep({
 }
 
 type LanguageAnswer = NonNullable<SurveyAnswers["languages"]>[number];
+type Priority = (typeof PRIORITIES)[number];
 
 const LANGUAGE_SUGGESTIONS = ["Serbian", "English", "German", "Russian", "Hungarian", "French", "Italian"];
 const LANGUAGE_LEVEL_LABELS: Record<(typeof LANGUAGE_LEVELS)[number], string> = {
@@ -1231,117 +1301,6 @@ const LANGUAGE_LEVEL_LABELS: Record<(typeof LANGUAGE_LEVELS)[number], string> = 
   native: "Native",
 };
 
-function LanguagesStep({
-  initial,
-  family,
-  priorities,
-  pending,
-  onSubmit,
-}: {
-  initial: LanguageAnswer[];
-  family: OccupationFamily | undefined;
-  priorities: Priority[];
-  pending: boolean;
-  onSubmit: (languages: LanguageAnswer[], priorities: Priority[]) => void;
-}) {
-  const [rows, setRows] = useState<LanguageAnswer[]>(initial);
-  const [picked, setPicked] = useState<Priority[]>(priorities);
-  const [custom, setCustom] = useState("");
-  const full = picked.length >= 3;
-  const has = (name: string) => rows.some((r) => r.language.toLowerCase() === name.toLowerCase());
-
-  function add(language: string) {
-    if (!language.trim() || has(language)) return;
-    const row: LanguageAnswer = { language: language.trim(), level: "conversational" };
-    setRows((prev) => [...prev, row].slice(0, 8));
-  }
-
-  function togglePriority(id: Priority) {
-    setPicked((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : full ? prev : [...prev, id]));
-  }
-
-  return (
-    <Screen title="Languages, and what matters" hint="Both are optional. Skip if you'd rather move on.">
-      <div className="flex flex-wrap justify-center gap-3">
-        {LANGUAGE_SUGGESTIONS.filter((l) => !has(l)).map((language) => (
-          <Chip key={language} label={`+ ${language}`} selected={false} onClick={() => add(language)} />
-        ))}
-      </div>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          add(custom);
-          setCustom("");
-        }}
-        className="mt-4 flex gap-2"
-      >
-        <Input value={custom} onChange={(event) => setCustom(event.target.value)} placeholder="Another language" maxLength={40} className="h-12 rounded-xl" />
-        <Button type="submit" variant="outline" size="lg" className="h-12 rounded-xl" disabled={!custom.trim()}>
-          Add
-        </Button>
-      </form>
-      {rows.length ? (
-        <ul className="border-border divide-border mt-6 divide-y rounded-2xl border">
-          {rows.map((row) => (
-            <li key={row.language} className="flex items-center justify-between gap-3 px-5 py-3">
-              <span className="text-[16px] font-medium">{row.language}</span>
-              <span className="flex items-center gap-2">
-                <select
-                  value={row.level}
-                  aria-label={`${row.language} level`}
-                  onChange={(event) =>
-                    setRows((prev) =>
-                      prev.map((r) =>
-                        r.language === row.language ? { ...r, level: event.target.value as LanguageAnswer["level"] } : r,
-                      ),
-                    )
-                  }
-                  className="border-input dark:bg-input/30 h-10 rounded-xl border bg-transparent px-3 text-[15px]"
-                >
-                  {LANGUAGE_LEVELS.map((level) => (
-                    <option key={level} value={level}>
-                      {LANGUAGE_LEVEL_LABELS[level]}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  aria-label={`Remove ${row.language}`}
-                  onClick={() => setRows((prev) => prev.filter((r) => r.language !== row.language))}
-                  className="text-muted-foreground hover:text-foreground grid size-9 place-items-center rounded-full"
-                >
-                  <X className="size-4" aria-hidden />
-                </button>
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      <div className="mt-10">
-        <p className="mb-4 text-[18px] font-medium">What matters most? Up to 3.</p>
-        <div className="flex flex-wrap justify-center gap-3">
-          {prioritiesFor(family).map((id) => (
-            <Chip
-              key={id}
-              label={PRIORITY_LABELS[id]}
-              selected={picked.includes(id)}
-              disabled={full && !picked.includes(id)}
-              onClick={() => togglePriority(id)}
-            />
-          ))}
-        </div>
-      </div>
-      <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-        <PrimaryButton pending={pending} onClick={() => onSubmit(rows, picked)}>
-          Continue
-        </PrimaryButton>
-        <SkipButton disabled={pending} onClick={() => onSubmit([], [])} />
-      </div>
-    </Screen>
-  );
-}
-
-type Priority = (typeof PRIORITIES)[number];
 
 /** "Great product" is a tech concern; commute and schedule matter on-site. */
 function prioritiesFor(family: OccupationFamily | undefined): Priority[] {
@@ -1420,7 +1379,7 @@ function DropZone({
       className={cn(
         "flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-center transition-colors",
         compact ? "px-6 py-10" : "min-h-64 px-6 py-16 sm:min-h-72 sm:py-20",
-        dragging ? "border-primary bg-primary/10" : "border-border bg-card/30 hover:border-primary/50",
+        dragging ? "border-primary bg-primary/10" : "border-white/25 bg-card/30 hover:border-primary/50",
         doneLabel && "border-primary/60 border-solid",
       )}
     >

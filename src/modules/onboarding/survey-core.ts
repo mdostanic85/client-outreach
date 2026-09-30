@@ -275,7 +275,7 @@ function mergeLanguages(existing: string[], fromSurvey: string[]): string[] {
 function certificationList(survey: SurveyAnswers): string[] {
   return unique([
     ...(survey.certifications ?? []),
-    survey.sanitaryBook ? "Sanitary booklet (sanitarna knjižica)" : null,
+    survey.sanitaryBook ? "Sanitary booklet" : null,
     survey.tachographCard ? "Digital tachograph card" : null,
   ]);
 }

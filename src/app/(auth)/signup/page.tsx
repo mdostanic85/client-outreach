@@ -15,7 +15,7 @@ export default function SignUpPage() {
         <h1 className="font-display text-[1.75rem] font-semibold tracking-tight text-[var(--card-foreground)]">
           Create your account
         </h1>
-        <p className="text-muted-foreground mt-2 mb-8 text-[14px]">
+        <p className="text-muted-foreground mt-2 mb-5 text-[14px]">
           {noWidow(
             "Next we'll read your CV and ask a few questions, so the jobs we show actually fit you.",
           )}

@@ -35,7 +35,7 @@ export function SignUpForm() {
       <FieldError message={state.error} />
       <div className="space-y-2">
         <Label htmlFor="name">Name</Label>
-        <Input id="name" name="name" autoComplete="name" placeholder="Miloš" />
+        <Input id="name" name="name" autoComplete="name" placeholder="Alex" />
       </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
