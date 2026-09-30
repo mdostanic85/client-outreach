@@ -1290,7 +1290,7 @@ export async function interestedJobAction(jobId: string): Promise<ActionResult> 
   try {
     await ensureDb();
     const { interestedJob } = await import("@/modules/jobs/queries");
-    interestedJob(jobId);
+    await interestedJob(jobId);
     revalidatePath("/");
     revalidatePath("/interested");
     revalidatePath(`/jobs/${jobId}`);
@@ -1307,7 +1307,7 @@ export async function rejectJobAction(
   try {
     await ensureDb();
     const { rejectJob } = await import("@/modules/jobs/queries");
-    rejectJob(jobId, reason);
+    await rejectJob(jobId, reason);
     revalidatePath("/");
     revalidatePath("/interested");
     return { ok: true, data: undefined };
@@ -1322,7 +1322,7 @@ export async function saveJobForLaterAction(
   try {
     await ensureDb();
     const { saveJobForLater } = await import("@/modules/jobs/queries");
-    saveJobForLater(jobId);
+    await saveJobForLater(jobId);
     revalidatePath("/");
     revalidatePath("/interested");
     return { ok: true, data: undefined };
@@ -1337,7 +1337,7 @@ export async function markJobAppliedAction(
   try {
     await ensureDb();
     const { markJobApplied } = await import("@/modules/jobs/queries");
-    markJobApplied(jobId);
+    await markJobApplied(jobId);
     revalidatePath("/");
     revalidatePath("/interested");
     revalidatePath(`/jobs/${jobId}`);
