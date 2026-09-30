@@ -7,6 +7,7 @@ import { ingestCvAction, ingestPortfolioUrlAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CvScore } from "@/components/onboarding/cv-score";
+import { MaterialReader } from "@/components/onboarding/material-reader";
 import { cn } from "@/lib/utils";
 import {
   analyzeProfileAction,
@@ -1528,22 +1529,9 @@ function AnalyzingStep({
   onDone: (result: { summary: ProfileSummary; review: CvReview | null }) => void;
   onBack: () => void;
 }) {
-  const ANALYZE_LINES = [
-    "Reading your CV",
-    ...(hasWebsite ? ["Going through your website"] : []),
-    "Building your profile",
-    "Scoring your CV",
-  ];
-  const lastLine = ANALYZE_LINES.length - 1;
-  const [line, setLine] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const started = useRef(-1);
-
-  useEffect(() => {
-    const timer = setInterval(() => setLine((l) => Math.min(l + 1, lastLine)), 4000);
-    return () => clearInterval(timer);
-  }, [attempt, lastLine]);
 
   useEffect(() => {
     if (started.current === attempt) return;
@@ -1561,7 +1549,6 @@ function AnalyzingStep({
           <PrimaryButton
             onClick={() => {
               setError(null);
-              setLine(0);
               setAttempt((a) => a + 1);
             }}
           >
@@ -1576,27 +1563,8 @@ function AnalyzingStep({
   }
 
   return (
-    <Screen title="Reading your material…" hint="This takes about half a minute.">
-      <ul className="flex flex-col gap-4">
-        {ANALYZE_LINES.map((label, i) => (
-          <li
-            key={label}
-            className={cn(
-              "flex items-center gap-3 text-[16px] transition-opacity duration-500",
-              i > line ? "opacity-35" : "opacity-100",
-            )}
-          >
-            {i < line ? (
-              <Check className="text-primary size-5" aria-hidden />
-            ) : i === line ? (
-              <Loader2 className="text-primary size-5 animate-spin" aria-hidden />
-            ) : (
-              <span className="border-border size-5 rounded-full border-2" aria-hidden />
-            )}
-            {label}
-          </li>
-        ))}
-      </ul>
+    <Screen title="Reading your material">
+      <MaterialReader hasWebsite={hasWebsite} />
     </Screen>
   );
 }
