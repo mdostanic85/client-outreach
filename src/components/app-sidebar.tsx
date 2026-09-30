@@ -42,7 +42,7 @@ export type NavItem = {
 /**
  * 40px pill on the dark sidebar. Inactive at secondary ink with a hairline
  * pill outline on hover; active sits on a raised surface with a small
- * verdigris indicator.
+ * lime indicator.
  */
 function NavLink({
   item,
@@ -150,7 +150,7 @@ function SidebarAccount({ name, email }: { name?: string | null; email: string }
             />
           }
         >
-          <span className="bg-brand text-white grid size-9 shrink-0 place-items-center rounded-full text-caption font-medium">
+          <span className="bg-brand-gradient text-on-brand grid size-9 shrink-0 place-items-center rounded-full text-caption font-medium">
             {initials(name, email)}
           </span>
           <span className="min-w-0 flex-1">

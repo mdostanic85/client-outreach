@@ -246,7 +246,7 @@ function SearchExperienceInner({
                     aria-hidden
                     className={cn(
                       "h-1 w-full overflow-hidden rounded-full",
-                      done ? "bg-brand/45" : "bg-muted-foreground/20",
+                      done ? "bg-chart-1/45" : "bg-muted-foreground/20",
                     )}
                   >
                     {current ? <span className="search-progress-fill block h-full w-full" /> : null}
@@ -394,7 +394,7 @@ function StageProgressRing({
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={dashOffset}
-            className="stage-progress-arc stroke-brand"
+            className="stage-progress-arc stroke-chart-1"
             style={{
               transform: "rotate(-90deg)",
               transformOrigin: `${size / 2}px ${size / 2}px`,

@@ -15,7 +15,7 @@ export function WorthImproving({ report }: { report: MarketFitReport }) {
   if (actions.length === 0 && gaps.length === 0) return null;
 
   return (
-    <section className="bg-card mb-10 rounded-card p-5 sm:p-6 shadow-card">
+    <section data-reveal className="bg-card mb-10 rounded-card p-5 sm:p-6 shadow-card">
       <p className="text-muted-foreground text-body-sm font-medium">
         Worth improving
       </p>

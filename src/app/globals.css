@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Optra design tokens. Light, near-monochrome surfaces with a verdigris
+ * Optra design tokens. Light, near-monochrome surfaces with a lime
  * accent. Reasoning and measured values: docs/design/reference-ui-audit.md.
  */
 @theme inline {
@@ -55,6 +55,10 @@
   --color-success-wash: var(--success-wash);
   /* Verdigris: the brand accent for state, data and the action capsule. */
   --color-brand: var(--brand);
+  --color-on-brand: var(--on-brand);
+  --color-primary-hover: var(--primary-hover);
+  --color-hover: var(--hover);
+  --background-image-brand-gradient: linear-gradient(180deg, #daff95 0%, #bfee67 100%);
   --color-brand-hover: var(--brand-hover);
   --color-brand-ink: var(--brand-ink);
   --color-brand-wash: var(--brand-wash);
@@ -134,11 +138,20 @@
   --ink-secondary: rgb(26 26 28 / 0.64);
   --ink-tertiary: rgb(26 26 28 / 0.4);
 
-  --brand: #39a185;
-  --brand-hover: #63b8a3;
-  /* Verdigris dark enough for text on white and on the page tint (AA). */
-  --brand-ink: #23785f;
-  --brand-wash: #e4f2ee;
+  /* Brand: lime (gradient #DAFF95 → #BFEE67). It is a fill, never text; the
+     dark olive `brand-ink` carries accent text, `leaf` carries thin marks
+     (bars, rings, progress) that need 3:1 on white. */
+  --brand: #bfee67;
+  --brand-hover: #daff95;
+  --on-brand: #1a1a1c;
+  --brand-ink: #3b6a00;
+  --brand-wash: #f1fbd9;
+  --leaf: #559200;
+
+  /* Hover surface: darker than both the page tint and white, so a white
+     button never melts into the background on hover. */
+  --hover: #e6eaf1;
+  --inverse-hover: #3a3a3f;
 
   --duration-instant: 100ms;
   --duration-fast: 150ms;
@@ -158,6 +171,7 @@
   --popover: var(--surface);
   --popover-foreground: var(--ink);
   --primary: var(--inverse);
+  --primary-hover: var(--inverse-hover);
   --primary-foreground: #ffffff;
   --secondary: var(--subtle);
   --secondary-foreground: var(--ink);
@@ -171,15 +185,15 @@
   --border-strong: #d7dde5;
   --border-hover: #e3e7ed;
   --input: #d7dde5;
-  --ring: var(--brand);
+  --ring: var(--leaf);
   --warn: #8f5f0a;
   --warn-wash: #fbf1de;
   /* Amber for dots and bars (not text). */
   --warn-fill: #e0a53a;
   --success: #2e7d4f;
   --success-wash: #e5f3ea;
-  --chart-1: var(--brand);
-  --chart-2: #8fcab9;
+  --chart-1: var(--leaf);
+  --chart-2: #b9db7a;
   --chart-3: #c6ccd6;
   --chart-4: #8a919c;
   --chart-5: var(--ink);
@@ -188,11 +202,11 @@
   --sidebar: var(--page);
   --sidebar-foreground: var(--ink-secondary);
   --sidebar-primary: var(--brand);
-  --sidebar-primary-foreground: #ffffff;
+  --sidebar-primary-foreground: #1a1a1c;
   --sidebar-accent: var(--surface);
   --sidebar-accent-foreground: var(--ink);
   --sidebar-border: transparent;
-  --sidebar-ring: var(--brand);
+  --sidebar-ring: var(--leaf);
 
   --scrim: rgb(26 26 28 / 0.35);
 }
@@ -211,8 +225,11 @@
   --ink-emphasis: rgb(242 243 245 / 0.8);
   --ink-secondary: rgb(242 243 245 / 0.66);
   --ink-tertiary: rgb(242 243 245 / 0.4);
-  --brand-ink: #63b8a3;
-  --brand-wash: #16302a;
+  --brand-ink: #bfee67;
+  --brand-wash: #2b3412;
+  --leaf: #bfee67;
+  --hover: #2f3136;
+  --inverse-hover: #ffffff;
   --primary-foreground: #1a1a1c;
   --border: #2c2e33;
   --border-strong: #34363c;
@@ -321,11 +338,11 @@
     text-wrap: balance;
   }
 
-  /* Native checkboxes and radios pick up the verdigris on-state. */
+  /* Native checkboxes and radios pick up the leaf-green on-state. */
   input[type="checkbox"],
   input[type="radio"],
   progress {
-    accent-color: var(--brand);
+    accent-color: var(--leaf);
   }
 
   ::selection {
@@ -334,7 +351,7 @@
 }
 
 /*
- * Focus: a visible 2px verdigris ring, 2px offset, on every interactive
+ * Focus: a visible 2px leaf-green ring, 2px offset, on every interactive
  * element. Unlayered on purpose so a stray `outline-none` utility cannot
  * remove it. Menu items and options show focus as a highlighted row instead.
  */
@@ -440,6 +457,49 @@
   }
 }
 
+/*
+ * Scroll / open reveal: a section comes into focus — blurred and 24px low,
+ * then rises to sharp over 600ms (`ease/enter`). Elements opt in with
+ * `data-reveal`; RevealObserver sets `data-in` when they enter the viewport
+ * (once). `reveal-ready` is added to <html> before first paint by an inline
+ * script, so without JS or under reduced motion nothing is ever hidden.
+ * `--reveal-delay` staggers siblings.
+ */
+@keyframes optra-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+html.reveal-ready [data-reveal]:not([data-in]) {
+  opacity: 0;
+  transform: translateY(24px);
+  filter: blur(10px);
+}
+
+[data-reveal][data-in] {
+  animation: optra-reveal 600ms var(--ease-enter) backwards;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.reveal-ready [data-reveal]:not([data-in]) {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  [data-reveal][data-in] {
+    animation: none;
+  }
+}
+
 @layer utilities {
   /* Numbers line up; Inter Tight with tabular figures. */
   .tabular {
@@ -448,27 +508,27 @@
 
   /* Page header / empty-state first-load reveal. */
   .animate-enter {
-    animation: optra-enter 360ms var(--ease-enter) both;
+    animation: optra-enter 360ms var(--ease-enter) backwards;
   }
 
   .animate-enter-fade {
-    animation: optra-fade-in var(--duration-default) var(--ease-standard) both;
+    animation: optra-fade-in var(--duration-default) var(--ease-standard) backwards;
   }
 
   .animate-enter-scale {
-    animation: optra-scale-in 360ms var(--ease-enter) both;
+    animation: optra-scale-in 360ms var(--ease-enter) backwards;
   }
 
   .animate-expand {
-    animation: optra-expand-in var(--duration-default) var(--ease-enter) both;
+    animation: optra-expand-in var(--duration-default) var(--ease-enter) backwards;
   }
 
   .animate-step-forward {
-    animation: optra-step-in-forward 360ms var(--ease-enter) both;
+    animation: optra-step-in-forward 360ms var(--ease-enter) backwards;
   }
 
   .animate-step-back {
-    animation: optra-step-in-back 360ms var(--ease-enter) both;
+    animation: optra-step-in-back 360ms var(--ease-enter) backwards;
   }
 
   /* Rows: a 150ms surface change on hover, no translate. */
@@ -530,11 +590,11 @@
   .search-radar-disc {
     background: radial-gradient(
       circle at center,
-      color-mix(in srgb, var(--brand) 12%, var(--surface)) 0%,
-      color-mix(in srgb, var(--brand) 5%, var(--surface)) 55%,
+      color-mix(in srgb, var(--leaf) 12%, var(--surface)) 0%,
+      color-mix(in srgb, var(--leaf) 5%, var(--surface)) 55%,
       var(--surface) 72%
     );
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 22%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--leaf) 22%, transparent);
   }
 
   .search-radar-sweep {
@@ -542,8 +602,8 @@
       from 0deg,
       transparent 0deg,
       transparent 290deg,
-      color-mix(in srgb, var(--brand) 10%, transparent) 320deg,
-      color-mix(in srgb, var(--brand) 38%, transparent) 359deg,
+      color-mix(in srgb, var(--leaf) 10%, transparent) 320deg,
+      color-mix(in srgb, var(--leaf) 38%, transparent) 359deg,
       transparent 360deg
     );
     mask-image: radial-gradient(circle, black 69%, transparent 71%);
@@ -599,9 +659,9 @@
     background: linear-gradient(
       180deg,
       transparent 0%,
-      color-mix(in srgb, var(--brand) 0%, transparent) 20%,
-      color-mix(in srgb, var(--brand) 22%, transparent) 48%,
-      color-mix(in srgb, var(--brand) 6%, transparent) 72%,
+      color-mix(in srgb, var(--leaf) 0%, transparent) 20%,
+      color-mix(in srgb, var(--leaf) 22%, transparent) 48%,
+      color-mix(in srgb, var(--leaf) 6%, transparent) 72%,
       transparent 100%
     );
     animation: material-scan 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
@@ -628,7 +688,7 @@
     }
     42%,
     58% {
-      background: color-mix(in srgb, var(--brand) 55%, var(--surface));
+      background: color-mix(in srgb, var(--leaf) 55%, var(--surface));
     }
     82%,
     100% {
@@ -637,7 +697,7 @@
   }
 
   .search-progress-fill {
-    background: var(--brand);
+    background: var(--leaf);
     transition: width 500ms var(--ease-standard);
   }
 

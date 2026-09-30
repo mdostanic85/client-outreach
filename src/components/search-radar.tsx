@@ -8,7 +8,7 @@ import type { SearchActivity } from "@/modules/search-experience/stages";
 export type RadarActivity = SearchActivity & { id: number };
 
 const TONE_DOT: Record<NonNullable<SearchActivity["tone"]>, string> = {
-  strong: "bg-brand",
+  strong: "bg-chart-1",
   worth: "bg-warn-fill",
   weak: "bg-muted-foreground/45",
   neutral: "bg-[var(--chart-2)]",
@@ -100,15 +100,15 @@ export function SearchRadar({
             cy="50"
             r={r}
             fill="none"
-            className="stroke-brand/25"
+            className="stroke-chart-1/40"
             strokeWidth="0.35"
             strokeDasharray={r === 49.5 ? undefined : "0.8 1.4"}
           />
         ))}
-        <line x1="50" y1="1" x2="50" y2="28" className="stroke-brand/15" strokeWidth="0.3" />
-        <line x1="50" y1="72" x2="50" y2="99" className="stroke-brand/15" strokeWidth="0.3" />
-        <line x1="1" y1="50" x2="28" y2="50" className="stroke-brand/15" strokeWidth="0.3" />
-        <line x1="72" y1="50" x2="99" y2="50" className="stroke-brand/15" strokeWidth="0.3" />
+        <line x1="50" y1="1" x2="50" y2="28" className="stroke-chart-1/25" strokeWidth="0.3" />
+        <line x1="50" y1="72" x2="50" y2="99" className="stroke-chart-1/25" strokeWidth="0.3" />
+        <line x1="1" y1="50" x2="28" y2="50" className="stroke-chart-1/25" strokeWidth="0.3" />
+        <line x1="72" y1="50" x2="99" y2="50" className="stroke-chart-1/25" strokeWidth="0.3" />
       </svg>
       <div className="search-radar-sweep absolute inset-0 rounded-full" aria-hidden />
       <div

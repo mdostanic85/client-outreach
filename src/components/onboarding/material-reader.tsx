@@ -108,7 +108,7 @@ export function MaterialReader({ hasWebsite }: { hasWebsite: boolean }) {
                 aria-hidden
                 className={cn(
                   "h-1 w-full overflow-hidden rounded-full",
-                  done ? "bg-brand" : "bg-border-strong",
+                  done ? "bg-chart-1" : "bg-border-strong",
                 )}
               >
                 {current ? (

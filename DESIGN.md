@@ -1,8 +1,8 @@
 # Optra — Design System
 
 Light, calm and near-monochrome. Three light surfaces do the layering, one
-near-black ink carries the text at four opacities, and Optra's verdigris is
-the only accent. Controls are pills; containers are rounded rectangles.
+near-black ink carries the text at four opacities, and lime (the reference's
+`#DAFF95 → #BFEE67` gradient) is the only accent. Controls are pills; containers are rounded rectangles.
 
 The reasoning, measured values and the reference this was derived from live in
 [`docs/design/reference-ui-audit.md`](docs/design/reference-ui-audit.md)
@@ -30,22 +30,24 @@ token inside it flips; there is no global dark mode.
 | Border (dividers, outline buttons) | `border-border` | `#DFE4EB` |
 | Border (inputs, chips, badges) | `border-input`, `border-border-strong` | `#D7DDE5` |
 | Border hover (nav pill outline) | `border-border-hover` | `#E3E7ED` |
-| Brand fill (toggle on, indicators, data) | `bg-brand` | `#39A185` |
-| Brand hover | `bg-brand-hover` | `#63B8A3` |
-| Brand text (AA on white and page) | `text-brand-ink` | `#23785F` |
-| Brand wash | `bg-brand-wash` | `#E4F2EE` |
+| Brand fill (capsule, toggle on, avatar, active dot) | `bg-brand`, `bg-brand-gradient` | `#BFEE67` / `#DAFF95 → #BFEE67` |
+| Text on brand fill | `text-on-brand` | `#1A1A1C` |
+| Brand text (AA on white and page) | `text-brand-ink` | `#3B6A00` (lime `#BFEE67` in the dark sidebar) |
+| Brand wash | `bg-brand-wash` | `#F1FBD9` |
+| Thin marks (bars, rings, progress, stepper) | `bg-chart-1`, `--leaf` | `#559200` — lime is too light for 3:1 on white |
+| Hover surface | `bg-hover` | `#E6EAF1` — darker than white and the page, so hovers never melt in |
 | Danger (text + fill) | `text-destructive` / `bg-destructive-wash` | `#BE3F31` / `#FBECEA` |
 | Warning | `text-warn` / `bg-warn-wash` | `#8F5F0A` / `#FBF1DE` |
 | Success | `text-success` / `bg-success-wash` | `#2E7D4F` / `#E5F3EA` |
-| Focus ring | `--ring` | verdigris, 2px, 2px offset |
+| Focus ring | `--ring` | leaf `#559200`, 2px, 2px offset |
 | Scrim | `--scrim` | `#1A1A1C` 35% + `blur(14px)` |
 
 - Secondary text is 64%, not the reference's 60%: 60% drops below AA on the
   page tint and on subtle tiles at 14px.
-- Verdigris `#39A185` is a fill, not a text color (3.2:1 on white). Accent text
-  uses `text-brand-ink`.
-- Charts: `--chart-1` verdigris, `--chart-2` light verdigris, then neutral
-  tints (`--chart-3/4`) and ink (`--chart-5`). No other hues.
+- Lime is a fill, never text or a thin line (1.3:1 on white). Accent text uses
+  `text-brand-ink`; thin marks use `--leaf`.
+- Charts: `--chart-1` leaf, `--chart-2` light lime, then neutral tints
+  (`--chart-3/4`) and ink (`--chart-5`). No other hues.
 
 ## Type
 
@@ -118,8 +120,8 @@ only and not used in the app.
 - **Button** (`ui/button.tsx`): `primary` near-black pill, `secondary` white
   pill, `outline` white + 1px border, `ghost` 64% text with a pill outline on
   hover, `icon` round outlined that fills dark on hover, `destructive`.
-  Sizes `sm` 36 · `md` 44 · `lg` 48. Hover is a 150ms color/surface change.
-  `capsule` is opt-in: a verdigris icon capsule that swaps sides with the
+  Sizes `sm` 36 · `md` 44 · `lg` 48. Hover is a 150ms change to `bg-hover`
+  (or `primary-hover`), press scales to 98%. `capsule` is opt-in: a lime icon capsule that swaps sides with the
   label over 700ms. Use it only for the single hero CTA on welcome /
   onboarding and the main search action.
 - **Badge** (`ui/badge.tsx`): 12px pills with a 1px border; tinted `brand`,
@@ -130,7 +132,7 @@ only and not used in the app.
 - **Inputs**: 44–48px, 12px radius, 1px border, white fill. Search is a pill.
 - **Segmented control / tabs**: pill track in `#F0F2F6`, white active
   segment, indicator animated with `motion` layout (250ms).
-- **Toggle**: verdigris on-state.
+- **Toggle**: lime on-state with a dark thumb.
 - **Menus / tooltips / select**: white, 12–16px radius, overlay shadow. Open
   250ms `ease/enter` (y 10 → 0, scale .98 → 1); close 150ms `ease/exit`.
 - **Dialog**: scrim 35% + 14px blur (220ms); panel from y 28 / scale .94
@@ -140,7 +142,7 @@ only and not used in the app.
   width on phones.
 - **Accordion** (`ui/accordion.tsx`): measured-height + opacity, 300ms.
 - **Lists**: rows on one white card with 1px dividers; hover `#F0F2F6` at
-  150ms; no translate, no per-row entrance. A job row is clickable as a whole
+  150ms; no translate on hover, rows reveal on scroll. A job row is clickable as a whole
   (stretched link) and opens the **job page** (`/jobs/[jobId]`): a header card
   (title, company, score, status, actions), then "Why it fits you" and "About
   the job" on the left and "At a glance", "Company" and a plain "Next step"
@@ -161,12 +163,19 @@ only and not used in the app.
 | `ease-exit` | `cubic-bezier(0.32, 0, 0.67, 0)` |
 
 Allowed in the app: first-load reveal of page headers and empty states
-(`AnimateIn`, 8px + 8px blur, ~360ms), 150ms hover changes, overlay
+(`AnimateIn`, 8px + 8px blur, ~360ms), the **scroll / open reveal** (below), 150ms hover changes, overlay
 choreography, value swaps (out y −12 / in y +12, 220 / 280ms), one-time
 number counters, and live progress indicators while work is running.
 
-Not allowed: smooth-scroll libraries, scroll-triggered reveals on list items,
-parallax, looping ambient decoration, 700ms hovers (except the capsule CTA).
+**Scroll / open reveal.** Cards, stat tiles, accordion items and list rows
+carry `data-reveal`. The first time one scrolls into view (or appears on a
+newly opened page) it comes into focus: blurred 10px and 24px low, rising to
+sharp over 600ms with `ease/enter`; list rows stagger 50ms (max 5). Played
+once, never reversed. `RevealObserver` (root layout) flips `data-in`; an
+inline script sets `html.reveal-ready` before first paint, so nothing is
+hidden without JS or under reduced motion.
+
+Not allowed: smooth-scroll libraries, parallax, looping ambient decoration, 700ms hovers (except the capsule CTA).
 
 `prefers-reduced-motion` removes translate and blur entrances, counters and
 loops.

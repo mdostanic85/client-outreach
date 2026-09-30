@@ -77,14 +77,14 @@ export function QueueBoard({
         </div>
       )}
 
-      <div className="bg-card flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card px-5 py-3.5 text-body-sm shadow-card">
+      <div data-reveal className="bg-card flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card px-5 py-3.5 text-body-sm shadow-card">
         <span
           className={cn(
             "size-2 rounded-full",
             paused
               ? "bg-destructive status-pulse"
               : status.credentialsConfigured
-                ? "bg-brand status-pulse"
+                ? "bg-chart-1 status-pulse"
                 : "bg-warn-fill status-pulse",
           )}
         />

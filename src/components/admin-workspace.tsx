@@ -120,7 +120,7 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
             </p>
           </header>
 
-          <div className="bg-card shadow-card divide-y divide-border rounded-card in-[.bg-card]:bg-subtle in-[.bg-card]:shadow-none">
+          <div data-reveal className="bg-card shadow-card divide-y divide-border rounded-card in-[.bg-card]:bg-subtle in-[.bg-card]:shadow-none">
             <StatusRow
               label="Mailbox"
               value={
@@ -181,7 +181,7 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
           {props.usageByTask.length > 0 ? (
             <div className="space-y-3">
               <h3 className="text-body font-medium">Usage by task</h3>
-              <ul className="bg-card shadow-card divide-y divide-border rounded-card in-[.bg-card]:bg-subtle in-[.bg-card]:shadow-none text-body-sm">
+              <ul data-reveal className="bg-card shadow-card divide-y divide-border rounded-card in-[.bg-card]:bg-subtle in-[.bg-card]:shadow-none text-body-sm">
                 {props.usageByTask.map((u) => (
                   <li
                     key={`${u.task}-${u.provider}`}
@@ -330,7 +330,7 @@ function StatusRow({
         <span
           className={
             ok
-              ? "bg-brand size-2 rounded-full"
+              ? "bg-chart-1 size-2 rounded-full"
               : "bg-warn size-2 rounded-full"
           }
           aria-hidden

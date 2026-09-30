@@ -117,7 +117,7 @@ export function MailboxConnect({
       ) : null}
 
       {status.connected ? (
-        <div className="bg-card shadow-card divide-y divide-border rounded-card in-[.bg-card]:bg-subtle in-[.bg-card]:shadow-none">
+        <div data-reveal className="bg-card shadow-card divide-y divide-border rounded-card in-[.bg-card]:bg-subtle in-[.bg-card]:shadow-none">
           <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
             <div className="min-w-0 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -142,7 +142,7 @@ export function MailboxConnect({
           </div>
         </div>
       ) : (
-        <div className="bg-card shadow-card divide-y divide-border rounded-card in-[.bg-card]:bg-subtle in-[.bg-card]:shadow-none">
+        <div data-reveal className="bg-card shadow-card divide-y divide-border rounded-card in-[.bg-card]:bg-subtle in-[.bg-card]:shadow-none">
           <div className="px-5 py-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="min-w-0 space-y-1">

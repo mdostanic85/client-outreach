@@ -25,6 +25,7 @@ export function StatTile({
   return (
     <div
       data-slot="stat-tile"
+      data-reveal={surface === "card" ? "" : undefined}
       className={cn(
         "flex min-w-0 flex-col gap-1 rounded-tile p-4",
         surface === "subtle" ? "bg-subtle" : "bg-card shadow-card",

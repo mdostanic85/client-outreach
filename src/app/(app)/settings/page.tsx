@@ -17,7 +17,7 @@ function Section({ title, rows }: { title: string; rows: Row[] }) {
       <h2 className="text-muted-foreground mb-3 text-body-sm font-medium">
         {title}
       </h2>
-      <ul className="bg-card shadow-card divide-y divide-border overflow-hidden rounded-card">
+      <ul data-reveal className="bg-card shadow-card divide-y divide-border overflow-hidden rounded-card">
         {rows.map((row) => (
           <li key={row.href}>
             <Link
@@ -88,7 +88,7 @@ export default async function SettingsPage() {
           <h2 className="text-muted-foreground mb-3 text-body-sm font-medium">
             Account
           </h2>
-          <div className="bg-card shadow-card flex flex-wrap items-center justify-between gap-4 rounded-card px-5 py-4">
+          <div data-reveal className="bg-card shadow-card flex flex-wrap items-center justify-between gap-4 rounded-card px-5 py-4">
             <span className="min-w-0 text-body break-all">{user?.email}</span>
             <form action={signOutAction}>
               <Button type="submit" variant="outline">

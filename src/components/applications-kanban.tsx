@@ -47,7 +47,7 @@ function Card({
   pending: boolean;
 }) {
   return (
-    <li className="bg-card space-y-3 rounded-panel p-4 shadow-card">
+    <li data-reveal className="bg-card space-y-3 rounded-panel p-4 shadow-card">
       <div className="space-y-0.5">
         <p className="text-foreground text-body">
           {card.companyName}
@@ -99,7 +99,7 @@ export function ApplicationsKanban({ board }: { board: ApplicationMailBoard }) {
 
   if (total === 0) {
     return (
-      <div className="bg-card rounded-card shadow-card">
+      <div data-reveal className="bg-card rounded-card shadow-card">
         <EmptyState
           title="No applications sent yet"
           description="Prepare a package from Saved, then Send."

@@ -50,7 +50,7 @@ export function CapsuleLabel({
       <span
         ref={capsuleRef}
         aria-hidden
-        className="bg-brand text-white relative z-10 flex h-10 w-14 shrink-0 items-center justify-center rounded-full transition-transform duration-700 ease-standard group-hover/button:translate-x-(--capsule-shift) group-focus-visible/button:translate-x-(--capsule-shift) motion-reduce:transition-none motion-reduce:group-hover/button:translate-x-0 motion-reduce:group-focus-visible/button:translate-x-0 [&_svg:not([class*='size-'])]:size-[18px]"
+        className="bg-brand-gradient text-on-brand relative z-10 flex h-10 w-14 shrink-0 items-center justify-center rounded-full transition-transform duration-700 ease-standard group-hover/button:translate-x-(--capsule-shift) group-focus-visible/button:translate-x-(--capsule-shift) motion-reduce:transition-none motion-reduce:group-hover/button:translate-x-0 motion-reduce:group-focus-visible/button:translate-x-0 [&_svg:not([class*='size-'])]:size-[18px]"
       >
         {icon}
       </span>

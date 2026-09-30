@@ -62,20 +62,30 @@ export function Stagger({
 type StaggerItemProps = {
   children: ReactNode;
   className?: string;
-  /** Kept for call-site compatibility; rows no longer animate in. */
+  /** Position in the list; staggers the reveal by 50ms (capped at 5 steps). */
   index?: number;
   as?: ElementType;
   maxIndex?: number;
 };
 
 /**
- * List/grid child. Rows and tiles render settled: the design system allows
- * entrance motion on page headers and empty states only, never per row.
+ * List/grid child. It comes into focus (blur → sharp, rising) the first time
+ * it scrolls into view; siblings revealed together are staggered by index.
  */
 export function StaggerItem({
   children,
   className,
+  index = 0,
   as: Tag = "div",
 }: StaggerItemProps) {
-  return <Tag className={className}>{children}</Tag>;
+  const step = Math.min(Math.max(index, 0), 5);
+  return (
+    <Tag
+      data-reveal
+      className={className}
+      style={step > 0 ? ({ "--reveal-delay": `${step * 50}ms` } as CSSProperties) : undefined}
+    >
+      {children}
+    </Tag>
+  );
 }

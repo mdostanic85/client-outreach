@@ -14,8 +14,8 @@ const DIMENSIONS: Array<{ id: keyof CvReview["dimensions"]; label: string }> = [
 ];
 
 export function scoreTone(score: number) {
-  if (score >= 85) return { label: "Interview-ready", color: "var(--brand)" };
-  if (score >= 70) return { label: "Solid, a few fixes", color: "var(--brand)" };
+  if (score >= 85) return { label: "Interview-ready", color: "var(--chart-1)" };
+  if (score >= 70) return { label: "Solid, a few fixes", color: "var(--chart-1)" };
   if (score >= 50) return { label: "Needs work", color: "var(--warn)" };
   return { label: "Needs a rewrite", color: "var(--destructive)" };
 }

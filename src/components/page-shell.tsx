@@ -151,6 +151,7 @@ export function Surface({
 }) {
   return (
     <div
+      data-reveal
       className={cn(
         "bg-card overflow-hidden rounded-card shadow-card",
         interactive && "interactive-lift",

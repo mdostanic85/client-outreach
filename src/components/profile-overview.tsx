@@ -34,7 +34,7 @@ export function ProfileOverview({
 
   return (
     <div className="mb-4 flex flex-col gap-4">
-      <section className="bg-card rounded-card p-5 sm:p-6 shadow-card">
+      <section data-reveal className="bg-card rounded-card p-5 sm:p-6 shadow-card">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-muted-foreground text-body-sm font-medium">

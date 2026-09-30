@@ -38,7 +38,7 @@ export function BarList({
             <span className="text-foreground truncate text-body-sm">{item.label}</span>
             <span aria-hidden className="bg-subtle h-2 overflow-hidden rounded-full">
               <span
-                className="bg-brand block h-full rounded-full"
+                className="bg-chart-1 block h-full rounded-full"
                 style={{ width: `${pct}%`, minWidth: item.value > 0 ? "4px" : 0 }}
               />
             </span>

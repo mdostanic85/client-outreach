@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter_Tight } from "next/font/google";
+import { RevealObserver } from "@/components/reveal-observer";
 import "./globals.css";
 
 /**
@@ -25,9 +26,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${interTight.variable} h-full`}>
+    <html
+      lang="en"
+      className={`${interTight.variable} h-full`}
+      suppressHydrationWarning
+    >
+      <head>
+        {/* Before first paint: lets [data-reveal] start hidden (unless motion is reduced). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "if(!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('reveal-ready')",
+          }}
+        />
+      </head>
       <body className="bg-background text-foreground min-h-svh antialiased">
         {children}
+        <RevealObserver />
       </body>
     </html>
   );

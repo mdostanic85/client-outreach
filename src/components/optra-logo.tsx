@@ -18,7 +18,7 @@ const VIEW_W = 100.118;
 const VIEW_H = 38.47;
 
 /**
- * Official Optra wordmark (SVG) — ink or white type + verdigris p-descender.
+ * Official Optra wordmark (SVG) — ink or white type + lime p-descender.
  */
 export function OptraLogo({
   href = "/",

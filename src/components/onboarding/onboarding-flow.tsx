@@ -452,7 +452,7 @@ function Stepper({
       <span aria-hidden className="bg-border-strong absolute inset-x-1 top-1/2 h-0.5 -translate-y-1/2 rounded-full" />
       <span
         aria-hidden
-        className="bg-brand absolute top-1/2 left-1 h-0.5 -translate-y-1/2 rounded-full transition-[width] duration-700 ease-enter motion-reduce:transition-none"
+        className="bg-chart-1 absolute top-1/2 left-1 h-0.5 -translate-y-1/2 rounded-full transition-[width] duration-700 ease-enter motion-reduce:transition-none"
         style={{ width: `calc(${fill}% - ${fill > 0 ? "0.5rem" : "0rem"})` }}
       />
       {Array.from({ length: steps }, (_, index) => {
@@ -463,8 +463,8 @@ function Stepper({
             aria-hidden
             className={cn(
               "relative size-3 rounded-full border transition-colors duration-300 ease-standard",
-              reached ? "border-brand bg-brand" : "bg-card border-border-strong",
-              index === current && "ring-brand/20 ring-4",
+              reached ? "border-chart-1 bg-chart-1" : "bg-card border-border-strong",
+              index === current && "ring-chart-1/20 ring-4",
             )}
           />
         );
@@ -589,7 +589,7 @@ function Choices<T extends string>({
               ) : null}
             </span>
             {selected ? (
-              <span className="bg-brand text-white grid size-7 shrink-0 place-items-center rounded-full">
+              <span className="bg-brand-gradient text-on-brand grid size-7 shrink-0 place-items-center rounded-full">
                 <Check className="size-4" strokeWidth={2.75} aria-hidden />
               </span>
             ) : (

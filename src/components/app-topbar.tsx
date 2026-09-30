@@ -150,8 +150,8 @@ function JobSearchControl({ status }: { status: JobSearchStatus }) {
           aria-label={`Job search ${percent}% — open progress`}
         >
           <span aria-hidden className="relative flex size-2 shrink-0">
-            <span className="bg-brand absolute inline-flex size-full animate-ping rounded-full opacity-60 motion-reduce:animate-none" />
-            <span className="bg-brand relative inline-flex size-2 rounded-full" />
+            <span className="bg-chart-1 absolute inline-flex size-full animate-ping rounded-full opacity-60 motion-reduce:animate-none" />
+            <span className="bg-chart-1 relative inline-flex size-2 rounded-full" />
           </span>
           <span className="min-w-0 truncate text-body-sm">
             <span className="text-foreground">{stage?.label ?? "Searching"}</span>
@@ -264,7 +264,7 @@ function BudgetPill({ budget }: { budget: BudgetMeter }) {
             "size-1.5 shrink-0 rounded-full",
             tone === "critical" && "bg-destructive",
             tone === "warn" && "bg-warn-fill",
-            tone === "ok" && "bg-brand",
+            tone === "ok" && "bg-chart-1",
           )}
         />
         <span className="hidden sm:inline">AI</span>
