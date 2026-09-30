@@ -139,11 +139,14 @@ export function JobListItem({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div className="flex min-w-0 flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <MatchConstraintChips
-                remoteFit={row.remoteFit}
-                showTimezone={showTimezoneChip}
-                onOpen={() => setRationaleOpen(true)}
-              />
+              {/* Remote verdicts only mean something when the person asked for remote. */}
+              {row.remoteRequired ? (
+                <MatchConstraintChips
+                  remoteFit={row.remoteFit}
+                  showTimezone={showTimezoneChip}
+                  onOpen={() => setRationaleOpen(true)}
+                />
+              ) : null}
               {variant === "interested" && packageBadgeLabel ? (
                 <Badge variant="secondary" className="text-[13px]">
                   {packageBadgeLabel}

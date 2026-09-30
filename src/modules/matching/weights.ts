@@ -4,17 +4,19 @@ import { newId, nowIso } from "@/lib/ids";
 import { currentUserId, owned } from "@/modules/auth/current-user";
 import {
   JOB_MATCH_DIM_KEYS,
-  JOB_MATCH_WEIGHTS,
+  renameLegacyDimKeys,
   resolveJobMatchWeights,
+  defaultWeightsFor,
   type JobMatchDimKey,
 } from "@/modules/matching/score";
+import type { OccupationFamily } from "@/modules/occupations/families";
 
 function parseWeightsJson(
   raw: string | null | undefined,
 ): Partial<Record<JobMatchDimKey, number>> | null {
   if (!raw?.trim()) return null;
   try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const parsed = renameLegacyDimKeys(JSON.parse(raw) as Record<string, unknown>);
     const out: Partial<Record<JobMatchDimKey, number>> = {};
     for (const key of JOB_MATCH_DIM_KEYS) {
       const v = parsed[key];
@@ -26,10 +28,10 @@ function parseWeightsJson(
   }
 }
 
-/** Active job-match weights for the current account (defaults when unset). */
-export async function getJobMatchWeights(): Promise<
-  Record<JobMatchDimKey, number>
-> {
+/** Active job-match weights for the current account (family defaults when unset). */
+export async function getJobMatchWeights(
+  family?: OccupationFamily | null,
+): Promise<Record<JobMatchDimKey, number>> {
   const db = getDb();
   const row = (
     await db
@@ -38,16 +40,17 @@ export async function getJobMatchWeights(): Promise<
       .where(await owned(settingsJobScoring))
       .limit(1)
   )[0];
-  return resolveJobMatchWeights(parseWeightsJson(row?.weightsJson));
+  return resolveJobMatchWeights(parseWeightsJson(row?.weightsJson), family);
 }
 
 export async function setJobMatchWeights(
   weights: Partial<Record<JobMatchDimKey, number>>,
+  family?: OccupationFamily | null,
 ): Promise<Record<JobMatchDimKey, number>> {
-  const resolved = resolveJobMatchWeights({
-    ...JOB_MATCH_WEIGHTS,
-    ...weights,
-  });
+  const resolved = resolveJobMatchWeights(
+    { ...defaultWeightsFor(family), ...weights },
+    family,
+  );
   const db = getDb();
   const now = nowIso();
   const mine = await owned(settingsJobScoring);

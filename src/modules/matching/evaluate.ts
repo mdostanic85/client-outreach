@@ -35,6 +35,7 @@ import {
   type JobMatchDimKey,
 } from "@/modules/matching/score";
 import { getJobMatchWeights } from "@/modules/matching/weights";
+import { missingMandatoryLicences } from "@/modules/matching/requirements";
 import {
   STRONG_MATCH_MIN,
   WORTH_A_LOOK_LIMIT,
@@ -96,6 +97,8 @@ export const JobMatchLlmSchema = z.object({
   matchingReasons: z.array(z.string()).default([]),
   concerns: z.array(z.string()).default([]),
   missingRequirements: z.array(z.string()).default([]),
+  /** Licences / certificates / permits the posting says are mandatory and the profile lacks. */
+  mandatoryMissing: z.array(z.string()).default([]),
   mainRisk: z.string().optional(),
   remoteFit: RemoteFitSchema.optional(),
 });
@@ -120,6 +123,42 @@ function parseJsonLoose(text: string): unknown {
   const trimmed = text.trim();
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
   return JSON.parse(fenced ? fenced[1]!.trim() : trimmed);
+}
+
+/**
+ * A missing mandatory licence or certificate rules the posting out, however
+ * good the rest looks. The model's list and our own licence check both count.
+ */
+export function applyHardRequirements(
+  raw: z.infer<typeof JobMatchLlmSchema>,
+  job: { title: string; description: string },
+  licences: string[],
+): z.infer<typeof JobMatchLlmSchema> {
+  const missing = [
+    ...new Set([
+      ...raw.mandatoryMissing,
+      ...missingMandatoryLicences({ ...job, licences }),
+    ]),
+  ];
+  if (missing.length === 0) return raw;
+  const requirements = raw.dimensions.requirements;
+  return {
+    ...raw,
+    eligibility: "ineligible",
+    mandatoryMissing: missing,
+    mainRisk: raw.mainRisk ?? `Missing required: ${missing.join(", ")}`,
+    concerns: [
+      ...raw.concerns.filter((c) => !c.startsWith("Missing required:")),
+      `Missing required: ${missing.join(", ")}`,
+    ],
+    dimensions: {
+      ...raw.dimensions,
+      requirements: {
+        score: Math.min(requirements?.score ?? 0, 10),
+        evidence: `Missing: ${missing.join(", ")}`.slice(0, 200),
+      },
+    },
+  };
 }
 
 function normalizeMatchResult(
@@ -210,9 +249,13 @@ async function evaluateOne(
   await assertPublicBudgetAllows("jobMatch");
   const system = loadPrompt("jobs/match-and-explain.md");
   const model = resolveModel("jobMatch");
+  const profile = JSON.parse(profileJson) as { licenses?: unknown };
+  const profileLicences = Array.isArray(profile.licenses)
+    ? profile.licenses.filter((l): l is string => typeof l === "string")
+    : [];
   const user = JSON.stringify(
     {
-      profile: JSON.parse(profileJson),
+      profile,
       searchHints: searchParams,
       candidateFeedback: feedback,
       job: {
@@ -241,7 +284,11 @@ async function evaluateOne(
       jsonMode: true,
     });
     const parsed = normalizeMatchResult(
-      JobMatchLlmSchema.parse(parseJsonLoose(completion.text)),
+      applyHardRequirements(
+        JobMatchLlmSchema.parse(parseJsonLoose(completion.text)),
+        { title: jobRow.title, description: jobRow.description },
+        profileLicences,
+      ),
       {
         remotePolicy: jobRow.remotePolicy,
         location: jobRow.location,
@@ -305,7 +352,7 @@ export async function evaluateJobsBatch(options: {
     matchingConfig.portfolioProjects = options.usePortfolioInMatching;
   }
   const basePromptVersion = matchPromptVersion(matchingConfig);
-  const weights = await getJobMatchWeights();
+  const weights = await getJobMatchWeights(options.searchParams.occupationFamily);
   const feedback = await loadCandidateFeedback();
   const total = options.jobIds.length;
   let done = 0;

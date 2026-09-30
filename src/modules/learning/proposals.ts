@@ -13,11 +13,16 @@ import { buildMessages } from "@/lib/ai/google";
 import { resolveModel } from "@/lib/ai/routing";
 import { newId, nowIso } from "@/lib/ids";
 import { logger } from "@/lib/logging/logger";
-import { JOB_MATCH_WEIGHTS } from "@/modules/matching/score";
+import {
+  JOB_MATCH_WEIGHTS,
+  defaultWeightsFor,
+  renameLegacyDimKeys,
+} from "@/modules/matching/score";
 import { getJobMatchWeights, setJobMatchWeights } from "@/modules/matching/weights";
 import { assertGatesOrPreview } from "./gates";
 import { buildSourcePerformance } from "./reports";
 import { approveSearchProfile } from "@/modules/search-profile/approve";
+import { getApprovedSearchProfile } from "@/modules/search-profile/queries";
 import { getUserSettings } from "@/modules/settings/user-settings";
 import { currentUserId, owned } from "@/modules/auth/current-user";
 
@@ -145,14 +150,15 @@ export async function proposeScoringWeights(force = false) {
 export async function proposeJobScoringWeights(force = false) {
   assertGatesOrPreview(force);
   const db = getDb();
-  const current = await getJobMatchWeights();
-  // Light heuristic: nudge skills +2 / locationTimezone −2 vs defaults when
+  const family = (await getApprovedSearchProfile())?.params.occupationFamily ?? null;
+  const current = await getJobMatchWeights(family);
+  // Light heuristic: nudge skills +2 / location −2 vs defaults when
   // current equals defaults — gives a reviewable diff without silent apply.
   const proposed = { ...current };
-  const isDefault = jobMatchWeightsEqual(current, JOB_MATCH_WEIGHTS);
+  const isDefault = jobMatchWeightsEqual(current, defaultWeightsFor(family));
   if (isDefault) {
     proposed.skills = Math.min(40, current.skills + 2);
-    proposed.locationTimezone = Math.max(5, current.locationTimezone - 2);
+    proposed.location = Math.max(5, current.location - 2);
   }
 
   const payload = {
@@ -160,7 +166,7 @@ export async function proposeJobScoringWeights(force = false) {
     rationale: [
       "Job match total is computed in code from dimension scores × these weights.",
       isDefault
-        ? "Suggested +2 skills / −2 locationTimezone vs shipping defaults — review before Accept."
+        ? "Suggested +2 skills / −2 location vs shipping defaults — review before Accept."
         : "Re-propose current active weights for review (no auto-change).",
     ],
   };
@@ -198,7 +204,7 @@ export async function generateMarketReport(force = false) {
   const model = resolveModel("marketReport");
 
   const system =
-    "Write a weekly market-demand report in Markdown for a senior product designer. " +
+    "Write a weekly market-demand report in Markdown for this job seeker (the profile says what job they do). " +
     "Base only on provided outcome stats. Be honest about small samples. " +
     "Return JSON {title, bodyMd}.";
   const user = JSON.stringify(
@@ -356,7 +362,9 @@ export async function applyProposal(proposalId: string) {
         });
     }
   } else if (proposal.kind === "job_scoring_weights") {
-    const parsed = JSON.parse(proposal.proposalJson) as Record<string, unknown>;
+    const parsed = renameLegacyDimKeys(
+      JSON.parse(proposal.proposalJson) as Record<string, unknown>,
+    );
     const weights: Partial<Record<keyof typeof JOB_MATCH_WEIGHTS, number>> = {};
     for (const key of Object.keys(JOB_MATCH_WEIGHTS) as Array<
       keyof typeof JOB_MATCH_WEIGHTS
@@ -364,7 +372,10 @@ export async function applyProposal(proposalId: string) {
       const v = parsed[key];
       if (typeof v === "number" && Number.isFinite(v)) weights[key] = v;
     }
-    await setJobMatchWeights(weights);
+    await setJobMatchWeights(
+      weights,
+      (await getApprovedSearchProfile())?.params.occupationFamily ?? null,
+    );
   } else if (proposal.kind === "search_strategy") {
     const payload = JSON.parse(proposal.proposalJson) as {
       draftSearchProfileId?: string;
