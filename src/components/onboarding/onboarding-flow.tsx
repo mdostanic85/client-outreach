@@ -477,12 +477,14 @@ function PrimaryButton({
   onClick,
   type = "button",
   pending,
+  className,
 }: {
   children: ReactNode;
   disabled?: boolean;
   onClick?: () => void;
   type?: "button" | "submit";
   pending?: boolean;
+  className?: string;
 }) {
   return (
     <Button
@@ -490,7 +492,7 @@ function PrimaryButton({
       size="lg"
       disabled={disabled || pending}
       onClick={onClick}
-      className="mx-auto h-14 w-full max-w-sm rounded-2xl text-[18px]"
+      className={cn("mx-auto h-14 w-full max-w-sm rounded-2xl text-[18px]", className)}
     >
       {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
       {children}
@@ -540,10 +542,10 @@ function Choices<T extends string>({
             disabled={disabled}
             onClick={() => onPick(option.id)}
             className={cn(
-              "flex min-h-20 items-center justify-between gap-4 rounded-3xl border px-6 py-4 text-left text-[1.2rem] font-medium transition-colors disabled:opacity-60 sm:min-h-24 sm:text-[1.45rem]",
+              "flex min-h-20 items-center justify-between gap-4 rounded-3xl border-2 px-6 py-4 text-left text-[1.2rem] font-medium transition-colors disabled:opacity-60 sm:min-h-24 sm:text-[1.45rem]",
               selected
-                ? "border-primary bg-primary/10 text-[var(--card-foreground)]"
-                : "border-border bg-card/40 hover:border-primary/50 hover:bg-card/70",
+                ? "border-primary bg-[color-mix(in_oklch,var(--primary)_42%,#10141c)] font-semibold text-[var(--card-foreground)]"
+                : "border-white/25 bg-secondary text-foreground hover:border-white/45",
             )}
           >
             <span className="flex flex-col">
@@ -552,7 +554,13 @@ function Choices<T extends string>({
                 <span className="text-muted-foreground text-[14px] font-normal">{option.detail}</span>
               ) : null}
             </span>
-            {selected ? <Check className="text-primary size-5 shrink-0" aria-hidden /> : null}
+            {selected ? (
+              <span className="bg-primary text-primary-foreground grid size-7 shrink-0 place-items-center rounded-full">
+                <Check className="size-4" strokeWidth={2.75} aria-hidden />
+              </span>
+            ) : (
+              <span className="size-7 shrink-0 rounded-full border-2 border-white/25" aria-hidden />
+            )}
           </button>
         );
       })}
@@ -578,10 +586,10 @@ function Chip({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "h-14 rounded-full border px-6 text-[17px] font-medium transition-colors disabled:opacity-40",
+        "h-14 rounded-full border-2 px-6 text-[17px] font-medium transition-colors disabled:opacity-40",
         selected
-          ? "border-primary bg-primary/12 text-[var(--card-foreground)]"
-          : "border-border bg-card/40 hover:border-primary/50",
+          ? "border-primary bg-[color-mix(in_oklch,var(--primary)_42%,#10141c)] font-semibold text-[var(--card-foreground)]"
+          : "border-white/25 bg-secondary text-foreground hover:border-white/45",
       )}
     >
       {label}
@@ -1586,41 +1594,67 @@ function SummaryStep({
   onEdit: () => void;
   onConfirm: () => void;
 }) {
-  const rows: Array<[string, string | null]> = [
-    ["Role", roleWithLevel(summary.level, summary.role) || null],
-    ["Experience", summary.years ? `${summary.years} years` : null],
-    ["Strongest skills", summary.skills.length ? summary.skills.join(", ") : null],
-    ["Licences", summary.licenses.length ? summary.licenses.join(", ") : null],
-    ["Where", summary.where],
-    ["Minimum pay", summary.pay],
+  const where = summary.where
+    ?.split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const rows: Array<{ label: string; value?: string | null; chips?: string[] }> = [
+    { label: "Role", value: roleWithLevel(summary.level, summary.role) || null },
+    { label: "Experience", value: summary.years ? `${summary.years} years` : null },
+    { label: "Strongest skills", chips: summary.skills },
+    { label: "Licences", chips: summary.licenses },
+    { label: "Where", chips: where },
+    { label: "Minimum pay", value: summary.pay },
   ];
+  const visible = rows.filter((row) => row.value || row.chips?.length);
 
   return (
     <Screen title="Here's what we understood" hint="We'll search for roles based on this. You can change it anytime on your Profile.">
-      <dl className="border-border divide-border divide-y rounded-2xl border">
-        {rows
-          .filter(([, value]) => value)
-          .map(([label, value]) => (
-            <div key={label} className="flex flex-col gap-0.5 px-5 py-4 sm:flex-row sm:gap-6">
-              <dt className="text-muted-foreground w-40 shrink-0 text-[14px]">{label}</dt>
-              <dd className="text-[15px] text-[var(--card-foreground)]">{value}</dd>
-            </div>
-          ))}
+      <dl className="mx-auto w-full max-w-2xl text-left">
+        {visible.map((row, index) => (
+          <div
+            key={row.label}
+            className={cn(
+              "grid grid-cols-1 gap-2 py-5 sm:grid-cols-[11rem_1fr] sm:items-start sm:gap-8",
+              index > 0 && "border-t border-white/10",
+            )}
+          >
+            <dt className="text-muted-foreground text-[14px] tracking-[0.04em] sm:pt-1.5 sm:text-right">
+              {row.label}
+            </dt>
+            <dd>
+              {row.chips?.length ? (
+                <ul className="flex flex-wrap gap-2">
+                  {row.chips.map((chip) => (
+                    <li
+                      key={chip}
+                      className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-[15px] leading-none text-[var(--card-foreground)] ring-1 ring-white/10"
+                    >
+                      {chip}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[18px] leading-snug text-[var(--card-foreground)]">{row.value}</p>
+              )}
+            </dd>
+          </div>
+        ))}
       </dl>
       {error ? (
-        <p role="alert" className="text-destructive mt-4 text-[14px]">
+        <p role="alert" className="text-destructive mt-4 text-[15px]">
           {error}
         </p>
       ) : null}
-      <div className="mt-8 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-        <PrimaryButton pending={pending} onClick={onConfirm}>
+      <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-5">
+        <PrimaryButton className="sm:mx-0 sm:w-56" pending={pending} onClick={onConfirm}>
           {pending ? "Setting up your search…" : "Looks right"}
         </PrimaryButton>
         <button
           type="button"
           onClick={onEdit}
           disabled={pending}
-          className="text-muted-foreground hover:text-foreground h-12 px-3 text-[15px] font-medium"
+          className="text-muted-foreground hover:text-foreground h-14 px-4 text-[16px] font-medium disabled:opacity-60"
         >
           Change answers
         </button>
