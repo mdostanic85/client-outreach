@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { AuthBrand } from "@/components/auth/auth-shell";
 import { MakerCredit } from "@/components/maker-credit";
 import { ensureDb } from "@/db/ensure";
-import { countUsers, getSessionUser } from "@/modules/auth/session";
+import { getSessionUser } from "@/modules/auth/session";
 import { getUserOnboardingCompletedAt } from "@/modules/onboarding/state";
 import { signOutAction } from "@/modules/auth/actions";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ export default async function OnboardingLayout({
   await ensureDb();
   const user = await getSessionUser();
   if (!user) {
-    redirect((await countUsers()) === 0 ? "/welcome" : "/login");
+    redirect("/welcome");
   }
 
   // Only leave once the wizard marks complete — don't auto-skip the Done step.

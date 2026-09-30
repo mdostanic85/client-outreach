@@ -54,7 +54,7 @@ export function LoginExperience({
 
       <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-4">
         <motion.div
-          className="flex w-full max-w-[24rem] flex-col items-center"
+          className="flex w-full max-w-md flex-col items-center"
           initial={reducedMotion ? false : { opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: EASE }}
@@ -63,8 +63,10 @@ export function LoginExperience({
             <OptraLogo href="/welcome" width={133} />
           </div>
 
-          <p className="text-muted-foreground mb-9 max-w-[18rem] text-center text-[15px] leading-relaxed">
-            {noWidow("Today's roles. Explained matches. You approve every move.")}
+          <p className="text-muted-foreground mb-8 max-w-sm text-center text-[16px] leading-relaxed">
+            {noWidow(
+              "Optra reads your CV and shows you a few jobs that fit, with a plain reason for each one. Sign in to see today's list. Nothing is applied or emailed until you choose.",
+            )}
           </p>
 
           <div className="border-border/60 bg-card/55 w-full rounded-[1.35rem] border px-5 py-6 backdrop-blur-xl sm:px-6 sm:py-7">
@@ -174,12 +176,10 @@ function EmailFirstSignIn({
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="font-display text-[1.35rem] font-semibold tracking-tight text-[var(--card-foreground)]">
-          {step === "email" ? "Welcome back" : "Enter your password"}
+          {step === "email" ? "Sign in" : "Enter your password"}
         </h1>
-        <p className="text-muted-foreground mt-1.5 text-[14px] leading-snug">
-          {step === "email"
-            ? "Sign in to review today’s shortlist."
-            : email}
+        <p className="text-muted-foreground mt-1.5 text-[15px] leading-snug">
+          {step === "email" ? "Your jobs stay on this account." : email}
         </p>
       </div>
 

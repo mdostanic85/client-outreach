@@ -17,7 +17,7 @@ export default function SignUpPage() {
         </h1>
         <p className="text-muted-foreground mt-2 mb-8 text-[14px]">
           {noWidow(
-            "Private workspace. Next, we'll build your profile so matches stay accurate.",
+            "Next we'll read your CV and ask a few questions, so the jobs we show actually fit you.",
           )}
         </p>
         {googleSignInEnabled() ? (

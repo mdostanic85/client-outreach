@@ -21,7 +21,8 @@ const jetbrains = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "Optra",
-  description: "A private daily shortlist of roles that fit, with reasons you can trust",
+  description:
+    "Optra reads your CV and shows a short list of jobs that fit, with a plain reason for each one.",
 };
 
 export default function RootLayout({

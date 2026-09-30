@@ -23,7 +23,7 @@ export function AuthShell({
         <div className="space-y-2">
           <p className="text-muted-foreground text-[14px]">
             {noWidow(
-              "Explained matches · private shortlist · you approve every move",
+              "A short list of jobs, with a plain reason for each one. You decide what happens next.",
             )}
           </p>
           <MakerCredit />

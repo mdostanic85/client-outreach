@@ -9,7 +9,7 @@ import { getBudgetStatus } from "@/lib/budgets";
 import { getNavCounts } from "@/lib/nav-counts";
 import { getJobSearchStatus } from "@/modules/jobs/queries";
 import { getApprovedSearchProfile } from "@/modules/search-profile/queries";
-import { countUsers, getSessionUser } from "@/modules/auth/session";
+import { getSessionUser } from "@/modules/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,7 @@ export default async function AppLayout({
   await ensureDb();
   const user = await getSessionUser();
   if (!user) {
-    redirect((await countUsers()) === 0 ? "/welcome" : "/login");
+    redirect("/welcome");
   }
 
   if (!user.onboardingCompletedAt) {

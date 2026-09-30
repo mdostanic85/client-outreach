@@ -23,9 +23,9 @@ export async function currentUserId(): Promise<string> {
     import("next/navigation"),
   ]);
   const user = await getSessionUser();
-  // Pages render alongside their layout; send a signed-out visitor to login
-  // instead of throwing from whichever data query runs first.
-  if (!user) return redirect("/login");
+  // Pages render alongside their layout; send a signed-out visitor to the
+  // welcome screen instead of throwing from whichever data query runs first.
+  if (!user) return redirect("/welcome");
   return user.id;
 }
 
