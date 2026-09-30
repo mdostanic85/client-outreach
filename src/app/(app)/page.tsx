@@ -7,7 +7,7 @@ import {
 import { toJobTriageRow } from "@/modules/jobs/to-triage-row";
 import { listDailyLeads, getSettingsRow } from "@/modules/leads/queries";
 import { getApprovedSearchProfile } from "@/modules/search-profile/queries";
-import { currentUserId, isOwner } from "@/modules/auth/current-user";
+import { clientsModeEnabled } from "@/modules/onboarding/clients-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ export default async function HomePage({
 }) {
   const { first } = await searchParams;
   await ensureDb();
-  const clientsEnabled = await isOwner(await currentUserId());
+  const clientsEnabled = await clientsModeEnabled();
   const [leadRows, jobRows, mode, hasSearchProfile] = await Promise.all([
     clientsEnabled
       ? getSettingsRow().then((settings) =>

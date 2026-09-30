@@ -4,6 +4,7 @@ import {
   applySurveyToProfile,
   applySurveyToSearchParams,
   firstOpenQuestion,
+  offersFreelance,
   surveySteps,
   type SurveyAnswers,
 } from "../src/modules/onboarding/survey-core";
@@ -130,4 +131,11 @@ test("a returning user resumes at the first unanswered question", () => {
   assert.equal(firstOpenQuestion({ ...driver, detailsDone: undefined }), "details");
   assert.equal(firstOpenQuestion({ ...designer, pay: null }), null);
   assert.equal(firstOpenQuestion(driver), null);
+});
+
+test("clients mode is only for people who take freelance work", () => {
+  assert.equal(offersFreelance(driver), false);
+  assert.equal(offersFreelance({ ...driver, engagement: ["full_time", "freelance"] }), true);
+  assert.equal(offersFreelance(designer), true, "legacy workType contract");
+  assert.equal(offersFreelance({}), true, "accounts from before the survey keep it");
 });

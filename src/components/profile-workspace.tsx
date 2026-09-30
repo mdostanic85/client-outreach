@@ -816,7 +816,7 @@ export function ProfileWorkspace({
               value={currentRole}
               onChange={(e) => setCurrentRole(e.target.value)}
               disabled={!canEdit}
-              placeholder="e.g. Senior Product Designer"
+              placeholder="e.g. Nurse, Truck Driver, Accountant"
             />
           </Field>
           <Field label="Seniority">
@@ -903,7 +903,7 @@ export function ProfileWorkspace({
           onChange={(e) => setLeadershipExperience(e.target.value)}
           disabled={!canEdit}
           rows={3}
-          placeholder="e.g. Led a team of 4 product designers across 2 product lines"
+          placeholder="e.g. Led a shift of 6 nurses, or a team of 4 developers"
           className="min-h-[5.5rem] text-[14px]"
         />
       </ProfileSection>

@@ -394,3 +394,13 @@ export function summarizeProfile(profile: StructuredProfile): ProfileSummary {
     pay: formatCompensation(profile.compensation) ?? null,
   };
 }
+
+/**
+ * Client outreach only makes sense for people who take freelance work.
+ * Accounts that never saw the survey keep it (they set it up before).
+ */
+export function offersFreelance(survey: SurveyAnswers): boolean {
+  if (Object.keys(survey).length === 0) return true;
+  if (survey.engagement?.length) return survey.engagement.includes("freelance");
+  return survey.workType === "contract" || survey.workType === "both";
+}

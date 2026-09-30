@@ -48,7 +48,7 @@ export default async function WelcomePage() {
         </h1>
         <p className="text-muted-foreground mt-5 max-w-xl text-[16px] leading-relaxed sm:text-[17px]">
           {noWidow(
-            "Optra builds a grounded view of your work from your CV, LinkedIn, portfolio, and notes. Each day you get a short list of openings, with why they fit and what to check before you apply. You approve every move.",
+            "Optra builds a grounded view of your work from your CV and a few quick questions — for any job, from nursing and driving to accounting and software. Each day you get a short list of openings, with why they fit and what to check before you apply. You approve every move.",
           )}
         </p>
 
@@ -72,7 +72,7 @@ export default async function WelcomePage() {
             {
               title: noWidow("Grounded in your work"),
               body: noWidow(
-                "From your CV, LinkedIn, portfolio, and notes. Not a generic bio.",
+                "From your CV, licences and experience. Not a generic bio.",
               ),
             },
             {

@@ -112,7 +112,7 @@ export function PackageCvSlotEditor({
             <Input
               value={cv.headline ?? ""}
               disabled={pending}
-              placeholder="Senior Product Designer"
+              placeholder="Your job title"
               onChange={(e) => onChange({ ...cv, headline: e.target.value })}
             />
           </div>
@@ -323,7 +323,7 @@ export function PackageCvSlotEditor({
       {cv.projects.length ? (
         <EditorSection
           title="Selected work"
-          description="Case studies with outcomes land strongest for senior roles."
+          description="Projects with outcomes help where employers look at work samples."
           action={
             <label className="flex cursor-pointer items-center gap-2 text-[13px]">
               <input

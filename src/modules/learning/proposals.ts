@@ -252,7 +252,7 @@ export async function generatePositioningRecs(force = false) {
   const model = resolveModel("positioningRecs");
 
   const system =
-    "Recommend portfolio / CV / LinkedIn / service-positioning updates. " +
+    "Recommend CV / LinkedIn / licence and certificate / positioning updates that fit this person's occupation (portfolio only if their field uses one). " +
     "Return JSON {title, bodyMd, recommendations: string[]}. Suggestions only.";
   const user = JSON.stringify(
     {

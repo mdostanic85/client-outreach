@@ -8,7 +8,7 @@ import {
   getJobLearningDashboard,
   getLearningDashboard,
 } from "@/modules/learning/queries";
-import { currentUserId, isOwner } from "@/modules/auth/current-user";
+import { clientsModeEnabled } from "@/modules/onboarding/clients-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ export default async function LearningPage({
 }) {
   await ensureDb();
   const sp = searchParams ? await searchParams : {};
-  const clientsEnabled = await isOwner(await currentUserId());
+  const clientsEnabled = await clientsModeEnabled();
   const todayMode = await getTodayMode();
   const requested =
     sp.mode === "clients" || sp.mode === "jobs"

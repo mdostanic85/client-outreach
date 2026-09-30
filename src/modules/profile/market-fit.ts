@@ -1,4 +1,6 @@
 import { desc } from "drizzle-orm";
+import { familyProfile } from "@/modules/occupations/families";
+import { resolveFamily } from "@/modules/occupations/search";
 import { cache } from "react";
 import { getDb } from "@/db/client";
 import { jobMatches } from "@/db/schema";
@@ -233,12 +235,15 @@ function summaryFor(
   openHigh: number,
   topGap: MarketGap | undefined,
   evidenceDone: boolean,
+  usesPortfolio: boolean,
 ): string {
   if (label === "Strong" && openHigh === 0) {
     return "Strong market fit — keep sources fresh and re-approve after big wins.";
   }
   if (!evidenceDone) {
-    return "Solid start — portfolio outcomes and case-study evidence are the biggest unlock for senior roles.";
+    return usesPortfolio
+      ? "Solid start — projects with measurable outcomes are the biggest unlock."
+      : "Solid start — listing your licences, certificates and results is the biggest unlock.";
   }
   if (topGap) {
     return `Building toward competitive fit — recurring gap vs roles: “${topGap.text}” (${topGap.count}/${topGap.matchTotal} matches).`;
@@ -299,6 +304,11 @@ export function computeMarketFit(input: {
   );
   const hasPortfolio = sources.some((s) => s.type === "portfolio_url");
   const sourceTypes = new Set(sources.map((s) => s.type));
+  // Legacy profiles without a family keep the portfolio checks they had.
+  const family = resolveFamily(profile);
+  const usesPortfolio = family ? familyProfile(family).evidence === "portfolio" : true;
+  const credentialsCount =
+    (profile?.licenses.length ?? 0) + (profile?.certifications.length ?? 0);
 
   const sourcesChecklist: MarketFitChecklistItem[] = [
     {
@@ -315,18 +325,22 @@ export function computeMarketFit(input: {
       done: hasCvOrLinkedIn,
       detail: "At least one career narrative source.",
     },
-    {
-      id: "portfolio",
-      label: "Portfolio URL",
-      done: hasPortfolio,
-      detail: "Case-study evidence for senior design roles.",
-    },
-    {
-      id: "source_breadth",
-      label: "Multiple source types",
-      done: sourceTypes.size >= 2,
-      detail: `${sourceTypes.size} source type${sourceTypes.size === 1 ? "" : "s"} ingested.`,
-    },
+    ...(usesPortfolio
+      ? [
+          {
+            id: "portfolio",
+            label: "Portfolio URL",
+            done: hasPortfolio,
+            detail: "Project evidence employers in your field look for.",
+          },
+          {
+            id: "source_breadth",
+            label: "Multiple source types",
+            done: sourceTypes.size >= 2,
+            detail: `${sourceTypes.size} source type${sourceTypes.size === 1 ? "" : "s"} ingested.`,
+          },
+        ]
+      : []),
   ];
 
   const essentialsChecklist: MarketFitChecklistItem[] = [
@@ -380,7 +394,7 @@ export function computeMarketFit(input: {
   ];
 
   const evidenceCount = profile ? projectsWithOutcomes(profile) : 0;
-  const evidenceChecklist: MarketFitChecklistItem[] = [
+  const evidenceChecklist: MarketFitChecklistItem[] = usesPortfolio ? [
     {
       id: "projects_2",
       label: "At least 2 projects with outcomes",
@@ -401,6 +415,20 @@ export function computeMarketFit(input: {
       done:
         (profile?.industries.length ?? 0) > 0 ||
         (profile?.productTypes.length ?? 0) > 0,
+    },
+  ] : [
+    {
+      id: "credentials",
+      label: "Licences and certificates listed",
+      done: credentialsCount > 0,
+      detail: `${credentialsCount} listed`,
+    },
+    {
+      id: "achievements",
+      label: "Results or responsibilities on your roles",
+      done:
+        (profile?.relevantProjects.filter((p) => p.outcomes.some((o) => nonEmpty(o))).length ?? 0) >= 1 ||
+        (profile?.achievements.length ?? 0) > 0,
     },
   ];
 
@@ -472,7 +500,9 @@ export function computeMarketFit(input: {
           ? "Ready"
           : `${sourcesChecklist.filter((c) => !c.done).length} to fix`,
       description:
-        "Ingest CV/LinkedIn/portfolio and approve the version used for matching. Stale or thin sources weaken every job score.",
+        usesPortfolio
+          ? "Ingest CV/LinkedIn/portfolio and approve the version used for matching. Stale or thin sources weaken every job score."
+          : "Upload your CV and approve the version used for matching. Stale or thin sources weaken every job score.",
       checklist: sourcesChecklist,
       cta: ctaForFix(
         !input.approved ? "sources" : !hasPortfolio ? "sources" : "sources",
@@ -488,7 +518,7 @@ export function computeMarketFit(input: {
           ? "Complete"
           : `${essentialsChecklist.filter((c) => !c.done).length} open`,
       description:
-        "Role, seniority, skills, differentiators, and prefs so companies see a clear senior product designer fit.",
+        "Role, experience, skills, differentiators, and preferences so employers see a clear fit.",
       checklist: essentialsChecklist,
       cta: ctaForFix(
         !nonEmpty(profile?.currentRole) || !nonEmpty(profile?.seniority)
@@ -508,9 +538,12 @@ export function computeMarketFit(input: {
       summary:
         evidenceScore >= 100
           ? "Strong"
-          : `${evidenceCount}/2 projects`,
-      description:
-        "Senior roles expect case studies with measurable outcomes — not titles alone.",
+          : usesPortfolio
+            ? `${evidenceCount}/2 projects`
+            : `${evidenceChecklist.filter((c) => !c.done).length} open`,
+      description: usesPortfolio
+        ? "Employers expect projects with measurable outcomes — not titles alone."
+        : "Employers in your field look for licences, certificates and concrete results.",
       checklist: evidenceChecklist,
       cta: ctaForFix("evidence"),
     },
@@ -622,6 +655,7 @@ export function computeMarketFit(input: {
       openHighImpactCount,
       marketGaps[0],
       evidenceChecklist[0]?.done ?? false,
+      usesPortfolio,
     ),
     openHighImpactCount,
     pillars,
