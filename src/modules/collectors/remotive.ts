@@ -63,14 +63,22 @@ function searchTerm(title: string): string {
   );
 }
 
+/** Category comes from the occupation family. No category means a title search, not design. */
+export function remotiveSearchUrl(title: string, category?: string): string {
+  const url = new URL(REMOTIVE_API);
+  url.searchParams.set("search", searchTerm(title));
+  url.searchParams.set("limit", "100");
+  if (category) url.searchParams.set("category", category);
+  return url.href;
+}
+
 /**
- * Fetch Remotive jobs matching the query title (any category — the
- * occupation decides what we search for).
+ * Fetch Remotive jobs matching the query title in the family's category.
  */
 export async function collectRemotive(
   query: CollectorQuery,
 ): Promise<RawCollectedJob[]> {
-  const url = `${REMOTIVE_API}?search=${encodeURIComponent(searchTerm(query.title))}&limit=100`;
+  const url = remotiveSearchUrl(query.title, query.remotiveCategory);
   const res = await fetch(url, {
     headers: { Accept: "application/json" },
     cache: "no-store",

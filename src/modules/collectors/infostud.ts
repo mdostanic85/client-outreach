@@ -63,11 +63,13 @@ export type InfostudCard = {
   postedAt?: string;
 };
 
-export function infostudSearchUrl(title: string, page: number): string {
+export function infostudSearchUrl(title: string, page: number, cityId?: string): string {
   const url = new URL("/oglasi-za-posao", ORIGIN);
   url.searchParams.set("q", title);
   if (page > 1) url.searchParams.set("page", String(page));
-  return url.href;
+  // Keep `cities[]` literal. Infostud reads that key; an encoded bracket is a different filter.
+  const href = url.href;
+  return cityId && /^\d+$/.test(cityId) ? `${href}&cities[]=${cityId}` : href;
 }
 
 export function nextData(html: string): unknown {
@@ -156,7 +158,7 @@ export async function collectInfostud(
     terms: query.searchTerms?.length ? query.searchTerms : [query.title],
     maxPages: MAX_PAGES, maxRequests: MAX_LISTING_REQUESTS, delayMs: [800, 1600], sleep,
     loadPage: async (term, page) => {
-      const { cards: found, total } = parseInfostudSearch(await load(infostudSearchUrl(term, page + 1)));
+      const { cards: found, total } = parseInfostudSearch(await load(infostudSearchUrl(term, page + 1, query.cityId)));
       return { cards: found, last: found.length === 0 || (total != null && page * PAGE_SIZE + found.length >= total) };
     },
   });

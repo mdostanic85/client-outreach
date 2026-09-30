@@ -21,6 +21,33 @@ export const TECH_BUSINESS_ATS_BOARD_URLS = [
 
 const ATS_SOURCES: JobSource[] = ["greenhouse", "lever", "ashby"];
 
+/**
+ * Public career pages of employers that hire in Serbia, confirmed to expose
+ * a documented board feed. Only families with `usesAtsBoards` scan these.
+ * EURES is not here: eures.europa.eu disallows `/search/`, and the portal API
+ * requires authorization.
+ */
+export const SERBIA_ATS_BOARD_URLS = [
+  "https://huaweitechnologiesslovenia.teamtailor.com/jobs",
+  "https://sokin.teamtailor.com/jobs",
+];
+
+function vendorOfBoard(url: string): JobSource | null {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (host.endsWith(".teamtailor.com")) return "teamtailor";
+    if (host === "apply.workable.com") return "workable";
+    if (host.endsWith(".recruitee.com")) return "recruitee";
+    if (host.endsWith(".smartrecruiters.com")) return "smartrecruiters";
+    if (host.endsWith(".jobs.personio.de") || host.endsWith(".jobs.personio.com")) {
+      return "personio";
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export function mentionsSerbia(locations: string[]): boolean {
   return locations.some((loc) =>
     /serbia|srbija|belgrade|beograd|novi sad|ni[sš]|kragujevac|subotica|[cč]a[cč]ak|pan[cč]evo|kraljevo|zrenjanin|smederevo|leskovac|valjevo|[sš]abac|u[zž]ice|vr[sš]ac|sombor|kru[sš]evac/i.test(
@@ -46,8 +73,9 @@ export type SourcePlan = {
  * Which boards to read, from the occupation family and where the person
  * wants to work (plan table "Pretraga i izvori").
  *
- * - Serbia, any family: Infostud + LinkedIn (+ HelloWorld for tech)
- * - Remote, tech/business: Remotive, Arbeitnow, public ATS boards
+ * - Serbia, any family: Infostud, Poslovi, NSZ, LinkedIn (+ HelloWorld and Joberty for tech)
+ * - Remote, tech/business: Remotive (only families with categories), Arbeitnow, public ATS boards
+ * - Serbia employers on a known ATS: the manual Serbia catalog, for families that use ATS boards
  * - EU on-site: Arbeitnow + LinkedIn
  */
 export function planSources(input: {
@@ -61,16 +89,33 @@ export function planSources(input: {
   const europe = mentionsEurope(input.locations);
   const remote =
     input.remoteAllowed && family.remoteCommon;
+  const atsBoardUrls: string[] = [];
 
   if (serbia || (!remote && !europe)) {
     sources.add("infostud");
+    sources.add("poslovi");
+    sources.add("nsz");
     sources.add("linkedin");
-    if (input.family === "tech_digital") sources.add("helloworld");
+    if (input.family === "tech_digital") {
+      sources.add("helloworld");
+      sources.add("joberty");
+    }
   }
   if (remote) {
-    sources.add("remotive");
+    if (family.remotiveCategories.length > 0) sources.add("remotive");
     sources.add("arbeitnow");
     if (family.usesAtsBoards) ATS_SOURCES.forEach((s) => sources.add(s));
+  }
+  if (family.usesAtsBoards && serbia) {
+    for (const url of SERBIA_ATS_BOARD_URLS) {
+      const vendor = vendorOfBoard(url);
+      if (!vendor) continue;
+      sources.add(vendor);
+      atsBoardUrls.push(url);
+    }
+  }
+  if (remote && family.usesAtsBoards) {
+    atsBoardUrls.push(...TECH_BUSINESS_ATS_BOARD_URLS);
   }
   if (europe) {
     sources.add("arbeitnow");
@@ -79,7 +124,6 @@ export function planSources(input: {
 
   return {
     sourcesEnabled: [...sources],
-    atsBoardUrls:
-      remote && family.usesAtsBoards ? [...TECH_BUSINESS_ATS_BOARD_URLS] : [],
+    atsBoardUrls,
   };
 }

@@ -166,7 +166,7 @@ test("walkListing keeps earlier cards on a later block and caps requests", async
 test("Regional terms include the core title, the Serbian name and synonyms", () => {
   assert.deepEqual(
     regionalSearchTerms({ ...params, targetTitles: ["Senior Product Designer", "Staff Product Designer"], occupationId: "product_designer", titleSynonyms: ["UX Designer", "UI/UX dizajner"] }),
-    ["Senior Product Designer", "Product Designer", "Product dizajner", "UX Designer"]);
+    ["Senior Product Designer", "Product Designer", "Product dizajner", "UX Designer", "UI/UX dizajner", "Staff Product Designer"]);
   assert.deepEqual(regionalSearchTerms({ ...params, targetTitles: ["Senior Data Engineer"], occupationId: undefined, titleSynonyms: [] }), ["Senior Data Engineer", "Data Engineer"]);
   assert.deepEqual(
     regionalSearchTerms({ ...params, targetTitles: ["Truck Driver"], occupationId: "truck_driver", titleSynonyms: ["Vozač C kategorije"] }),

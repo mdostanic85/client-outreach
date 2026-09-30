@@ -60,18 +60,19 @@ function descriptionExcerpt(html: string | undefined): string {
 }
 
 /**
- * Fetch design/product-relevant remote jobs from Remotive.
- * Phase 0: one adapter only.
+ * Fetch remote jobs from Remotive. Category is the caller's choice
+ * (an occupation family, or "design" for client discovery). Omitting it
+ * does not fall back to design.
  */
 export async function fetchRemotiveSignals(options?: {
   category?: string;
   limit?: number;
 }): Promise<DiscoverySignal[]> {
-  const category = options?.category ?? "design";
   const limit = options?.limit ?? 25;
-  const url = `${REMOTIVE_API}?category=${encodeURIComponent(category)}`;
+  const url = new URL(REMOTIVE_API);
+  if (options?.category) url.searchParams.set("category", options.category);
 
-  const res = await fetch(url, {
+  const res = await fetch(url.href, {
     headers: { Accept: "application/json" },
     cache: "no-store",
   });

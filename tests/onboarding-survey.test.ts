@@ -104,7 +104,7 @@ test("survey answers shape an on-site search", () => {
   assert.equal(params.occupationFamily, "transport_logistics");
   assert.ok(params.requiredSkills.includes("CE"));
   assert.ok(params.titleSynonyms.includes("Vozač kamiona"));
-  assert.deepEqual([...params.sourcesEnabled].sort(), ["infostud", "linkedin"]);
+  assert.deepEqual([...params.sourcesEnabled].sort(), ["infostud", "linkedin", "nsz", "poslovi"]);
 });
 
 test("remote is ignored for families where it isn't offered", () => {

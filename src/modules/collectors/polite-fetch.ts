@@ -34,13 +34,18 @@ export async function fetchPage(url: string, options: {
   userAgent: string;
   fetcher?: typeof fetch;
   accept?: string;
+  method?: "GET" | "POST";
+  body?: URLSearchParams;
 }): Promise<string> {
   const res = await (options.fetcher ?? fetch)(url, {
+    method: options.method ?? "GET",
     headers: {
       "User-Agent": options.userAgent,
       Accept: options.accept ?? "text/html,application/xhtml+xml",
       "Accept-Language": "en-US,en;q=0.9,sr;q=0.8",
+      ...(options.body ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
     },
+    body: options.body?.toString(),
     cache: "no-store",
     redirect: "manual",
     signal: AbortSignal.timeout(15000),

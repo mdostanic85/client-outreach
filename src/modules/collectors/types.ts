@@ -28,6 +28,10 @@ export type CollectorQuery = {
   source: JobSource;
   /** Extra board search terms (local-language titles); results are merged and filtered. */
   searchTerms?: string[];
+  /** Remotive category from the occupation family. Absent: search by title only. */
+  remotiveCategory?: string;
+  /** City id on boards that filter with one (Infostud `cities[]`, Poslovi `search_cities[]`). */
+  cityId?: string;
 };
 
 /** Level words that don't help match a title ("Senior", "Lead"…). */

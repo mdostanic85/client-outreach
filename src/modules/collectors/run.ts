@@ -21,10 +21,15 @@ import { plannedAtsBoards, collectDirectBoard } from "./direct-ats";
 import { collectArbeitnow } from "./arbeitnow";
 import { collectHelloWorld } from "./helloworld";
 import { collectInfostud } from "./infostud";
+import { collectJoberty } from "./joberty";
 import { collectLinkedIn } from "./linkedin";
+import { collectNsz } from "./nsz";
+import { collectPoslovi } from "./poslovi";
 import { collectRemotive } from "./remotive";
+import { serbiaSearchPlaces } from "./serbia-places";
 import type { CollectorQuery, RawCollectedJob } from "./types";
 import { getOccupation } from "@/modules/occupations/catalog";
+import { FAMILY_PROFILES } from "@/modules/occupations/families";
 import { currentUserId, owned } from "@/modules/auth/current-user";
 
 function queryDetail(query: CollectorQuery): string {
@@ -60,6 +65,9 @@ const DIRECT_BOARD_SOURCES = new Set<JobSource>([
   "linkedin",
   "helloworld",
   "infostud",
+  "poslovi",
+  "joberty",
+  "nsz",
 ]);
 
 /** Free-API queries: one per title (not every location). */
@@ -67,7 +75,33 @@ export function expandFreeQueries(params: JobSearchParams): CollectorQuery[] {
   const titles = params.targetTitles.slice(0, 5);
   const sources = params.sourcesEnabled.filter((s) => FREE_SOURCES.has(s));
   const queries: CollectorQuery[] = [];
+  const categories = params.occupationFamily
+    ? FAMILY_PROFILES[params.occupationFamily].remotiveCategories
+    : [];
   for (const source of sources) {
+    if (source === "remotive") {
+      // A family with no Remotive category must not be searched as "design".
+      if (params.occupationFamily && categories.length === 0) continue;
+      const title = titles[0];
+      if (!title) continue;
+      const shared = {
+        title,
+        location: params.locations[0] ?? "Remote",
+        keywords: params.searchKeywords,
+        postedWithinHours: params.postedWithinHours,
+        maxResults: params.maxResultsPerQuery,
+        source,
+        searchTerms: [...titles.slice(1), ...params.titleSynonyms],
+      };
+      if (categories.length === 0) {
+        queries.push(shared);
+      } else {
+        for (const remotiveCategory of categories) {
+          queries.push({ ...shared, remotiveCategory });
+        }
+      }
+      continue;
+    }
     for (const title of titles) {
       queries.push({
         title,
@@ -135,6 +169,17 @@ export function expandLinkedInQueries(params: JobSearchParams): CollectorQuery[]
   }).slice(0, 3);
 }
 
+const SERBIAN_LETTERS = /[čćžšđ]/i;
+const CYRILLIC = /\p{Script=Cyrillic}/u;
+
+/** Eight terms when the profile has a Serbian name; otherwise four. */
+export function regionalTermCap(params: JobSearchParams): number {
+  const occ = getOccupation(params.occupationId);
+  if (occ?.sr) return 8;
+  const extra = params.titleSynonyms.join(" ");
+  return SERBIAN_LETTERS.test(extra) || CYRILLIC.test(extra) ? 8 : 4;
+}
+
 /**
  * Serbian boards rarely use the exact English senior title, so search the
  * core title and the Serbian name ("Vozač kamiona", "Medicinska sestra"),
@@ -159,7 +204,7 @@ export function regionalSearchTerms(params: JobSearchParams): string[] {
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
-  }).slice(0, 4);
+  }).slice(0, regionalTermCap(params));
 }
 
 /** HelloWorld (daily) + Infostud (only when explicitly enabled). */
@@ -169,32 +214,46 @@ export function expandRegionalQueries(params: JobSearchParams): CollectorQuery[]
   const searchTerms = regionalSearchTerms(params);
 
   const maxResults = Math.min(15, params.maxResultsPerQuery);
-  const serbiaLoc =
-    params.locations.find((l) => /serbia|belgrade/i.test(l)) ?? "Belgrade";
+  const places = serbiaSearchPlaces(params.locations);
+  const primary = places[0]?.label ?? "Beograd";
   const queries: CollectorQuery[] = [];
+  const base = {
+    title,
+    keywords: params.searchKeywords,
+    postedWithinHours: params.postedWithinHours,
+    maxResults,
+    searchTerms,
+  };
 
   if (params.sourcesEnabled.includes("helloworld")) {
-    queries.push({
-      title,
-      location: serbiaLoc,
-      keywords: params.searchKeywords,
-      postedWithinHours: params.postedWithinHours,
-      maxResults,
-      source: "helloworld",
-      searchTerms,
-    });
+    queries.push({ ...base, location: primary, source: "helloworld" });
+  }
+  if (params.sourcesEnabled.includes("joberty")) {
+    queries.push({ ...base, location: primary, source: "joberty" });
+  }
+  if (params.sourcesEnabled.includes("nsz")) {
+    queries.push({ ...base, location: "Serbia", source: "nsz" });
   }
 
   if (params.sourcesEnabled.includes("infostud")) {
-    queries.push({
-      title,
-      location: serbiaLoc,
-      keywords: params.searchKeywords,
-      postedWithinHours: params.postedWithinHours,
-      maxResults,
-      source: "infostud",
-      searchTerms,
-    });
+    for (const place of places) {
+      queries.push({
+        ...base,
+        location: place.label,
+        source: "infostud",
+        cityId: place.infostudId,
+      });
+    }
+  }
+  if (params.sourcesEnabled.includes("poslovi")) {
+    for (const place of places) {
+      queries.push({
+        ...base,
+        location: place.label,
+        source: "poslovi",
+        cityId: place.posloviId,
+      });
+    }
   }
 
   return queries;
@@ -232,6 +291,12 @@ async function runOneQuery(
       jobs = await collectHelloWorld(query, params);
     } else if (query.source === "infostud") {
       jobs = await collectInfostud(query, params);
+    } else if (query.source === "poslovi") {
+      jobs = await collectPoslovi(query, params);
+    } else if (query.source === "joberty") {
+      jobs = await collectJoberty(query, params);
+    } else if (query.source === "nsz") {
+      jobs = await collectNsz(query, params);
     } else if (query.source === "linkedin") {
       const direct = await collectLinkedIn(query, params);
       jobs = direct.jobs;

@@ -5,11 +5,29 @@ import { filterRawJobs } from "@/modules/jobs/filters";
 import { RawCollectedJobSchema, type RawCollectedJob } from "./types";
 
 export type AtsBoard = {
-  source: "greenhouse" | "lever" | "ashby";
+  source: "greenhouse" | "lever" | "ashby" | "teamtailor" | "workable" | "recruitee" | "smartrecruiters" | "personio";
   slug: string;
   region: "us" | "eu";
   endpoint: string;
 };
+
+const ATS_SOURCES = new Set<AtsBoard["source"]>([
+  "greenhouse", "lever", "ashby", "teamtailor", "workable", "recruitee", "smartrecruiters", "personio",
+]);
+
+const SLUG = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,80}$/;
+const RESERVED_SLUGS = new Set(["www", "api", "jobs", "apply", "boards", "careers", "career"]);
+
+function boardSlug(value: string | undefined): string {
+  if (!value || !SLUG.test(value) || RESERVED_SLUGS.has(value.toLowerCase())) {
+    throw new Error("Use the company board URL, not an individual posting");
+  }
+  return value;
+}
+
+function pathParts(u: URL): string[] {
+  return u.pathname.split("/").filter(Boolean);
+}
 
 /** Only public board URLs; user input never becomes an arbitrary fetch target. */
 export function parseAtsBoard(input: string): AtsBoard {
@@ -17,23 +35,59 @@ export function parseAtsBoard(input: string): AtsBoard {
   if (u.protocol !== "https:" || u.username || u.password || u.port) {
     throw new Error("Use a public HTTPS ATS board URL");
   }
-  const parts = u.pathname.split("/").filter(Boolean);
-  const slug = parts[0];
-  if (!slug || !/^[a-zA-Z0-9_-]+$/.test(slug) || parts.length !== 1) {
-    throw new Error("Use the company board URL, not an individual posting");
+  const host = u.hostname.toLowerCase();
+  const parts = pathParts(u);
+
+  const teamtailor = /^([a-z0-9-]+)\.teamtailor\.com$/.exec(host);
+  if (teamtailor) {
+    const slug = boardSlug(teamtailor[1]);
+    const path = u.pathname.replace(/\/$/, "") || "/";
+    if (path !== "/" && path !== "/jobs" && path !== "/jobs.json") {
+      throw new Error("Use the company board URL, not an individual posting");
+    }
+    return { source: "teamtailor", slug, region: "us", endpoint: `https://${slug}.teamtailor.com/jobs.json` };
   }
-  if (["boards.greenhouse.io", "job-boards.greenhouse.io", "boards.eu.greenhouse.io", "job-boards.eu.greenhouse.io"].includes(u.hostname)) {
-    const region = u.hostname.includes(".eu.") ? "eu" : "us";
+  if (host === "apply.workable.com") {
+    const slug = boardSlug(parts[0]);
+    if (parts.length !== 1) throw new Error("Use the company board URL, not an individual posting");
+    return { source: "workable", slug, region: "us", endpoint: `https://apply.workable.com/api/v1/widget/accounts/${slug}` };
+  }
+  const recruitee = /^([a-z0-9-]+)\.recruitee\.com$/.exec(host);
+  if (recruitee) {
+    const slug = boardSlug(recruitee[1]);
+    const path = u.pathname.replace(/\/$/, "") || "/";
+    if (path !== "/" && path !== "/api/offers") {
+      throw new Error("Use the company board URL, not an individual posting");
+    }
+    return { source: "recruitee", slug, region: "us", endpoint: `https://${slug}.recruitee.com/api/offers/` };
+  }
+  if (host === "jobs.smartrecruiters.com" || host === "careers.smartrecruiters.com") {
+    const slug = boardSlug(parts[0]);
+    if (parts.length !== 1) throw new Error("Use the company board URL, not an individual posting");
+    return { source: "smartrecruiters", slug, region: "us", endpoint: `https://api.smartrecruiters.com/v1/companies/${encodeURIComponent(slug)}/postings` };
+  }
+  const personio = /^([a-z0-9-]+)\.jobs\.personio\.(de|com)$/.exec(host);
+  if (personio) {
+    const slug = boardSlug(personio[1]);
+    const path = u.pathname.replace(/\/$/, "") || "/";
+    if (path !== "/" && path !== "/xml") throw new Error("Use the company board URL, not an individual posting");
+    return { source: "personio", slug, region: "eu", endpoint: `https://${slug}.jobs.personio.${personio[2]}/xml` };
+  }
+
+  const slug = boardSlug(parts[0]);
+  if (parts.length !== 1) throw new Error("Use the company board URL, not an individual posting");
+  if (["boards.greenhouse.io", "job-boards.greenhouse.io", "boards.eu.greenhouse.io", "job-boards.eu.greenhouse.io"].includes(host)) {
+    const region = host.includes(".eu.") ? "eu" : "us";
     return { source: "greenhouse", slug, region, endpoint: `https://boards-api${region === "eu" ? ".eu" : ""}.greenhouse.io/v1/boards/${slug}/jobs?content=true` };
   }
-  if (["jobs.lever.co", "jobs.eu.lever.co"].includes(u.hostname)) {
-    const region = u.hostname === "jobs.eu.lever.co" ? "eu" : "us";
+  if (["jobs.lever.co", "jobs.eu.lever.co"].includes(host)) {
+    const region = host === "jobs.eu.lever.co" ? "eu" : "us";
     return { source: "lever", slug, region, endpoint: `https://api${region === "eu" ? ".eu" : ""}.lever.co/v0/postings/${slug}?mode=json` };
   }
-  if (u.hostname === "jobs.ashbyhq.com") {
+  if (host === "jobs.ashbyhq.com") {
     return { source: "ashby", slug, region: "us", endpoint: `https://api.ashbyhq.com/posting-api/job-board/${slug}?includeCompensation=true` };
   }
-  throw new Error("Supported boards: Greenhouse, Lever and Ashby");
+  throw new Error("Supported boards: Greenhouse, Lever, Ashby, Teamtailor, Workable, Recruitee, SmartRecruiters and Personio");
 }
 
 const optionalText = z.string().nullish();
@@ -81,10 +135,78 @@ function safePostingUrl(value: string): string {
   return u.href;
 }
 
+const teamtailorItem = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  url: z.string().url(),
+  content_html: optionalText,
+  date_published: optionalText,
+});
+const workableJob = z.object({
+  id: id.optional(),
+  title: z.string().min(1),
+  shortcode: optionalText,
+  url: z.string().url(),
+  description: optionalText,
+  location: z.object({ city: optionalText, country: optionalText, region: optionalText }).nullish(),
+});
+const recruiteeOffer = z.object({
+  id,
+  title: z.string().min(1),
+  description: optionalText,
+  location: optionalText,
+  careers_url: z.string().url(),
+  company_name: optionalText,
+});
+const smartRecruitersPosting = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  releasedDate: optionalText,
+  ref: optionalText,
+  location: z.object({ city: optionalText, country: optionalText, remote: z.boolean().nullish() }).nullish(),
+});
+
+function postingOnHost(value: string, allowedHost: (host: string) => boolean): string {
+  const url = new URL(safePostingUrl(value));
+  if (!allowedHost(url.hostname.toLowerCase())) throw new Error("Posting URL is not on this board");
+  return url.href;
+}
+
+function rowsFor(board: AtsBoard, payload: unknown): unknown[] {
+  if (board.source === "lever") return z.array(z.unknown()).parse(payload);
+  if (board.source === "teamtailor") return z.object({ items: z.array(z.unknown()).default([]) }).parse(payload).items;
+  if (board.source === "workable") return z.object({ jobs: z.array(z.unknown()).default([]) }).parse(payload).jobs;
+  if (board.source === "recruitee") return z.object({ offers: z.array(z.unknown()).default([]) }).parse(payload).offers;
+  if (board.source === "smartrecruiters") return z.object({ content: z.array(z.unknown()).default([]) }).parse(payload).content;
+  return z.object({ jobs: z.array(z.unknown()) }).parse(payload).jobs;
+}
+
+function normalizePersonio(board: AtsBoard, payload: unknown): RawCollectedJob[] {
+  if (typeof payload !== "string") throw new Error("personio payload must be XML");
+  const $ = cheerio.load(payload, { xml: true });
+  const jobs: RawCollectedJob[] = [];
+  $("position").each((_, el) => {
+    const node = $(el);
+    const postingId = node.find("id").first().text().trim();
+    const title = node.find("name").first().text().trim();
+    if (!postingId || !title) return;
+    const description = node.find("value").toArray().map((part) => $(part).text()).join(" ");
+    jobs.push(RawCollectedJobSchema.parse({
+      source: "personio",
+      externalId: `${board.slug}:${postingId}`,
+      companyName: board.slug,
+      title,
+      sourceUrl: `https://${board.slug}.jobs.personio.de/job/${encodeURIComponent(postingId)}`,
+      description: plain(description),
+      location: node.find("office").first().text().trim() || undefined,
+    }));
+  });
+  return jobs;
+}
+
 export function normalizeAtsPayload(board: AtsBoard, payload: unknown): RawCollectedJob[] {
-  const rows = board.source === "lever"
-    ? z.array(z.unknown()).parse(payload)
-    : z.object({ jobs: z.array(z.unknown()) }).parse(payload).jobs;
+  if (board.source === "personio") return normalizePersonio(board, payload);
+  const rows = rowsFor(board, payload);
   // One malformed posting must not drop the whole board.
   return rows.flatMap((row) => {
     try {
@@ -119,28 +241,100 @@ function normalizeAtsRow(board: AtsBoard, row: unknown): RawCollectedJob[] {
       employmentType: j.categories?.commitment ?? undefined,
     })];
   }
-  const j = ashby.parse(row);
-  if (j.isListed === false) return [];
+  if (board.source === "ashby") {
+    const j = ashby.parse(row);
+    if (j.isListed === false) return [];
+    return [RawCollectedJobSchema.parse({ ...base,
+      externalId: `${board.slug}:${j.id}`, title: j.title,
+      sourceUrl: safePostingUrl(j.jobUrl), description: plain(j.descriptionPlain || j.descriptionHtml),
+      location: j.location ?? undefined, employmentType: j.employmentType ?? undefined,
+      remotePolicy: j.workplaceType ?? (j.isRemote === true ? "remote" : undefined),
+      postedAt: date(j.publishedAt),
+    })];
+  }
+  if (board.source === "teamtailor") {
+    const j = teamtailorItem.parse(row);
+    return [RawCollectedJobSchema.parse({ ...base,
+      externalId: `${board.slug}:${j.id}`,
+      title: j.title,
+      sourceUrl: postingOnHost(j.url, (host) => host === `${board.slug}.teamtailor.com`),
+      description: plain(j.content_html),
+      postedAt: date(j.date_published),
+    })];
+  }
+  if (board.source === "workable") {
+    const j = workableJob.parse(row);
+    const place = [j.location?.city, j.location?.country].filter(Boolean).join(", ");
+    return [RawCollectedJobSchema.parse({ ...base,
+      externalId: `${board.slug}:${j.shortcode || j.id || j.url}`,
+      title: j.title,
+      sourceUrl: postingOnHost(j.url, (host) => host === "apply.workable.com"),
+      description: plain(j.description),
+      location: place || undefined,
+    })];
+  }
+  if (board.source === "recruitee") {
+    const j = recruiteeOffer.parse(row);
+    return [RawCollectedJobSchema.parse({ ...base,
+      externalId: `${board.slug}:${j.id}`,
+      companyName: j.company_name || board.slug,
+      title: j.title,
+      sourceUrl: postingOnHost(j.careers_url, (host) => host === `${board.slug}.recruitee.com`),
+      description: plain(j.description),
+      location: j.location ?? undefined,
+    })];
+  }
+  const posting = smartRecruitersPosting.parse(row);
+  const location = [posting.location?.city, posting.location?.country].filter(Boolean).join(", ");
+  const ref = posting.ref && /^https:/.test(posting.ref)
+    ? posting.ref
+    : `https://jobs.smartrecruiters.com/${board.slug}/${posting.id}`;
   return [RawCollectedJobSchema.parse({ ...base,
-    externalId: `${board.slug}:${j.id}`, title: j.title,
-    sourceUrl: safePostingUrl(j.jobUrl), description: plain(j.descriptionPlain || j.descriptionHtml),
-    location: j.location ?? undefined, employmentType: j.employmentType ?? undefined,
-    remotePolicy: j.workplaceType ?? (j.isRemote === true ? "remote" : undefined),
-    postedAt: date(j.publishedAt),
+    externalId: `${board.slug}:${posting.id}`,
+    title: posting.name,
+    sourceUrl: postingOnHost(ref, (host) => host === "jobs.smartrecruiters.com" || host === "careers.smartrecruiters.com"),
+    description: "",
+    location: location || undefined,
+    remotePolicy: posting.location?.remote ? "remote" : undefined,
+    postedAt: date(posting.releasedDate),
   })];
+}
+
+function canonicalBoardUrl(board: AtsBoard): string {
+  switch (board.source) {
+    case "greenhouse":
+      return `https://boards${board.region === "eu" ? ".eu" : ""}.greenhouse.io/${board.slug}`;
+    case "lever":
+      return `https://jobs${board.region === "eu" ? ".eu" : ""}.lever.co/${board.slug}`;
+    case "ashby":
+      return `https://jobs.ashbyhq.com/${board.slug}`;
+    case "teamtailor":
+      return `https://${board.slug}.teamtailor.com/jobs`;
+    case "workable":
+      return `https://apply.workable.com/${board.slug}`;
+    case "recruitee":
+      return `https://${board.slug}.recruitee.com`;
+    case "smartrecruiters":
+      return `https://jobs.smartrecruiters.com/${board.slug}`;
+    case "personio":
+      return `https://${board.slug}.jobs.personio.de/xml`;
+  }
 }
 
 export async function fetchAtsBoard(board: AtsBoard, fetcher: typeof fetch = fetch): Promise<RawCollectedJob[]> {
   // Reconstruct the endpoint from validated board identity, even for internal callers.
-  const host = board.source === "greenhouse" ? `boards${board.region === "eu" ? ".eu" : ""}.greenhouse.io`
-    : board.source === "lever" ? `jobs${board.region === "eu" ? ".eu" : ""}.lever.co` : "jobs.ashbyhq.com";
-  const verified = parseAtsBoard(`https://${host}/${board.slug}`);
+  const verified = parseAtsBoard(canonicalBoardUrl(board));
   for (let attempt = 0; attempt < 2; attempt++) {
     const res = await fetcher(verified.endpoint, {
-      headers: { Accept: "application/json" }, cache: "no-store",
-      redirect: "error", signal: AbortSignal.timeout(15000),
+      headers: { Accept: verified.source === "personio" ? "application/xml" : "application/json" },
+      cache: "no-store",
+      redirect: "error",
+      signal: AbortSignal.timeout(15000),
     });
-    if (res.ok) return normalizeAtsPayload(verified, await res.json());
+    if (res.ok) {
+      const payload = verified.source === "personio" ? await res.text() : await res.json();
+      return normalizeAtsPayload(verified, payload);
+    }
     if (attempt === 0 && (res.status === 429 || res.status >= 500)) {
       const retry = res.headers.get("retry-after");
       const seconds = retry == null ? 1 : /^\d+$/.test(retry) ? Number(retry) : Math.ceil((Date.parse(retry) - Date.now()) / 1000);
@@ -155,7 +349,7 @@ export async function fetchAtsBoard(board: AtsBoard, fetcher: typeof fetch = fet
 }
 
 export function plannedAtsBoards(params: JobSearchParams): Array<{ url: string; board?: AtsBoard; error?: string }> {
-  if (!params.sourcesEnabled.some(s => ["greenhouse", "lever", "ashby"].includes(s))) return [];
+  if (!params.sourcesEnabled.some((s) => ATS_SOURCES.has(s as AtsBoard["source"]))) return [];
   const seen = new Set<string>();
   return params.atsBoardUrls.flatMap<{ url: string; board?: AtsBoard; error?: string }>(url => {
     try {

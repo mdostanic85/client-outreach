@@ -99,7 +99,11 @@ function testExpandRegional() {
     targetTitles: ["Product Designer"],
     sourcesEnabled: ["helloworld", "infostud"],
   });
-  assert.equal(withBoth.length, 2);
+  assert.equal(withBoth.length, 4);
+  assert.deepEqual(
+    withBoth.filter((q) => q.source === "infostud").map((q) => q.location),
+    ["Beograd", "Novi Sad", "Niš"],
+  );
 }
 
 function testCostEstimateUnderBudget() {

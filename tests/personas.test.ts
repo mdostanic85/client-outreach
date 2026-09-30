@@ -151,7 +151,7 @@ test("2. nurse, Belgrade, shifts, licence", () => {
   assert.equal(survey.occupationFamily, "healthcare");
   assert.ok(!surveySteps(survey).includes("level"), "no level ladder for nurses");
   assert.equal(params.remoteRequired, false);
-  assert.deepEqual([...params.sourcesEnabled].sort(), ["infostud", "linkedin"]);
+  assert.deepEqual([...params.sourcesEnabled].sort(), ["infostud", "linkedin", "nsz", "poslovi"]);
   assert.deepEqual(params.employmentTypes, ["Full-time", "Shift work"]);
   assert.equal(offersFreelance(survey), false);
 

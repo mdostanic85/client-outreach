@@ -66,11 +66,11 @@ test("search terms include both languages without duplicates", () => {
 
 test("sources follow family and location", () => {
   const nurse = planSources({ family: "healthcare", locations: ["Beograd"], remoteAllowed: false });
-  assert.deepEqual(nurse.sourcesEnabled.sort(), ["infostud", "linkedin"]);
+  assert.deepEqual(nurse.sourcesEnabled.sort(), ["infostud", "linkedin", "nsz", "poslovi"]);
   assert.deepEqual(nurse.atsBoardUrls, []);
 
   const dev = planSources({ family: "tech_digital", locations: ["Serbia", "Remote"], remoteAllowed: true });
-  for (const s of ["infostud", "linkedin", "helloworld", "remotive", "arbeitnow", "greenhouse"]) {
+  for (const s of ["infostud", "linkedin", "helloworld", "joberty", "poslovi", "nsz", "remotive", "arbeitnow", "greenhouse", "teamtailor"]) {
     assert.ok(dev.sourcesEnabled.includes(s as never), s);
   }
   assert.ok(dev.atsBoardUrls.length > 0);

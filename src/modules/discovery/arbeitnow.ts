@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { titleMatchesQuery, type CollectorQuery } from "@/modules/collectors/types";
 import {
   DiscoverySignalSchema,
   extractDomain,
@@ -73,11 +74,30 @@ function domainFromDescription(html: string | undefined, companyName: string): s
 }
 
 /**
- * Fetch European / ATS-sourced design-relevant jobs from Arbeitnow.
+ * Keep a posting when it shares the occupation's names. With no titles,
+ * nothing is dropped here — callers that still want a design list filter later.
+ */
+export function arbeitnowTitleAllowed(title: string, titles: string[] | undefined): boolean {
+  const needles = (titles ?? []).map((value) => value.trim()).filter(Boolean);
+  if (!needles.length) return true;
+  const query: CollectorQuery = {
+    title: needles[0]!,
+    searchTerms: needles.slice(1),
+    location: "",
+    postedWithinHours: 24,
+    maxResults: 1,
+    source: "arbeitnow",
+  };
+  return titleMatchesQuery(title, query);
+}
+
+/**
+ * Fetch European / ATS-sourced jobs from Arbeitnow, matched to occupation titles.
  */
 export async function fetchArbeitnowSignals(options?: {
   pages?: number;
   limit?: number;
+  titles?: string[];
 }): Promise<DiscoverySignal[]> {
   const pages = options?.pages ?? 2;
   const limit = options?.limit ?? 80;
@@ -97,12 +117,9 @@ export async function fetchArbeitnowSignals(options?: {
     if ((data.data ?? []).length === 0) break;
   }
 
-  const designish = jobs.filter((job) => {
-    const hay = `${job.title} ${asStringList(job.tags).join(" ")}`.toLowerCase();
-    return /design|ux|ui|product design|creative|brand/.test(hay);
-  });
+  const matched = jobs.filter((job) => arbeitnowTitleAllowed(job.title, options?.titles));
 
-  return designish.slice(0, limit).map((job) => {
+  return matched.slice(0, limit).map((job) => {
     const excerpt = descriptionExcerpt(job.description);
     const publishedAt =
       typeof job.created_at === "number"

@@ -136,7 +136,7 @@ export async function persistSignal(signal: DiscoverySignal): Promise<PersistRes
 export async function discoverAndPersistOne(options?: {
   preferDomain?: boolean;
 }): Promise<PersistResult | null> {
-  const batch = await fetchRemotiveSignals({ limit: 40 });
+  const batch = await fetchRemotiveSignals({ limit: 40, category: "design" });
 
   const ordered = options?.preferDomain
     ? [...batch].sort((a, b) => Number(!!b.companyDomain) - Number(!!a.companyDomain))
@@ -180,7 +180,7 @@ export async function discoverBatch(filtersJson: string): Promise<DiscoverBatchR
   const sourceErrors: Array<{ source: string; error: string }> = [];
 
   try {
-    rawSignals.push(...(await fetchRemotiveSignals({ limit: 50 })));
+    rawSignals.push(...(await fetchRemotiveSignals({ limit: 50, category: filters.categories?.[0] ?? "design" })));
   } catch (err) {
     sourceErrors.push({
       source: "remotive",
