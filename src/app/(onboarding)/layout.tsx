@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { AuthBrand } from "@/components/auth/auth-shell";
+import { AuthHeader } from "@/components/auth/auth-shell";
 import { MakerCredit } from "@/components/maker-credit";
 import { ensureDb } from "@/db/ensure";
 import { getSessionUser } from "@/modules/auth/session";
@@ -27,14 +27,15 @@ export default async function OnboardingLayout({
 
   return (
     <div className="bg-background flex min-h-svh flex-col">
-      <header className="flex items-center justify-between gap-4 px-4 py-4 sm:px-8 sm:py-5">
-        <AuthBrand />
-        <form action={signOutAction}>
-          <Button type="submit" variant="ghost" size="sm">
-            Sign out
-          </Button>
-        </form>
-      </header>
+      <AuthHeader
+        action={
+          <form action={signOutAction}>
+            <Button type="submit" variant="ghost" size="sm">
+              Sign out
+            </Button>
+          </form>
+        }
+      />
       <div className="flex flex-1 flex-col">{children}</div>
       <footer className="px-4 pb-5 sm:px-8">
         <MakerCredit align="center" />

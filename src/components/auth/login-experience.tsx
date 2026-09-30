@@ -4,7 +4,7 @@ import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useActionState, useState, type FormEvent } from "react";
 import { AuthShell } from "@/components/auth/auth-shell";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -29,13 +29,7 @@ export function LoginExperience({
   notice: string | null;
 }) {
   return (
-    <AuthShell
-      headerAction={
-        <Link href="/signup" className={buttonVariants({ variant: "ghost", size: "sm" })}>
-          Create account
-        </Link>
-      }
-    >
+    <AuthShell>
       <EmailFirstSignIn googleEnabled={googleEnabled} error={error} notice={notice} />
     </AuthShell>
   );

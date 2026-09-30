@@ -45,7 +45,7 @@ export function EmptyState({
         {icon ?? <Search className="size-5" strokeWidth={1.5} />}
       </div>
       <div className="space-y-1">
-        <p className="text-h5 text-foreground">
+        <p className="font-heading text-h5 text-foreground">
           {title}
         </p>
         <p className="text-muted-foreground mx-auto max-w-sm text-body-sm sm:text-body">

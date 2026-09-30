@@ -3,31 +3,41 @@ import { MakerCredit } from "@/components/maker-credit";
 import { OptraLogo } from "@/components/optra-logo";
 import { cn, noWidow } from "@/lib/utils";
 
-export function AuthBrand() {
-  return <OptraLogo href="/welcome" width={92} />;
+export function AuthBrand({ width = 120 }: { width?: number }) {
+  return <OptraLogo href="/welcome" width={width} />;
 }
 
 /**
- * Auth frame: the page tint, a slim header, one centered white card and a
- * quiet footer. The card reveals once on first load.
+ * Public-page header: the wordmark sits on the page's center line; the one
+ * action (if any) hangs off the right edge. Equal side columns keep the logo
+ * centered whether or not there is an action.
+ */
+export function AuthHeader({ action }: { action?: ReactNode }) {
+  return (
+    <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 py-4 sm:px-8 sm:py-5">
+      <span aria-hidden />
+      <AuthBrand />
+      <div className="flex justify-end">{action}</div>
+    </header>
+  );
+}
+
+/**
+ * Auth frame: the wordmark and one white card, centered together as a single
+ * group, over the page tint, with a quiet footer. No header links: every card
+ * already links to the other auth screen, so a corner "Log in" would repeat it.
  */
 export function AuthShell({
   children,
-  headerAction,
   className,
 }: {
   children: ReactNode;
-  /** Right side of the header, e.g. a link to the other auth screen. */
-  headerAction?: ReactNode;
   className?: string;
 }) {
   return (
     <div className="bg-background flex min-h-svh w-full flex-col">
-      <header className="flex shrink-0 items-center justify-between gap-4 px-4 py-4 sm:px-8 sm:py-5">
-        <AuthBrand />
-        {headerAction}
-      </header>
-      <main className="flex flex-1 items-center justify-center px-4 py-6 sm:px-6">
+      <main className="flex flex-1 flex-col items-center justify-center gap-8 px-4 pt-10 pb-6 sm:gap-10 sm:px-6 sm:pt-16">
+        <AuthBrand width={128} />
         <div
           className={cn(
             "animate-enter bg-card w-full max-w-md rounded-card p-6 sm:p-8 shadow-card",

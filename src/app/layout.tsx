@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter_Tight } from "next/font/google";
+import localFont from "next/font/local";
 import { RevealObserver } from "@/components/reveal-observer";
 import "./globals.css";
 
@@ -14,10 +15,25 @@ const interTight = Inter_Tight({
   weight: ["400", "500", "600"],
 });
 
+/**
+ * Headlines only (h1–h6 and heading-styled titles). Mapped one cut heavier
+ * than the CSS weight on purpose: headings keep the app's 400 / 500 scale,
+ * but 400 draws Alcyone Medium and 500 draws SemiBold, so every headline is
+ * a step bolder without touching each class. Only these two files load.
+ */
+const alcyone = localFont({
+  variable: "--font-display",
+  display: "swap",
+  src: [
+    { path: "../fonts/alcyone/Alcyone-Medium.woff2", weight: "400", style: "normal" },
+    { path: "../fonts/alcyone/Alcyone-SemiBold.woff2", weight: "500", style: "normal" },
+  ],
+});
+
 export const metadata: Metadata = {
   title: "Optra",
   description:
-    "Optra reads your CV and shows a short list of jobs that fit, with a plain reason for each one.",
+    "Add your CV. Optra shows a short list of open jobs that fit, with a plain reason for each one. You decide what happens next.",
 };
 
 export default function RootLayout({
@@ -28,7 +44,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${interTight.variable} h-full`}
+      className={`${interTight.variable} ${alcyone.variable} h-full`}
       suppressHydrationWarning
     >
       <head>

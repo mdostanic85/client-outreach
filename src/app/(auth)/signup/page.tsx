@@ -1,23 +1,15 @@
-import Link from "next/link";
 import { AuthHeading, AuthShell } from "@/components/auth/auth-shell";
 import { SignUpForm } from "@/components/auth/auth-forms";
 import {
   AuthDivider,
   GoogleSignInButton,
 } from "@/components/auth/google-sign-in";
-import { buttonVariants } from "@/components/ui/button";
 import { googleSignInEnabled } from "@/modules/auth/auth";
 import { noWidow } from "@/lib/utils";
 
 export default function SignUpPage() {
   return (
-    <AuthShell
-      headerAction={
-        <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
-          Log in
-        </Link>
-      }
-    >
+    <AuthShell>
       <AuthHeading
         title="Create your account"
         description={noWidow(

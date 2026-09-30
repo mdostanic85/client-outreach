@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { AuthBrand } from "@/components/auth/auth-shell";
 import { MakerCredit } from "@/components/maker-credit";
@@ -6,78 +7,107 @@ import { buttonVariants } from "@/components/ui/button";
 import { CapsuleLabel } from "@/components/ui/capsule-label";
 import { noWidow } from "@/lib/utils";
 
-const FACTS = [
-  { n: "1", title: "Your CV", body: "We read your work." },
-  { n: "2", title: "A short list", body: "A few jobs a day." },
-  { n: "3", title: "You decide", body: "Nothing is sent for you." },
+const STEPS = [
+  {
+    title: "Add your CV",
+    body: "We read the work you have already done.",
+  },
+  {
+    title: "See a short list",
+    body: "A few open jobs, each with a plain reason it fits.",
+  },
+  {
+    title: "You decide",
+    body: "Nothing is applied for or sent unless you do it.",
+  },
 ] as const;
 
-/** Public first screen. Fits one viewport: purpose on the left, the path on the right. */
+function HeroPhoto({ className }: { className?: string }) {
+  return (
+    <div className={className}>
+      <Image
+        src="/welcome-hero.jpg"
+        alt="A person at a wooden desk by a window, reading on a laptop."
+        fill
+        priority
+        sizes="(min-width: 1024px) 50vw, 100vw"
+        className="object-cover object-[center_30%]"
+      />
+    </div>
+  );
+}
+
+/**
+ * Public first screen. The sentence says what Optra does; the photo is the
+ * other half. The wordmark opens the text column (same left edge as the
+ * headline) instead of floating in a corner, and there is no corner "Log in":
+ * "I have an account" sits right next to the primary action.
+ */
 export default function WelcomePage() {
   return (
-    <div className="bg-background flex min-h-svh flex-col">
-      <header className="flex shrink-0 items-center justify-between gap-4 px-4 py-4 sm:px-8 sm:py-5">
-        <AuthBrand />
-        <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
-          Log in
-        </Link>
-      </header>
+    <div className="bg-background box-border w-full max-w-[100vw] overflow-x-clip lg:grid lg:min-h-svh lg:grid-cols-2">
+      <div className="flex min-h-svh min-w-0 flex-col">
+        <main className="box-border flex min-w-0 flex-1 flex-col px-5 pt-8 pb-6 sm:px-10 sm:pt-12 lg:justify-center lg:px-14 lg:py-16 xl:px-20">
+          <div className="mx-auto w-full max-w-xl min-w-0 lg:mx-0">
+            <AuthBrand width={128} />
+            <AnimateIn className="mt-12 sm:mt-16 lg:mt-20">
+              <p className="text-ink-emphasis text-body-sm">For anyone looking for work</p>
+              <h1 className="text-h3 sm:text-h2 md:text-h1 mt-3 font-medium text-balance text-foreground">
+                Find jobs that fit your experience.
+              </h1>
+              <p className="text-muted-foreground mt-4 max-w-[min(22rem,calc(100vw-2rem))] text-body sm:max-w-md sm:text-body-lg">
+                {noWidow(
+                  "Add your CV. Optra searches open job listings and shows you a short list. Each job includes a plain explanation of why it matches you. You choose what happens next.",
+                )}
+              </p>
+            </AnimateIn>
 
-      <main className="mx-auto grid w-full max-w-[1290px] min-w-0 flex-1 items-center gap-8 px-4 py-8 sm:px-5 lg:grid-cols-12 lg:gap-4 lg:px-8">
-        <AnimateIn className="min-w-0 text-center lg:col-span-7 lg:text-left">
-          <span className="bg-card text-ink-emphasis inline-flex h-7 items-center gap-2 rounded-full border border-border-strong pr-3 pl-1 text-caption">
-            <span aria-hidden className="bg-brand size-5 rounded-full" />
-            For anyone looking for work
-          </span>
-          <h1 className="text-h3 sm:text-h2 md:text-h1 mt-5 font-medium text-balance text-foreground">
-            A few jobs that fit you.{" "}
-            <span className="text-brand-ink">In plain words.</span>
-          </h1>
-          <p className="text-muted-foreground mx-auto mt-4 max-w-md text-body sm:text-body-lg lg:mx-0">
-            {noWidow(
-              "Optra reads your CV, looks through listings, and shows why each job fits.",
-            )}
-          </p>
-          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
-            <Link
-              href="/signup"
-              className={buttonVariants({ variant: "capsule", className: "max-sm:w-full" })}
-            >
-              <CapsuleLabel className="max-sm:w-full">
-                Get started
-              </CapsuleLabel>
-            </Link>
-            <Link
-              href="/login"
-              className={buttonVariants({ variant: "secondary", size: "lg", className: "max-sm:w-full" })}
-            >
-              I have an account
-            </Link>
+            <AnimateIn delayMs={80} className="mt-8">
+              <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+                <Link
+                  href="/signup"
+                  className={buttonVariants({ variant: "capsule", className: "max-sm:w-full" })}
+                >
+                  <CapsuleLabel className="max-sm:w-full">Create an account</CapsuleLabel>
+                </Link>
+                <Link
+                  href="/login"
+                  className={buttonVariants({
+                    variant: "secondary",
+                    size: "lg",
+                    className: "max-sm:w-full",
+                  })}
+                >
+                  I have an account
+                </Link>
+              </div>
+
+              {/* Below lg the photo follows the actions, so they stay above the fold. */}
+              <HeroPhoto className="relative mt-10 aspect-[4/3] w-full min-w-0 overflow-hidden rounded-card bg-subtle lg:hidden" />
+
+              <ol className="mt-8 divide-y divide-border border-y border-border">
+                {STEPS.map((step, index) => (
+                  <li key={step.title} className="flex items-baseline gap-4 py-3.5">
+                    <span className="text-brand-ink w-5 shrink-0 text-body-sm tabular">
+                      {index + 1}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="text-foreground block text-body">{step.title}</span>
+                      <span className="text-muted-foreground block text-body-sm">{step.body}</span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </AnimateIn>
           </div>
-        </AnimateIn>
+        </main>
 
-        <ol data-reveal className="bg-card min-w-0 divide-y divide-border rounded-card lg:col-span-5 shadow-card">
-          {FACTS.map((fact) => (
-            <li key={fact.n} className="flex items-center gap-4 px-5 py-4 text-left sm:px-6 sm:py-5">
-              <span className="bg-brand-wash text-brand-ink flex size-10 shrink-0 items-center justify-center rounded-full text-body tabular">
-                {fact.n}
-              </span>
-              <span className="min-w-0">
-                <span className="text-foreground block text-body sm:text-body-lg">
-                  {fact.title}
-                </span>
-                <span className="text-muted-foreground block text-body-sm">
-                  {fact.body}
-                </span>
-              </span>
-            </li>
-          ))}
-        </ol>
-      </main>
+        <footer className="shrink-0 px-5 py-5 sm:px-10 lg:px-14 xl:px-20">
+          <MakerCredit align="center" />
+        </footer>
+      </div>
 
-      <footer className="shrink-0 px-4 py-5 sm:px-8">
-        <MakerCredit align="center" />
-      </footer>
+      <HeroPhoto className="relative hidden min-h-svh overflow-hidden lg:block" />
     </div>
   );
 }

@@ -51,7 +51,15 @@ token inside it flips; there is no global dark mode.
 
 ## Type
 
-**Inter Tight** everywhere (`next/font/google`, `--font-sans`). Weight **400**
+**Inter Tight** for everything except headlines (`next/font/google`,
+`--font-sans`). **Headlines use Alcyone** (`next/font/local`, `--font-display`,
+files in `src/fonts/alcyone/`). Headlines sit one cut heavier than their
+CSS weight: 400 renders Alcyone Medium, 500 renders SemiBold (mapped in
+`src/app/layout.tsx`): every `h1`–`h6`
+gets it from the base layer, and title-like non-heading elements opt in with
+`font-heading`. Numerals (`text-h2`/`text-h3` stats) and the CV / letter
+documents stay Inter Tight. Licensed for one website (see
+`src/fonts/alcyone/LICENSE.pdf`). Weight **400**
 by default, **500** for page titles and a few labels. Letter-spacing normal,
 no uppercase eyebrows. Numbers use `.tabular` (tabular figures, same family).
 A system mono stack (`font-mono`) is kept only for raw text/JSON editors.

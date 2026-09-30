@@ -1340,7 +1340,7 @@ export function ProfileWorkspace({
       {!active ? (
         <Surface>
           <div className="flex flex-col items-center justify-center gap-5 px-6 py-12 text-center sm:px-8 sm:py-14">
-            <p className="text-h5 font-medium">No profile yet</p>
+            <p className="font-heading text-h5 font-medium">No profile yet</p>
             <p className="text-muted-foreground mx-auto max-w-sm text-body leading-relaxed">
               {sources.length === 0
                 ? "Add your CV below. Optra reads it and builds your profile."
@@ -1480,7 +1480,7 @@ function ProfileSummaryCard({
     <Surface>
       <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-5 sm:px-6">
         <div className="min-w-0">
-          <p className="text-h5 font-medium text-foreground">
+          <p className="font-heading text-h5 font-medium text-foreground">
             {headline || "Your profile"}
           </p>
           {profile.yearsExperience ? (
