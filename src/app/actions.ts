@@ -1286,6 +1286,20 @@ export async function runJobPipelineAction(): Promise<
   }
 }
 
+export async function getJobDescriptionAction(
+  jobId: string,
+): Promise<ActionResult<{ description: string }>> {
+  try {
+    await ensureDb();
+    const { getJobDescription } = await import("@/modules/jobs/queries");
+    const description = await getJobDescription(jobId);
+    if (description == null) throw new Error("Job not found");
+    return { ok: true, data: { description } };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
 export async function interestedJobAction(jobId: string): Promise<ActionResult> {
   try {
     await ensureDb();

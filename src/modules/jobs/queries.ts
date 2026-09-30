@@ -348,6 +348,18 @@ export async function getJobDetail(jobId: string): Promise<DailyJobRow | null> {
   return hydrated[0] ?? null;
 }
 
+/** Full posting text for the job detail panel (loaded on demand, not per list row). */
+export async function getJobDescription(jobId: string): Promise<string | null> {
+  const row = (
+    await getDb()
+      .select({ description: jobs.description })
+      .from(jobs)
+      .where(and(await owned(jobs), eq(jobs.id, jobId)))
+      .limit(1)
+  )[0];
+  return row ? row.description : null;
+}
+
 export async function setJobTriageState(
   jobId: string,
   state: JobTriageState,

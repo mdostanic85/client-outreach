@@ -69,26 +69,26 @@ export function MatchConstraintChips({
   };
 
   const remoteClass = cn(
-    "inline-flex h-full items-center gap-1 rounded-panel px-2 py-1 text-body-sm font-medium",
-    interactive && "transition-colors hover:brightness-110",
-    remoteFit.status === "pass" && "bg-brand/15 text-brand-ink",
-    remoteFit.status === "fail" && "bg-destructive/15 text-destructive",
+    "inline-flex h-6 items-center gap-1 rounded-full px-2.5 text-caption font-medium whitespace-nowrap",
+    interactive && "transition-[filter] duration-150 hover:brightness-95",
+    remoteFit.status === "pass" && "bg-brand-wash text-brand-ink",
+    remoteFit.status === "fail" && "bg-destructive-wash text-destructive",
     remoteFit.status === "unclear" &&
       "bg-warn-wash text-warn",
   );
 
   const tzClass = cn(
-    "inline-flex h-full items-center gap-1 rounded-panel px-2 py-1 text-body-sm font-medium",
-    interactive && "transition-colors hover:brightness-110",
-    remoteFit.timezoneOverlap === "full" && "bg-brand/10 text-brand-ink",
+    "inline-flex h-6 items-center gap-1 rounded-full px-2.5 text-caption font-medium whitespace-nowrap",
+    interactive && "transition-[filter] duration-150 hover:brightness-95",
+    remoteFit.timezoneOverlap === "full" && "bg-brand-wash text-brand-ink",
     remoteFit.timezoneOverlap === "partial" &&
       "bg-warn-wash text-warn",
     remoteFit.timezoneOverlap === "poor" &&
-      "bg-destructive/10 text-destructive",
+      "bg-destructive-wash text-destructive",
   );
 
   return (
-    <div className="flex h-7 flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       {interactive ? (
         <button
           type="button"
