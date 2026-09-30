@@ -890,7 +890,7 @@ function PayStep({
             className="h-14 rounded-2xl text-[17px]"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           <PrimaryButton type="submit" disabled={!valid} pending={pending}>
             Continue
           </PrimaryButton>
@@ -1127,7 +1127,7 @@ function DetailsStep({
   return (
     <Screen title={content[family].title} hint="Only what employers in your field usually ask for.">
       <div className="flex flex-col gap-7">{content[family].body}</div>
-      <div className="mt-8 flex items-center gap-2">
+      <div className="mt-8 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
         <PrimaryButton pending={pending} onClick={submit}>
           Continue
         </PrimaryButton>
@@ -1222,7 +1222,7 @@ function LanguagesStep({
           ))}
         </ul>
       ) : null}
-      <div className="mt-8 flex items-center gap-2">
+      <div className="mt-8 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
         <PrimaryButton disabled={rows.length === 0} pending={pending} onClick={() => onSubmit(rows)}>
           Continue
         </PrimaryButton>
@@ -1275,7 +1275,7 @@ function PrioritiesStep({
           />
         ))}
       </div>
-      <div className="mt-8 flex items-center gap-2">
+      <div className="mt-8 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
         <PrimaryButton disabled={picked.length === 0} pending={pending} onClick={() => onSubmit(picked)}>
           Continue
         </PrimaryButton>
@@ -1474,7 +1474,7 @@ function WebsiteStep({
             Read {readPages} {readPages === 1 ? "page" : "pages"} from your site
           </p>
         ) : null}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           <PrimaryButton type="submit" disabled={!website.trim() || Boolean(readPages)} pending={pending}>
             {pending ? "Reading your site…" : "Continue"}
           </PrimaryButton>
@@ -1510,7 +1510,7 @@ function LinkedinStep({ onDone }: { onDone: () => void }) {
           {linkedin.error}
         </p>
       ) : null}
-      <div className="mt-8 flex items-center gap-2">
+      <div className="mt-8 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
         <PrimaryButton disabled={linkedin.pending} onClick={onDone}>
           {fileName ? "Analyze" : "Skip and analyze"}
         </PrimaryButton>
@@ -1557,7 +1557,7 @@ function AnalyzingStep({
   if (error) {
     return (
       <Screen title="That didn't work" hint={error}>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           <PrimaryButton
             onClick={() => {
               setError(null);
@@ -1640,7 +1640,7 @@ function SummaryStep({
           {error}
         </p>
       ) : null}
-      <div className="mt-8 flex items-center gap-2">
+      <div className="mt-8 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
         <PrimaryButton pending={pending} onClick={onConfirm}>
           {pending ? "Setting up your search…" : "Looks right"}
         </PrimaryButton>
