@@ -78,7 +78,7 @@ only and not used in the app.
 
 - Container max **1290px**, 20px gutter (16px below 640).
 - **12-column grid, 16px gap** for tile layouts.
-- Sidebar 248px: a dark (`.dark` scope) floating panel, 12px from the
+- Sidebar 248px (logo centered, 104px wide, 20px lower): a dark (`.dark` scope) floating panel, 12px from the
   viewport edges, 20px radius, `shadow-card`. Groups "Daily" (Today, Saved,
   Queue) and "Setup" (Profile, Search criteria, Improve); Settings and the
   signed-in account (log out) pinned to the bottom.
@@ -141,10 +141,12 @@ only and not used in the app.
 - **Accordion** (`ui/accordion.tsx`): measured-height + opacity, 300ms.
 - **Lists**: rows on one white card with 1px dividers; hover `#F0F2F6` at
   150ms; no translate, no per-row entrance. A job row is clickable as a whole
-  (stretched button) and opens the **job detail sheet** from the right: title,
-  score, facts, why it fits, company, the posting text (loaded on open) and
-  the actions (Save / Prepare, Open posting, more) in a sticky footer. On
-  phones the row shows the score number only.
+  (stretched link) and opens the **job page** (`/jobs/[jobId]`): a header card
+  (title, company, score, status, actions), then "Why it fits you" and "About
+  the job" on the left and "At a glance", "Company" and a plain "Next step"
+  card on the right. Every triage action lives there; on phones the actions
+  float in a pill bar at the bottom, and the list row shows the score number
+  only.
 
 ## Motion
 

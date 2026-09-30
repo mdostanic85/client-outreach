@@ -2,14 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Briefcase, Search } from "lucide-react";
-import {
-  interestedJobAction,
-  markJobAppliedAction,
-  rejectJobAction,
-  saveJobForLaterAction,
-} from "@/app/actions";
 import { EmptyState } from "@/components/empty-state";
 import { InlineAlert } from "@/components/inline-alert";
 import { JobListItem } from "@/components/job-list-item";
@@ -46,9 +40,8 @@ export function JobsInbox({
   onSearchingChange?: (searching: boolean) => void;
 }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
   // The run itself lives in the app shell so it survives navigation (see JobSearchProvider).
-  const { running: searching, start: findJobs, notice, setNotice, lastOutcome, claimPageCta } = useJobSearch();
+  const { running: searching, start: findJobs, notice, lastOutcome, claimPageCta } = useJobSearch();
   const error = notice.error ?? null;
   const message = notice.message ?? null;
 
@@ -56,9 +49,6 @@ export function JobsInbox({
     onSearchingChange?.(searching);
   }, [searching, onSearchingChange]);
 
-  const [rejectingId, setRejectingId] = useState<string | null>(null);
-  const [rejectReason, setRejectReason] = useState("");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const tab = tabStore.useValue();
   const setTab = tabStore.set;
 
@@ -67,21 +57,6 @@ export function JobsInbox({
     if (lastOutcome?.strong) tabStore.set("strong");
     else if (lastOutcome?.worth) tabStore.set("worth_a_look");
   }, [lastOutcome]);
-
-  const run = (
-    fn: () => Promise<{ ok: boolean; error?: string }>,
-    okMessage?: string,
-  ) => {
-    setNotice({ error: null });
-    startTransition(async () => {
-      const result = await fn();
-      if (!result.ok) setNotice({ error: result.error ?? "Failed" });
-      else {
-        if (okMessage) setNotice({ message: okMessage });
-        router.refresh();
-      }
-    });
-  };
 
   const visible = useMemo(
     () => rows.filter((r) => r.triageState !== "rejected"),
@@ -187,9 +162,9 @@ export function JobsInbox({
                 <Briefcase className="size-5" strokeWidth={1.5} />
               }
               actionId="today-primary-action"
-              actionLabel={pending || searching ? "Finding…" : "Find jobs"}
+              actionLabel={searching ? "Finding…" : "Find jobs"}
               capsule
-              pending={pending || searching}
+              pending={searching}
               onAction={findJobs}
             />
           ) : (
@@ -251,57 +226,16 @@ export function JobsInbox({
             </Surface>
           ) : (
             <Stagger as="ul" className="bg-card divide-y divide-border overflow-hidden rounded-card shadow-card">
-              {listed.map((row, index) => (
+              {listed.map((row) => (
                 <StaggerItem
                   key={row.jobId}
-                  index={index}
                   as="li"
                   className="min-w-0"
                 >
                   <JobListItem
                     variant="today"
                     row={row}
-                    expanded={expandedId === row.jobId}
-                    pending={pending}
-                    rejecting={rejectingId === row.jobId}
-                    rejectReason={rejectReason}
                     showTimezoneChip={showTimezoneChip}
-                    onToggle={() =>
-                      setExpandedId(
-                        expandedId === row.jobId ? null : row.jobId,
-                      )
-                    }
-                    onInterested={() =>
-                      run(
-                        async () => interestedJobAction(row.jobId),
-                        "Moved to Saved.",
-                      )
-                    }
-                    onSaveForLater={() =>
-                      run(async () => saveJobForLaterAction(row.jobId))
-                    }
-                    onAlreadyApplied={() =>
-                      run(async () => markJobAppliedAction(row.jobId))
-                    }
-                    onStartReject={() => {
-                      setRejectingId(row.jobId);
-                      setRejectReason("");
-                    }}
-                    onRejectReason={setRejectReason}
-                    onConfirmReject={() =>
-                      run(async () => {
-                        const res = await rejectJobAction(
-                          row.jobId,
-                          rejectReason,
-                        );
-                        setRejectingId(null);
-                        return res;
-                      })
-                    }
-                    onCancelReject={() => {
-                      setRejectingId(null);
-                      setRejectReason("");
-                    }}
                   />
                 </StaggerItem>
               ))}

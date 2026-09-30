@@ -465,12 +465,12 @@ export function ApplicationPackageWorkspace({
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href="/interested"
+              href={`/jobs/${jobId}`}
               className={cn(
                 buttonVariants({ variant: "outline", size: "sm" }),
               )}
             >
-              Back
+              Back to job
             </Link>
             <a
               href={sourceUrl}

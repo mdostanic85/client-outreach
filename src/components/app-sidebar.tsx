@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bookmark,
+  Briefcase,
   ChevronsUpDown,
   LogOut,
   Inbox,
@@ -103,6 +104,7 @@ const PAGE_CONTEXT: { group: string; item: NavItem }[] = [
   { group: "Daily", item: { href: "/", label: "Today", icon: Inbox } },
   { group: "Daily", item: { href: "/interested", label: "Saved", icon: Bookmark } },
   { group: "Daily", item: { href: "/queue", label: "Queue", icon: Send } },
+  { group: "Daily", item: { href: "/jobs", label: "Job", icon: Briefcase } },
   { group: "Setup", item: { href: "/profile", label: "Profile", icon: UserRound } },
   { group: "Setup", item: { href: "/search-criteria", label: "Search", icon: Search } },
   { group: "Setup", item: { href: "/learning", label: "Improve", icon: Sparkles } },
@@ -247,8 +249,8 @@ export function AppSidebarNav({
         className,
       )}
     >
-      <div className="flex h-16 shrink-0 items-center px-5">
-        <OptraLogo href="/" width={84} tone="light" onClick={() => handleNavigate("/")} />
+      <div className="mt-5 flex h-16 shrink-0 items-center justify-center px-5">
+        <OptraLogo href="/" width={104} tone="light" onClick={() => handleNavigate("/")} />
       </div>
 
       <nav aria-label="Main" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 pb-3">
