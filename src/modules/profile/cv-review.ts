@@ -10,7 +10,13 @@ import { assertPublicBudgetAllows } from "@/lib/budgets";
 import { newId, nowIso } from "@/lib/ids";
 import { logger } from "@/lib/logging/logger";
 import { currentUserId, owned } from "@/modules/auth/current-user";
-import { LEVEL_LABELS, type SurveyAnswers } from "@/modules/onboarding/survey";
+import {
+  ENGAGEMENT_LABELS,
+  EXPERIENCE_LABELS,
+  LEVEL_LABELS,
+  type SurveyAnswers,
+} from "@/modules/onboarding/survey-core";
+import { FAMILY_PROFILES } from "@/modules/occupations/families";
 import { redactPii } from "./redact";
 
 const Score = z.number().min(0).max(100).transform(Math.round);
@@ -62,11 +68,22 @@ async function latestCvSource() {
 function candidateContext(survey: SurveyAnswers): string {
   const lines = [
     survey.role ? `Target role: ${survey.role}` : null,
+    survey.occupationFamily
+      ? `Field: ${FAMILY_PROFILES[survey.occupationFamily].label}`
+      : null,
     survey.level ? `Target level: ${LEVEL_LABELS[survey.level]}` : null,
-    survey.workType ? `Looking for: ${survey.workType.replace("_", "-")}` : null,
-    survey.websiteUrl
-      ? `Portfolio/website: ${survey.websiteUrl} (they have one; only suggest linking it if the CV doesn't)`
-      : "Portfolio/website: none given",
+    survey.experience ? `Experience: ${EXPERIENCE_LABELS[survey.experience]}` : null,
+    survey.engagement?.length
+      ? `Looking for: ${survey.engagement.map((e) => ENGAGEMENT_LABELS[e]).join(", ")}`
+      : survey.workType
+        ? `Looking for: ${survey.workType.replace("_", "-")}`
+        : null,
+    survey.licenses?.length ? `Licences: ${survey.licenses.join(", ")}` : null,
+    survey.occupationFamily && !FAMILY_PROFILES[survey.occupationFamily].asksForWebsite
+      ? null
+      : survey.websiteUrl
+        ? `Portfolio/website: ${survey.websiteUrl} (they have one; only suggest linking it if the CV doesn't)`
+        : "Portfolio/website: none given",
   ].filter(Boolean);
   return lines.length ? lines.join("\n") : "Target role: not stated";
 }

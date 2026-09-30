@@ -34,6 +34,10 @@ import {
   saveSearchProfileDraft,
 } from "@/modules/search-profile/generate";
 import { getSearchProfileById } from "@/modules/search-profile/queries";
+import {
+  classifyOccupation,
+  type ClassifiedOccupation,
+} from "@/modules/occupations/classify";
 
 export type OnboardingActionResult =
   | { ok: true }
@@ -73,6 +77,24 @@ export async function saveSurveyStepAction(
     await ensureDb();
     await saveSurveyPatch(patch);
     return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+/**
+ * Places a job title we don't have in the catalog. Only the title is sent to
+ * the model; the user confirms the family on the next screen.
+ */
+export async function classifyRoleAction(
+  title: string,
+): Promise<{ ok: true; data: ClassifiedOccupation } | { ok: false; error: string }> {
+  const trimmed = title.trim().slice(0, 80);
+  if (!trimmed) return { ok: false, error: "Type the job you're looking for." };
+  try {
+    await ensureDb();
+    if (!(await getSessionUser())) return { ok: false, error: "Not signed in." };
+    return { ok: true, data: await classifyOccupation(trimmed) };
   } catch (err) {
     return { ok: false, error: errorMessage(err) };
   }
