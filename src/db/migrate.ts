@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { getSql } from "./client";
 
 /**
@@ -659,8 +660,33 @@ async function scopeRowsToUsers(sql: ReturnType<typeof getSql>) {
   );
 }
 
-export async function runMigrations() {
+/**
+ * Bump when runMigrations changes in a way the fingerprint can't see
+ * (backfills, scopeRowsToUsers logic), so existing databases re-run it.
+ */
+const MIGRATIONS_REVISION = 1;
+
+const SCHEMA_FINGERPRINT = createHash("sha256")
+  .update(
+    JSON.stringify([MIGRATIONS_REVISION, MIGRATION_STATEMENTS, USER_SCOPED_TABLES]),
+  )
+  .digest("hex");
+
+/** One round trip instead of ~170 when the database is already up to date. */
+async function schemaIsCurrent(sql: ReturnType<typeof getSql>) {
+  try {
+    const rows = (await sql.query(
+      `SELECT value FROM schema_meta WHERE key = 'fingerprint'`,
+    )) as Array<{ value: string }>;
+    return rows[0]?.value === SCHEMA_FINGERPRINT;
+  } catch {
+    return false; // schema_meta doesn't exist yet
+  }
+}
+
+export async function runMigrations({ force = false } = {}) {
   const sql = getSql();
+  if (!force && (await schemaIsCurrent(sql))) return;
 
   for (const statement of MIGRATION_STATEMENTS) {
     await sql.query(statement);
@@ -702,4 +728,13 @@ export async function runMigrations() {
       ],
     );
   }
+
+  await sql.query(
+    `CREATE TABLE IF NOT EXISTS schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+  );
+  await sql.query(
+    `INSERT INTO schema_meta (key, value) VALUES ('fingerprint', $1)
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+    [SCHEMA_FINGERPRINT],
+  );
 }

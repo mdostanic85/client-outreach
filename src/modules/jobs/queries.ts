@@ -172,28 +172,49 @@ function buildCompanySnapshot(input: {
 async function hydrateJobRows(
   jobList: (typeof jobs.$inferSelect)[],
 ): Promise<DailyJobRow[]> {
+  if (jobList.length === 0) return [];
   const db = getDb();
-  const remoteRequired =
-    (await getApprovedSearchProfile())?.params.remoteRequired ?? true;
 
-  const companyIds = jobList
-    .map((j) => j.companyId)
-    .filter((id): id is string => Boolean(id));
+  const companyIds = [
+    ...new Set(
+      jobList
+        .map((j) => j.companyId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const jobIds = jobList.map((j) => j.id);
 
-  const snapshotCtx = await loadCompanySnapshotContext(companyIds);
+  // One round trip per lookup for the whole list, not per job.
+  const [searchProfile, snapshotCtx, companyRows, matchRows] = await Promise.all([
+    getApprovedSearchProfile(),
+    loadCompanySnapshotContext(companyIds),
+    companyIds.length > 0
+      ? db.select().from(companies).where(inArray(companies.id, companyIds))
+      : Promise.resolve([]),
+    owned(jobMatches).then((mine) =>
+      db
+        .select()
+        .from(jobMatches)
+        .where(and(mine, inArray(jobMatches.jobId, jobIds))),
+    ),
+  ]);
+  const remoteRequired = searchProfile?.params.remoteRequired ?? true;
+
+  const companyById = new Map(companyRows.map((c) => [c.id, c]));
+  const latestMatchByJob = new Map<string, typeof jobMatches.$inferSelect>();
+  for (const match of matchRows) {
+    const current = latestMatchByJob.get(match.jobId);
+    if (!current || match.createdAt > current.createdAt) {
+      latestMatchByJob.set(match.jobId, match);
+    }
+  }
 
   const rows: DailyJobRow[] = [];
   for (const job of jobList) {
     const company = job.companyId
-      ? (await db.select().from(companies).where(eq(companies.id, job.companyId)).limit(1))[0] ??
-        null
+      ? (companyById.get(job.companyId) ?? null)
       : null;
-    const match =
-      (await db
-        .select()
-        .from(jobMatches)
-        .where(and(await owned(jobMatches), eq(jobMatches.jobId, job.id))))
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null;
+    const match = latestMatchByJob.get(job.id) ?? null;
 
     let matchingReasons: string[] = [];
     let concerns: string[] = [];
@@ -257,9 +278,8 @@ export async function listDailyJobs(limit?: number): Promise<DailyJobRow[]> {
         inArray(jobs.triageState, ["published", "saved", "discovered"]),
       ),
     )
-    .orderBy(desc(jobs.publishedAt)))
-    .filter((j) => j.triageState !== "rejected" && j.triageState !== "applied")
-    .slice(0, cap);
+    .orderBy(desc(jobs.publishedAt))
+    .limit(cap));
 
   return hydrateJobRows(published);
 }

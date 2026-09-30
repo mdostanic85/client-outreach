@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { and, desc, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { jobSearchProfiles } from "@/db/schema";
@@ -5,7 +6,7 @@ import {
   parseJobSearchParams,
   type JobSearchParams,
 } from "./schemas";
-import { owned } from "@/modules/auth/current-user";
+import { currentUserId, owned } from "@/modules/auth/current-user";
 
 export type SearchProfileRow = {
   id: string;
@@ -48,12 +49,25 @@ function mapRow(
 }
 
 export async function getApprovedSearchProfile(): Promise<SearchProfileRow | null> {
-  const row = (await getDb()
-    .select()
-    .from(jobSearchProfiles)
-    .where(and(await owned(jobSearchProfiles), eq(jobSearchProfiles.status, "approved"))).limit(1))[0];
-  return row ? mapRow(row) : null;
+  return getApprovedSearchProfileFor(await currentUserId());
 }
+
+/** Per-request memo: the layout, Today page and job hydration all read it. */
+const getApprovedSearchProfileFor = cache(
+  async (userId: string): Promise<SearchProfileRow | null> => {
+    const row = (await getDb()
+      .select()
+      .from(jobSearchProfiles)
+      .where(
+        and(
+          eq(jobSearchProfiles.userId, userId),
+          eq(jobSearchProfiles.status, "approved"),
+        ),
+      )
+      .limit(1))[0];
+    return row ? mapRow(row) : null;
+  },
+);
 
 export async function getLatestDraftSearchProfile(): Promise<SearchProfileRow | null> {
   const row = (await getDb()

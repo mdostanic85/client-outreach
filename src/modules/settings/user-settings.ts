@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { settings } from "@/db/schema";
@@ -59,7 +60,11 @@ function defaultSettings(userId: string): typeof settings.$inferInsert {
 
 /** The signed-in (or scoped) account's settings row, created with defaults on first use. */
 export async function getUserSettings(): Promise<UserSettings> {
-  const userId = await currentUserId();
+  return getSettingsFor(await currentUserId());
+}
+
+/** Per-request memo: layout and page both read settings on every render. */
+const getSettingsFor = cache(async (userId: string): Promise<UserSettings> => {
   const db = getDb();
   const existing = (
     await db.select().from(settings).where(eq(settings.userId, userId)).limit(1)
@@ -73,4 +78,4 @@ export async function getUserSettings(): Promise<UserSettings> {
   return (
     await db.select().from(settings).where(eq(settings.userId, userId)).limit(1)
   )[0]!;
-}
+});

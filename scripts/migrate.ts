@@ -3,7 +3,7 @@ import { loadLocalEnv } from "../src/lib/env";
 
 async function main() {
   loadLocalEnv();
-  await runMigrations();
+  await runMigrations({ force: true });
   console.log("Migrations applied.");
 }
 

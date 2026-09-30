@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { cache } from "react";
 import { asc, eq, type Column } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { users } from "@/db/schema";
@@ -37,7 +38,7 @@ export async function owned(table: { userId: Column }) {
  * The workspace owner: OPTRA_OWNER_EMAIL if set, otherwise the oldest account.
  * Client outreach (one shared mailbox) stays owner-only.
  */
-export async function getOwnerUserId(): Promise<string | null> {
+export const getOwnerUserId = cache(async (): Promise<string | null> => {
   const db = getDb();
   const ownerEmail = process.env.OPTRA_OWNER_EMAIL?.trim().toLowerCase();
   const rows = await db
@@ -49,7 +50,7 @@ export async function getOwnerUserId(): Promise<string | null> {
     if (match) return match.id;
   }
   return rows[0]?.id ?? null;
-}
+});
 
 /** Scripts that act for the workspace owner (mailbox, exports, MCP). */
 export async function runAsOwner<T>(fn: () => Promise<T>): Promise<T> {

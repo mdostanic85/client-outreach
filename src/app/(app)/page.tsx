@@ -19,12 +19,16 @@ export default async function HomePage({
   const { first } = await searchParams;
   await ensureDb();
   const clientsEnabled = await isOwner(await currentUserId());
-  const settings = await getSettingsRow();
-  const limit = settings?.dailyLeadCount ?? 12;
-  const leadRows = clientsEnabled ? await listDailyLeads(limit) : [];
-  const jobRows = await listDailyJobs();
-  const mode = clientsEnabled ? await getTodayMode() : "jobs";
-  const hasSearchProfile = Boolean(await getApprovedSearchProfile());
+  const [leadRows, jobRows, mode, hasSearchProfile] = await Promise.all([
+    clientsEnabled
+      ? getSettingsRow().then((settings) =>
+          listDailyLeads(settings?.dailyLeadCount ?? 12),
+        )
+      : [],
+    listDailyJobs(),
+    clientsEnabled ? getTodayMode() : ("jobs" as const),
+    getApprovedSearchProfile().then(Boolean),
+  ]);
 
   return (
     <TodayTabs

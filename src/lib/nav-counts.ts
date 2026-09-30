@@ -15,10 +15,9 @@ async function countRows(
 /** Sidebar/topbar badges — SQL counts only; market-fit is cached separately. */
 export const getNavCounts = cache(async () => {
   const db = await ensureDb();
-  const owner = await isOwner(await currentUserId());
-
-  const [leadsCount, pendingDrafts, approvedWaiting, interestedCount, profileFitCount] =
+  const [owner, leadsCount, pendingDrafts, approvedWaiting, interestedCount, profileFitCount] =
     await Promise.all([
+      currentUserId().then(isOwner),
       countRows(
         db
           .select({ count: sql<number>`count(*)::int` })
