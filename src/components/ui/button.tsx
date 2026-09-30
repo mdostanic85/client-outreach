@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils"
  *  destructive tinted red, solid red on hover
  *  capsule     hero CTA shell, use with <CapsuleLabel>
  */
-const buttonVariants = cva(
+const baseButtonVariants = cva(
   "group/button inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-transparent bg-clip-padding font-medium whitespace-nowrap outline-none select-none transition-[background-color,color,border-color,box-shadow,opacity,transform] duration-150 ease-standard active:scale-[0.98] motion-reduce:active:scale-100 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
@@ -54,7 +54,7 @@ const buttonVariants = cva(
       },
     },
     compoundVariants: [
-      { variant: "capsule", className: "h-12 px-1" },
+      { variant: "capsule", className: "h-12 px-1 has-data-[icon=inline-end]:pr-1 has-data-[icon=inline-start]:pl-1" },
       { variant: "link", className: "h-auto px-0" },
     ],
     defaultVariants: {
@@ -63,6 +63,15 @@ const buttonVariants = cva(
     },
   }
 )
+
+/**
+ * Class string for a button. Runs through the class merger so a size's
+ * padding never beats a variant's (the capsule's 4px inset) and `className`
+ * overrides win, also when used directly on a link.
+ */
+function buttonVariants(props?: Parameters<typeof baseButtonVariants>[0]) {
+  return cn(baseButtonVariants(props))
+}
 
 function Button({
   className,
@@ -73,7 +82,7 @@ function Button({
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={buttonVariants({ variant, size, className })}
       {...props}
     />
   )
