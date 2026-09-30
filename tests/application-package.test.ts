@@ -22,7 +22,7 @@ const profile: StructuredProfile = {
   seniority: "Senior",
   yearsExperience: 8,
   strongestSkills: ["Figma", "Design Systems", "User Research"],
-  designTools: ["Figma"],
+  tools: ["Figma"],
   professionalSummary: "Senior product designer focused on B2B SaaS.",
   achievements: ["Led redesign that improved activation"],
   relevantProjects: [

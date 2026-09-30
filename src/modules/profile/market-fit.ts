@@ -358,9 +358,9 @@ export function computeMarketFit(input: {
     },
     {
       id: "tools",
-      label: "Design tools (3+)",
-      done: (profile?.designTools.length ?? 0) >= 3,
-      detail: `${profile?.designTools.length ?? 0} listed`,
+      label: "Tools (3+)",
+      done: (profile?.tools.length ?? 0) >= 3,
+      detail: `${profile?.tools.length ?? 0} listed`,
     },
     {
       id: "differentiators",

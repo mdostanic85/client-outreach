@@ -66,7 +66,7 @@ const fullProfile: StructuredProfile = {
     "Prototyping",
     "Facilitation",
   ],
-  designTools: ["Figma", "FigJam", "Principle"],
+  tools: ["Figma", "FigJam", "Principle"],
   targetRoles: ["Senior Product Designer"],
   strengthsAndDifferentiators: [
     "Systems thinker",

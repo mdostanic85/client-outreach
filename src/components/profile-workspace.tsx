@@ -204,7 +204,8 @@ function CompensationField({
   onChange: (next: CompensationExpectation) => void;
   disabled?: boolean;
 }) {
-  const period = value.mode === "hourly" ? "/ hour" : "/ year";
+  const period =
+    value.mode === "hourly" ? "/ hour" : value.mode === "monthly" ? "/ month" : "/ year";
   const summary = formatCompensation(value);
 
   function setAmount(
@@ -224,7 +225,7 @@ function CompensationField({
   return (
     <Field
       label="Rate / salary"
-      hint="Set a range, then choose fixed salary or hourly — and the currency."
+      hint="Set a range, then choose per year, per month or per hour — and the currency."
       className="sm:col-span-2"
     >
       <div
@@ -234,14 +235,15 @@ function CompensationField({
         )}
       >
         <div
-          className="bg-muted/50 grid grid-cols-2 gap-1 rounded-xl p-1"
+          className="bg-muted/50 grid grid-cols-3 gap-1 rounded-xl p-1"
           role="group"
           aria-label="Pay type"
         >
           {(
             [
-              { id: "salary", label: "Fixed salary" },
-              { id: "hourly", label: "Hourly rate" },
+              { id: "salary", label: "Per year" },
+              { id: "monthly", label: "Per month" },
+              { id: "hourly", label: "Per hour" },
             ] as const
           ).map((opt) => {
             const active = value.mode === opt.id;
@@ -612,12 +614,8 @@ export function ProfileWorkspace({
   const [productTypes, setProductTypes] = useState(
     listToLines(editable.productTypes),
   );
-  const [designTools, setDesignTools] = useState(
-    listToLines(editable.designTools),
-  );
-  const [technicalTools, setTechnicalTools] = useState(
-    listToLines(editable.technicalTools),
-  );
+  const [tools, setTools] = useState(listToLines(editable.tools));
+  const [licenses, setLicenses] = useState(listToLines(editable.licenses));
   const [leadershipExperience, setLeadershipExperience] = useState(
     editable.leadershipExperience ?? "",
   );
@@ -662,8 +660,8 @@ export function ProfileWorkspace({
     setStrongestSkills(listToLines(p.strongestSkills));
     setIndustries(listToLines(p.industries));
     setProductTypes(listToLines(p.productTypes));
-    setDesignTools(listToLines(p.designTools));
-    setTechnicalTools(listToLines(p.technicalTools));
+    setTools(listToLines(p.tools));
+    setLicenses(listToLines(p.licenses));
     setLeadershipExperience(p.leadershipExperience ?? "");
     setPreferredEmploymentTypes(listToLines(p.preferredEmploymentTypes));
     setPreferredLocations(listToLines(p.preferredLocations));
@@ -715,8 +713,8 @@ export function ProfileWorkspace({
       industries: linesToList(industries),
       productTypes: linesToList(productTypes),
       relevantProjects,
-      designTools: linesToList(designTools),
-      technicalTools: linesToList(technicalTools),
+      tools: linesToList(tools),
+      licenses: linesToList(licenses),
       leadershipExperience: leadershipExperience.trim() || undefined,
       preferredEmploymentTypes: linesToList(preferredEmploymentTypes),
       preferredLocations: linesToList(preferredLocations),
@@ -888,12 +886,12 @@ export function ProfileWorkspace({
         </div>
       </ProfileSection>
       <ProfileSection
-        title="Tools"
-        description="Design and technical stack that should show up in fits."
+        title="Tools and licences"
+        description="Software, equipment, driving licence categories and professional licences."
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          {tags("Design tools", designTools, setDesignTools)}
-          {tags("Technical tools", technicalTools, setTechnicalTools)}
+          {tags("Tools", tools, setTools)}
+          {tags("Licences", licenses, setLicenses)}
         </div>
       </ProfileSection>
       <ProfileSection

@@ -489,12 +489,8 @@ export function ProfessionalProfileView({
           true,
         )}
         {renderChips("strongestSkills", "Core skills", profile.strongestSkills)}
-        {renderChips("designTools", "Design tools", profile.designTools)}
-        {renderChips(
-          "technicalTools",
-          "Technical tools",
-          profile.technicalTools,
-        )}
+        {renderChips("tools", "Tools", profile.tools)}
+        {renderChips("licenses", "Licences", profile.licenses)}
         {renderChips("industries", "Industries", profile.industries)}
         {renderChips(
           "domainExpertise",

@@ -131,8 +131,7 @@ export async function personalizeApplicationPackage(input: {
     const allowed = new Set(
       [
         ...input.profile.strongestSkills,
-        ...input.profile.designTools,
-        ...input.profile.technicalTools,
+        ...input.profile.tools,
         ...input.profile.domainExpertise,
       ].map((s) => s.toLowerCase()),
     );

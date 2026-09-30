@@ -17,8 +17,7 @@ function profileCorpus(profile: StructuredProfile): string {
     profile.leadershipExperience ?? "",
     profile.workingStyle ?? "",
     ...profile.strongestSkills,
-    ...profile.designTools,
-    ...profile.technicalTools,
+    ...profile.tools,
     ...profile.industries,
     ...profile.productTypes,
     ...profile.achievements,
@@ -107,8 +106,7 @@ export function validateGrounding(input: {
   const allowedSkills = new Set(
     [
       ...input.profile.strongestSkills,
-      ...input.profile.designTools,
-      ...input.profile.technicalTools,
+      ...input.profile.tools,
       ...input.profile.domainExpertise,
     ].map(normalize),
   );

@@ -77,14 +77,11 @@ export async function deriveSearchParamsFromProfile(): Promise<{
       : EMPTY_SEARCH_PARAMS.employmentTypes,
     searchKeywords: [
       ...(p?.strongestSkills ?? []).slice(0, 5),
-      ...(p?.designTools ?? []).slice(0, 3),
+      ...(p?.tools ?? []).slice(0, 3),
       ...(p?.productTypes ?? []).slice(0, 3),
     ],
     requiredSkills: (p?.strongestSkills ?? []).slice(0, 4),
-    preferredSkills: [
-      ...(p?.designTools ?? []),
-      ...(p?.technicalTools ?? []),
-    ].slice(0, 6),
+    preferredSkills: (p?.tools ?? []).slice(0, 6),
     seniority: p?.seniority ? [p.seniority.toLowerCase()] : ["senior", "lead"],
     priorityIndustries: (p?.industries ?? []).slice(0, 5),
     salary: {

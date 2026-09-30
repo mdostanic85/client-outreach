@@ -77,6 +77,13 @@ export const TASK_ROUTES = {
     modelEnv: "PUBLIC_LLM_MODEL",
     defaultModel: "gemini-3.1-flash-lite",
   },
+  /** Unknown job title → occupation family. Only the title is sent. */
+  classifyOccupation: {
+    dataClass: "PUBLIC" as const,
+    provider: "google" as const,
+    modelEnv: "PUBLIC_LLM_MODEL",
+    defaultModel: "gemini-3.1-flash-lite",
+  },
   /** Job-vs-profile evaluate — cheap public, survivors only. */
   jobMatch: {
     dataClass: "PUBLIC" as const,

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { OccupationFamilySchema } from "@/modules/occupations/families";
 
 export const ProfileSourceTypeSchema = z.enum([
   "cv",
@@ -19,11 +20,13 @@ export const RelevantProjectSchema = z.object({
   sourcePointers: z.array(z.string()).default([]),
   /**
    * portfolio_project = case-study evidence (gated by matching toggle).
-   * general = work history / product work that stays in the Professional Profile
-   * and can still inform matching when portfolio projects are disabled.
+   * general = work history that stays in the Professional Profile and can
+   * still inform matching when portfolio projects are disabled.
+   * certificate / work_sample / reference = proof of work for occupations
+   * where a portfolio isn't how people show what they can do.
    */
   evidenceKind: z
-    .enum(["portfolio_project", "general"])
+    .enum(["portfolio_project", "general", "certificate", "work_sample", "reference"])
     .default("portfolio_project"),
   /** Employer / organization — preferred for evidenceKind "general". */
   organization: z.string().optional(),
@@ -50,8 +53,8 @@ export type CompensationCurrency =
   (typeof COMPENSATION_CURRENCIES)[number];
 
 export const CompensationExpectationSchema = z.object({
-  /** Fixed annual/monthly salary vs hourly rate. */
-  mode: z.enum(["salary", "hourly"]).default("salary"),
+  /** Yearly salary, monthly salary (net, the norm in Serbia) or hourly rate. */
+  mode: z.enum(["salary", "monthly", "hourly"]).default("salary"),
   currency: z.enum(COMPENSATION_CURRENCIES).default("EUR"),
   min: z.number().nonnegative().nullable().optional(),
   max: z.number().nonnegative().nullable().optional(),
@@ -76,7 +79,8 @@ export function formatCompensation(
   const max = value.max ?? null;
   if (min == null && max == null) return undefined;
 
-  const period = value.mode === "hourly" ? "hour" : "year";
+  const period =
+    value.mode === "hourly" ? "hour" : value.mode === "monthly" ? "month" : "year";
   const fmt = (n: number) =>
     new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n);
 
@@ -99,7 +103,9 @@ export function parseCompensationText(
   const mode: CompensationExpectation["mode"] =
     /\/\s*h(ou)?r\b|\bhourly\b|\bsat\b|\b\/hr\b/.test(lower)
       ? "hourly"
-      : "salary";
+      : /\/\s*mo(nth)?\b|\bmonthly\b|\bmese[cč]no\b|\bmesec\b/.test(lower)
+        ? "monthly"
+        : "salary";
 
   let currency: CompensationCurrency = "EUR";
   if (/\bUSD\b|\$/.test(text)) currency = "USD";
@@ -127,16 +133,44 @@ export function parseCompensationText(
   return { mode, currency, min, max };
 }
 
-export const StructuredProfileSchema = z.object({
+/** Shift, night and weekend work: true = willing, false = won't, missing = unknown. */
+export const SchedulePreferencesSchema = z.object({
+  shifts: z.boolean().optional(),
+  nights: z.boolean().optional(),
+  weekends: z.boolean().optional(),
+});
+
+export type SchedulePreferences = z.infer<typeof SchedulePreferencesSchema>;
+
+/** Profiles saved before `tools` kept design and technical tools apart. */
+function mergeLegacyTools(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
+  const { designTools, technicalTools, ...rest } = raw as Record<string, unknown>;
+  if (designTools === undefined && technicalTools === undefined) return raw;
+  const list = (v: unknown) => (Array.isArray(v) ? v.filter((x) => typeof x === "string") : []);
+  const seen = new Set<string>();
+  const tools = [...list(rest.tools), ...list(designTools), ...list(technicalTools)].filter((t) => {
+    const key = t.trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return { ...rest, tools };
+}
+
+const StructuredProfileObject = z.object({
   currentRole: z.string().optional(),
+  /** Catalog occupation id (src/modules/occupations/catalog.ts) when known. */
+  occupationId: z.string().optional(),
+  occupationFamily: OccupationFamilySchema.optional(),
   seniority: z.string().optional(),
   yearsExperience: z.number().nullable().optional(),
   strongestSkills: z.array(z.string()).default([]),
   industries: z.array(z.string()).default([]),
   productTypes: z.array(z.string()).default([]),
   relevantProjects: z.array(RelevantProjectSchema).default([]),
-  designTools: z.array(z.string()).default([]),
-  technicalTools: z.array(z.string()).default([]),
+  /** Software, equipment and tools the person works with. */
+  tools: z.array(z.string()).default([]),
   leadershipExperience: z.string().optional(),
   preferredEmploymentTypes: z.array(z.string()).default([]),
   preferredLocations: z.array(z.string()).default([]),
@@ -150,7 +184,18 @@ export const StructuredProfileSchema = z.object({
   targetRoles: z.array(z.string()).default([]),
   rolesBelowLevel: z.array(z.string()).default([]),
   rolesAboveLevel: z.array(z.string()).default([]),
+  /** With level when known, e.g. "English (C1)", "German (B1)". */
   languages: z.array(z.string()).default([]),
+  /** Driving licence categories and professional licences, e.g. "CE", "ADR", "Nursing licence". */
+  licenses: z.array(z.string()).default([]),
+  schedule: SchedulePreferencesSchema.optional(),
+  /** How far the person will commute to an on-site job. */
+  commuteRadiusKm: z.number().nonnegative().nullable().optional(),
+  willingToTravel: z.boolean().optional(),
+  /** Countries / regions the person may legally work in, e.g. "Serbia", "EU". */
+  workAuthorization: z.array(z.string()).default([]),
+  /** Highest completed education, e.g. "Secondary (vocational)", "Bachelor's". */
+  educationLevel: z.string().optional(),
   /** Grounding notes from the model — not user-facing claims. */
   groundingNotes: z.array(z.string()).default([]),
   /**
@@ -174,7 +219,12 @@ export const StructuredProfileSchema = z.object({
   domainExpertise: z.array(z.string()).default([]),
 });
 
-export type StructuredProfile = z.infer<typeof StructuredProfileSchema>;
+export const StructuredProfileSchema = z.preprocess(
+  mergeLegacyTools,
+  StructuredProfileObject,
+);
+
+export type StructuredProfile = z.infer<typeof StructuredProfileObject>;
 
 export function resolveCompensation(
   profile: Pick<
@@ -197,8 +247,7 @@ export const EMPTY_STRUCTURED_PROFILE: StructuredProfile = {
   industries: [],
   productTypes: [],
   relevantProjects: [],
-  designTools: [],
-  technicalTools: [],
+  tools: [],
   preferredEmploymentTypes: [],
   preferredLocations: [],
   timeZones: [],
@@ -207,6 +256,8 @@ export const EMPTY_STRUCTURED_PROFILE: StructuredProfile = {
   rolesBelowLevel: [],
   rolesAboveLevel: [],
   languages: [],
+  licenses: [],
+  workAuthorization: [],
   groundingNotes: [],
   fieldSources: {},
   education: [],

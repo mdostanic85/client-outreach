@@ -105,8 +105,7 @@ export function buildBaseCv(
 ): TailoredCv {
   const skills = uniqueStrings([
     ...profile.strongestSkills,
-    ...profile.designTools,
-    ...profile.technicalTools,
+    ...profile.tools,
     ...profile.domainExpertise,
   ]).slice(0, 16);
 

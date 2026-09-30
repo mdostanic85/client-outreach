@@ -66,8 +66,8 @@ const LIST_FIELDS: Array<{
   label: string;
 }> = [
   { field: "strongestSkills", section: "Skills", label: "Core skill" },
-  { field: "designTools", section: "Skills", label: "Design tool" },
-  { field: "technicalTools", section: "Skills", label: "Technical tool" },
+  { field: "tools", section: "Skills", label: "Tool" },
+  { field: "licenses", section: "Skills", label: "Licence" },
   { field: "industries", section: "Background", label: "Industry" },
   { field: "productTypes", section: "Background", label: "Product type" },
   { field: "domainExpertise", section: "Background", label: "Domain expertise" },
@@ -368,8 +368,9 @@ export function applyProfileDiffDecisions(
         industries: [],
         productTypes: [],
         relevantProjects: [],
-        designTools: [],
-        technicalTools: [],
+        tools: [],
+        licenses: [],
+        workAuthorization: [],
         preferredEmploymentTypes: [],
         preferredLocations: [],
         timeZones: [],
