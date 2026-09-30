@@ -1,6 +1,5 @@
-import { AuthShell } from "@/components/auth/auth-shell";
+import { AuthHeading, AuthShell } from "@/components/auth/auth-shell";
 import { ResetPasswordForm } from "@/components/auth/auth-forms";
-import { ProductPanel } from "@/components/auth/product-panel";
 import { noWidow } from "@/lib/utils";
 
 export default async function ResetPasswordPage({
@@ -11,18 +10,14 @@ export default async function ResetPasswordPage({
   const { token = "" } = await searchParams;
 
   return (
-    <AuthShell panel={<ProductPanel />}>
-      <div className="max-w-sm">
-        <h1 className="text-[1.75rem] font-medium tracking-tight text-foreground">
-          Set a new password
-        </h1>
-        <p className="text-muted-foreground mt-2 mb-8 text-[14px]">
-          {noWidow(
-            "Choose a password you'll remember. Other sessions will be signed out.",
-          )}
-        </p>
-        <ResetPasswordForm token={token} />
-      </div>
+    <AuthShell>
+      <AuthHeading
+        title="Set a new password"
+        description={noWidow(
+          "Choose a password you'll remember. Other sessions will be signed out.",
+        )}
+      />
+      <ResetPasswordForm token={token} />
     </AuthShell>
   );
 }

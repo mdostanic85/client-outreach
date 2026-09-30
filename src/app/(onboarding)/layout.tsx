@@ -26,26 +26,18 @@ export default async function OnboardingLayout({
   }
 
   return (
-    <div className="bg-background relative flex min-h-svh flex-col">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 80% 45% at 50% -5%, color-mix(in oklch, var(--brand) 14%, transparent), transparent), linear-gradient(180deg, color-mix(in oklch, var(--background) 92%, #0c1218) 0%, var(--background) 40%)",
-        }}
-      />
-      <header className="relative z-10 flex items-center justify-between px-6 py-6 sm:px-10 sm:py-7 lg:px-12">
+    <div className="bg-background flex min-h-svh flex-col">
+      <header className="flex items-center justify-between gap-4 px-4 py-4 sm:px-8 sm:py-5">
         <AuthBrand />
         <form action={signOutAction}>
-          <Button type="submit" variant="ghost" size="default">
+          <Button type="submit" variant="ghost" size="sm">
             Sign out
           </Button>
         </form>
       </header>
-      <div className="relative z-10 flex flex-1 flex-col">{children}</div>
-      <footer className="relative z-10 px-6 pb-6 sm:px-10 lg:px-12">
-        <MakerCredit />
+      <div className="flex flex-1 flex-col">{children}</div>
+      <footer className="px-4 pb-5 sm:px-8">
+        <MakerCredit align="center" />
       </footer>
     </div>
   );

@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { AuthBrand } from "@/components/auth/auth-shell";
 import { MakerCredit } from "@/components/maker-credit";
+import { AnimateIn } from "@/components/motion";
+import { buttonVariants } from "@/components/ui/button";
+import { CapsuleLabel } from "@/components/ui/capsule-label";
 import { noWidow } from "@/lib/utils";
 
 const FACTS = [
@@ -12,67 +15,58 @@ const FACTS = [
 /** Public first screen. Fits one viewport: purpose on the left, the path on the right. */
 export default function WelcomePage() {
   return (
-    <div className="relative flex h-svh flex-col overflow-hidden">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 70% 55% at 18% 40%, color-mix(in oklch, var(--brand) 22%, transparent), transparent 68%), linear-gradient(180deg, #0c1018 0%, #0a0c11 55%, #0b1412 100%)",
-        }}
-      />
-
-      <header className="relative z-10 flex shrink-0 items-center justify-between px-6 py-4 sm:px-10">
+    <div className="bg-background flex min-h-svh flex-col">
+      <header className="flex shrink-0 items-center justify-between gap-4 px-4 py-4 sm:px-8 sm:py-5">
         <AuthBrand />
-        <Link
-          href="/login"
-          className="text-muted-foreground hover:text-foreground text-[15px] font-medium transition-colors"
-        >
+        <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
           Log in
         </Link>
       </header>
 
-      <main className="relative z-10 mx-auto grid min-h-0 w-full max-w-5xl min-w-0 flex-1 items-center gap-6 px-5 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:px-10">
-        <div className="min-w-0 text-center lg:text-left">
-          <p className="text-brand-ink text-[12px] font-medium tracking-[0.16em] uppercase">
+      <main className="mx-auto grid w-full max-w-[1290px] min-w-0 flex-1 items-center gap-8 px-4 py-8 sm:px-5 lg:grid-cols-12 lg:gap-4 lg:px-8">
+        <AnimateIn className="min-w-0 text-center lg:col-span-7 lg:text-left">
+          <span className="bg-card text-ink-emphasis inline-flex h-7 items-center gap-2 rounded-full border border-border-strong pr-3 pl-1 text-caption">
+            <span aria-hidden className="bg-brand size-5 rounded-full" />
             For anyone looking for work
-          </p>
-          <h1 className="mt-3 text-[1.7rem] leading-[1.08] font-medium tracking-tight text-balance text-foreground sm:text-[clamp(2rem,4vw,3.25rem)]">
+          </span>
+          <h1 className="text-h3 sm:text-h2 md:text-h1 mt-5 font-medium text-balance text-foreground">
             A few jobs that fit you.{" "}
             <span className="text-brand-ink">In plain words.</span>
           </h1>
-          <p className="text-muted-foreground mx-auto mt-4 max-w-md text-[16px] leading-snug lg:mx-0">
+          <p className="text-muted-foreground mx-auto mt-4 max-w-md text-body sm:text-body-lg lg:mx-0">
             {noWidow(
               "Optra reads your CV, looks through listings, and shows why each job fits.",
             )}
           </p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row lg:max-w-md">
+          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
             <Link
               href="/signup"
-              className="bg-primary text-primary-foreground hover:bg-primary/85 inline-flex h-12 flex-1 items-center justify-center rounded-xl px-5 text-[16px] font-medium transition-colors"
+              className={buttonVariants({ variant: "capsule", className: "max-sm:w-full" })}
             >
-              Get started
+              <CapsuleLabel className="max-sm:w-full max-sm:justify-between">
+                Get started
+              </CapsuleLabel>
             </Link>
             <Link
               href="/login"
-              className="border-white/25 bg-secondary text-foreground hover:border-white/45 inline-flex h-12 flex-1 items-center justify-center rounded-xl border-2 px-5 text-[16px] font-medium transition-colors"
+              className={buttonVariants({ variant: "secondary", size: "lg", className: "max-sm:w-full" })}
             >
               I have an account
             </Link>
           </div>
-        </div>
+        </AnimateIn>
 
-        <ol className="border-white/15 bg-card/70 min-w-0 divide-y divide-white/10 rounded-2xl border">
+        <ol className="bg-card min-w-0 divide-y divide-border rounded-card lg:col-span-5">
           {FACTS.map((fact) => (
-            <li key={fact.n} className="flex items-center gap-3 px-4 py-3 text-left sm:px-5 sm:py-4">
-              <span className="bg-brand text-white flex size-8 shrink-0 items-center justify-center rounded-full text-[14px] font-medium">
+            <li key={fact.n} className="flex items-center gap-4 px-5 py-4 text-left sm:px-6 sm:py-5">
+              <span className="bg-brand-wash text-brand-ink flex size-10 shrink-0 items-center justify-center rounded-full text-body tabular">
                 {fact.n}
               </span>
               <span className="min-w-0">
-                <span className="block text-[14px] font-medium text-foreground sm:text-[16px]">
+                <span className="text-foreground block text-body sm:text-body-lg">
                   {fact.title}
                 </span>
-                <span className="text-muted-foreground mt-0.5 block text-[12px] leading-snug sm:text-[14px]">
+                <span className="text-muted-foreground block text-body-sm">
                   {fact.body}
                 </span>
               </span>
@@ -81,7 +75,7 @@ export default function WelcomePage() {
         </ol>
       </main>
 
-      <footer className="relative z-10 shrink-0 px-6 py-3 sm:px-10">
+      <footer className="shrink-0 px-4 py-5 sm:px-8">
         <MakerCredit align="center" />
       </footer>
     </div>

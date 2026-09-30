@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useActionState, useState, type FormEvent } from "react";
-import { MakerCredit } from "@/components/maker-credit";
-import { OptraLogo } from "@/components/optra-logo";
-import { Button } from "@/components/ui/button";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -13,15 +12,13 @@ import {
   GoogleSignInButton,
 } from "@/components/auth/google-sign-in";
 import { signInAction, type AuthFormState } from "@/modules/auth/actions";
-import { cn, noWidow } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const EXIT: [number, number, number, number] = [0.32, 0, 0.67, 0];
 const initial: AuthFormState = {};
 
-/**
- * Atmospheric canvas + email-first gate.
- * Direction: Peec/Midday presence + Linear friction reduction — Optra shortlist vernacular.
- */
+/** Email-first sign-in in the shared centered auth card. */
 export function LoginExperience({
   googleEnabled,
   error,
@@ -31,141 +28,16 @@ export function LoginExperience({
   error: string | null;
   notice: string | null;
 }) {
-  const reducedMotion = useReducedMotion() ?? false;
-
   return (
-    <div className="relative flex h-svh flex-col overflow-hidden">
-      <LoginAtmosphere reducedMotion={reducedMotion} />
-
-      <header className="relative z-10 flex shrink-0 items-center justify-between px-6 py-4 sm:px-10">
-        <Link
-          href="/welcome"
-          className="text-muted-foreground hover:text-foreground text-[13px] font-medium transition-colors"
-        >
-          ← Back
-        </Link>
-        <Link
-          href="/signup"
-          className="text-muted-foreground hover:text-foreground text-[13px] font-medium transition-colors"
-        >
+    <AuthShell
+      headerAction={
+        <Link href="/signup" className={buttonVariants({ variant: "ghost", size: "sm" })}>
           Create account
         </Link>
-      </header>
-
-      <main className="relative z-10 grid min-h-0 w-full min-w-0 flex-1 items-center gap-8 px-4 sm:px-6 lg:grid-cols-2 lg:px-12">
-        <div className="mx-auto hidden w-full max-w-md lg:block">
-          <OptraLogo href="/welcome" width={120} />
-          <h1 className="mt-8 text-[2.4rem] leading-[1.08] font-medium tracking-tight text-foreground">
-            A few jobs that fit you.
-          </h1>
-          <p className="text-muted-foreground mt-4 text-[16px] leading-snug">
-            {noWidow(
-              "Optra reads your CV and shows a short list, with a plain reason for each job. Nothing is sent until you choose.",
-            )}
-          </p>
-          <ul className="mt-8 space-y-3">
-            {[
-              ["Your CV", "We read the work you've already done."],
-              ["A short list", "A handful of jobs, not a whole board."],
-              ["You decide", "Mark, save, or skip. Nothing sends itself."],
-            ].map(([title, body]) => (
-              <li key={title} className="flex gap-3">
-                <span className="bg-brand mt-1.5 size-2 shrink-0 rounded-full" aria-hidden />
-                <span>
-                  <span className="block text-[15px] font-medium text-foreground">{title}</span>
-                  <span className="text-muted-foreground text-[14px]">{body}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <motion.div
-          className="mx-auto flex w-full min-w-0 max-w-full flex-col sm:max-w-sm"
-          initial={reducedMotion ? false : { opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, ease: EASE }}
-        >
-          <div className="mb-5 flex justify-center lg:hidden">
-            <OptraLogo href="/welcome" width={112} />
-          </div>
-          <p className="text-muted-foreground mb-4 max-w-full text-center text-[14px] leading-snug text-balance lg:hidden">
-            {noWidow("Sign in to see today's jobs. Nothing is sent until you choose.")}
-          </p>
-          <div className="border-white/15 bg-card/70 w-full rounded-2xl border px-5 py-5 backdrop-blur-xl">
-            <EmailFirstSignIn
-              googleEnabled={googleEnabled}
-              error={error}
-              notice={notice}
-            />
-          </div>
-        </motion.div>
-      </main>
-
-      <footer className="relative z-10 shrink-0 px-6 py-3">
-        <MakerCredit align="center" />
-      </footer>
-    </div>
-  );
-}
-
-function LoginAtmosphere({ reducedMotion }: { reducedMotion: boolean }) {
-  return (
-    <div className="pointer-events-none absolute inset-0" aria-hidden>
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(100% 70% at 50% 0%, #14201c 0%, #0a0c11 48%, #080a0e 100%)",
-        }}
-      />
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 55% 40% at 80% 85%, color-mix(in oklch, var(--brand) 14%, transparent), transparent 70%)",
-        }}
-      />
-
-      {[34, 48, 64].map((size, i) => (
-        <div
-          key={size}
-          className="absolute left-1/2 top-[42%] -translate-x-1/2 -translate-y-1/2 rounded-full border"
-          style={{
-            width: `min(${size}vw, ${size * 7}px)`,
-            aspectRatio: "1",
-            borderColor: `color-mix(in oklch, var(--brand) ${10 - i * 2}%, transparent)`,
-            opacity: 0.5 - i * 0.1,
-          }}
-        />
-      ))}
-
-      <motion.div
-        className="absolute left-1/2 top-[40%] size-[min(52vw,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[100px]"
-        animate={
-          reducedMotion
-            ? { opacity: 0.2 }
-            : { opacity: [0.14, 0.28, 0.14], scale: [1, 1.08, 1] }
-        }
-        transition={
-          reducedMotion
-            ? { duration: 0 }
-            : { duration: 10, repeat: Infinity, ease: "easeInOut" }
-        }
-        style={{
-          background:
-            "radial-gradient(circle, color-mix(in oklch, var(--brand) 55%, transparent), transparent 70%)",
-        }}
-      />
-
-      <div
-        className="absolute inset-0 opacity-[0.045] mix-blend-overlay"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
-        }}
-      />
-    </div>
+      }
+    >
+      <EmailFirstSignIn googleEnabled={googleEnabled} error={error} notice={notice} />
+    </AuthShell>
   );
 }
 
@@ -198,24 +70,24 @@ function EmailFirstSignIn({
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-[1.35rem] font-medium tracking-tight text-foreground">
+        <h1 className="text-h4 text-foreground font-medium">
           {step === "email" ? "Sign in" : "Enter your password"}
         </h1>
-        <p className="text-muted-foreground mt-1.5 text-[15px] leading-snug">
+        <p className="text-muted-foreground mt-1 text-body-sm">
           {step === "email" ? "Your jobs stay on this account." : email}
         </p>
       </div>
 
       {step === "email" && error ? <FieldError message={error} /> : null}
       {step === "email" && notice ? (
-        <p className="bg-brand/10 text-brand-ink rounded-xl px-3.5 py-2.5 text-[14px]">
+        <p role="status" className="bg-brand-wash text-brand-ink rounded-tile px-4 py-3 text-body-sm">
           {notice}
         </p>
       ) : null}
 
       {step === "email" && googleEnabled ? (
         <>
-          <GoogleSignInButton className="h-12 rounded-xl" />
+          <GoogleSignInButton />
           <AuthDivider />
         </>
       ) : null}
@@ -226,14 +98,14 @@ function EmailFirstSignIn({
             key="email-step"
             onSubmit={continueWithEmail}
             className="flex flex-col gap-4"
-            initial={reducedMotion ? false : { opacity: 0, x: -12 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={reducedMotion ? false : { opacity: 0, y: -12, filter: "blur(3px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             exit={
               reducedMotion
                 ? undefined
-                : { opacity: 0, x: -12, transition: { duration: 0.18 } }
+                : { opacity: 0, y: -12, filter: "blur(3px)", transition: { duration: 0.18, ease: EXIT } }
             }
-            transition={{ duration: 0.28, ease: EASE }}
+            transition={{ duration: 0.32, ease: EASE }}
           >
             {emailError ? <FieldError message={emailError} /> : null}
             <div className="space-y-2">
@@ -248,10 +120,9 @@ function EmailFirstSignIn({
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@company.com"
-                className="bg-background/40 h-12"
               />
             </div>
-            <Button type="submit" size="lg" className="mt-1 h-12 w-full rounded-xl">
+            <Button type="submit" size="lg" className="mt-2 w-full">
               Continue
             </Button>
           </motion.form>
@@ -260,14 +131,14 @@ function EmailFirstSignIn({
             key="password-step"
             action={action}
             className="flex flex-col gap-4"
-            initial={reducedMotion ? false : { opacity: 0, x: 12 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={reducedMotion ? false : { opacity: 0, y: 12, filter: "blur(3px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             exit={
               reducedMotion
                 ? undefined
-                : { opacity: 0, x: 12, transition: { duration: 0.18 } }
+                : { opacity: 0, y: 12, filter: "blur(3px)", transition: { duration: 0.18, ease: EXIT } }
             }
-            transition={{ duration: 0.28, ease: EASE }}
+            transition={{ duration: 0.32, ease: EASE }}
           >
             <FieldError message={state.error} />
             <input type="hidden" name="email" value={email} />
@@ -276,7 +147,7 @@ function EmailFirstSignIn({
                 <Label htmlFor="password">Password</Label>
                 <Link
                   href="/forgot-password"
-                  className="text-brand-ink text-[13px] font-medium hover:underline"
+                  className="text-brand-ink rounded-md text-body-sm font-medium hover:underline"
                 >
                   Forgot?
                 </Link>
@@ -290,14 +161,13 @@ function EmailFirstSignIn({
                 autoFocus
                 autoComplete="current-password"
                 placeholder="Your password"
-                className="bg-background/40 h-12"
               />
             </div>
             <Button
               type="submit"
               size="lg"
               disabled={pending}
-              className="mt-1 h-12 w-full rounded-xl"
+              className="mt-2 w-full"
             >
               {pending ? "Signing in…" : "Log in"}
             </Button>
@@ -305,7 +175,7 @@ function EmailFirstSignIn({
               type="button"
               onClick={() => setStep("email")}
               className={cn(
-                "text-muted-foreground hover:text-foreground text-center text-[13px] font-medium transition-colors",
+                "text-muted-foreground hover:text-foreground rounded-md text-center text-body-sm font-medium transition-colors duration-150",
               )}
             >
               Use a different email
@@ -315,9 +185,9 @@ function EmailFirstSignIn({
       </AnimatePresence>
 
       {step === "email" ? (
-        <p className="text-muted-foreground text-center text-[13px]">
+        <p className="text-muted-foreground text-center text-body-sm">
           New here?{" "}
-          <Link href="/signup" className="text-brand-ink font-medium hover:underline">
+          <Link href="/signup" className="text-brand-ink rounded-md font-medium hover:underline">
             Create an account
           </Link>
         </p>
@@ -331,7 +201,7 @@ function FieldError({ message }: { message?: string }) {
   return (
     <p
       role="alert"
-      className="bg-destructive/10 text-destructive rounded-xl px-3.5 py-2.5 text-[14px]"
+      className="bg-destructive-wash text-destructive rounded-tile px-4 py-3 text-body-sm"
     >
       {message}
     </p>

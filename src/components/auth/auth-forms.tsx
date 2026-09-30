@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -20,7 +20,7 @@ function FieldError({ message }: { message?: string }) {
   return (
     <p
       role="alert"
-      className="bg-destructive/10 text-destructive rounded-xl px-3.5 py-2.5 text-[15px]"
+      className="bg-destructive-wash text-destructive rounded-tile px-4 py-3 text-body-sm"
     >
       {message}
     </p>
@@ -60,12 +60,12 @@ export function SignUpForm() {
           placeholder="At least 8 characters"
         />
       </div>
-      <Button type="submit" disabled={pending} className="mt-1 w-full">
+      <Button type="submit" size="lg" disabled={pending} className="mt-2 w-full">
         {pending ? "Creating account…" : "Create account"}
       </Button>
-      <p className="text-muted-foreground text-center text-[15px]">
+      <p className="text-muted-foreground text-center text-body-sm">
         Already have an account?{" "}
-        <Link href="/login" className="text-brand-ink font-medium hover:underline">
+        <Link href="/login" className="text-brand-ink rounded-md font-medium hover:underline">
           Log in
         </Link>
       </p>
@@ -95,7 +95,7 @@ export function SignInForm() {
           <Label htmlFor="password">Password</Label>
           <Link
             href="/forgot-password"
-            className="text-brand-ink text-[15px] font-medium hover:underline"
+            className="text-brand-ink rounded-md text-body-sm font-medium hover:underline"
           >
             Forgot password?
           </Link>
@@ -110,12 +110,12 @@ export function SignInForm() {
           placeholder="Your password"
         />
       </div>
-      <Button type="submit" disabled={pending} className="mt-1 w-full">
+      <Button type="submit" size="lg" disabled={pending} className="mt-2 w-full">
         {pending ? "Signing in…" : "Log in"}
       </Button>
-      <p className="text-muted-foreground text-center text-[15px]">
+      <p className="text-muted-foreground text-center text-body-sm">
         New here?{" "}
-        <Link href="/signup" className="text-brand-ink font-medium hover:underline">
+        <Link href="/signup" className="text-brand-ink rounded-md font-medium hover:underline">
           Create an account
         </Link>
       </p>
@@ -130,7 +130,7 @@ export function ForgotPasswordForm() {
     <form action={action} className="flex flex-col gap-4">
       <FieldError message={state.error} />
       {state.success ? (
-        <div className="bg-brand/10 text-brand-ink space-y-3 rounded-xl px-3.5 py-3 text-[15px]">
+        <div className="bg-brand-wash text-brand-ink space-y-3 rounded-tile px-4 py-3 text-body-sm">
           <p>{state.success}</p>
           {state.resetPath ? (
             <p>
@@ -156,11 +156,11 @@ export function ForgotPasswordForm() {
           placeholder="you@example.com"
         />
       </div>
-      <Button type="submit" disabled={pending} className="mt-1 w-full">
+      <Button type="submit" size="lg" disabled={pending} className="mt-2 w-full">
         {pending ? "Sending…" : "Send reset link"}
       </Button>
-      <p className="text-muted-foreground text-center text-[15px]">
-        <Link href="/login" className="text-brand-ink font-medium hover:underline">
+      <p className="text-muted-foreground text-center text-body-sm">
+        <Link href="/login" className="text-brand-ink rounded-md font-medium hover:underline">
           Back to log in
         </Link>
       </p>
@@ -177,7 +177,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
         <FieldError message="Missing reset token. Request a new link." />
         <Link
           href="/forgot-password"
-          className="bg-primary text-primary-foreground hover:bg-primary/85 inline-flex h-11 w-full items-center justify-center rounded-lg text-[15px] font-medium"
+          className={buttonVariants({ className: "w-full" })}
         >
           Request reset link
         </Link>
@@ -201,7 +201,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
           placeholder="At least 8 characters"
         />
       </div>
-      <Button type="submit" disabled={pending} className="mt-1 w-full">
+      <Button type="submit" size="lg" disabled={pending} className="mt-2 w-full">
         {pending ? "Updating…" : "Update password"}
       </Button>
     </form>

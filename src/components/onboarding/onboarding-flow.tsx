@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState, useTransition, type FormEvent, ty
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, ArrowRight, Check, FileText, Loader2, UploadCloud, X } from "lucide-react";
 import { ingestCvAction, ingestPortfolioUrlAction } from "@/app/actions";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { CapsuleLabel } from "@/components/ui/capsule-label";
 import { Input } from "@/components/ui/input";
 import { CvScore } from "@/components/onboarding/cv-score";
 import { MaterialReader } from "@/components/onboarding/material-reader";
@@ -86,6 +87,7 @@ const QUESTION_GROUPS: FlowStep[][] = [
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const EXIT: [number, number, number, number] = [0.32, 0, 0.67, 0];
 
 const ROLE_SUGGESTIONS = [
   "Software Engineer",
@@ -177,7 +179,7 @@ export function OnboardingFlow({
   const asksForLinkedin = family ? FAMILY_PROFILES[family].usesLevels : true;
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 py-6 sm:px-10">
+    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 py-6 sm:px-8">
       <div className="my-auto flex w-full flex-col">
       <div className="mx-auto mb-8 flex h-9 w-full max-w-lg items-center gap-4">
         {canGoBack ? (
@@ -185,32 +187,24 @@ export function OnboardingFlow({
             type="button"
             onClick={back}
             aria-label="Back"
-            className="text-muted-foreground hover:text-foreground -ml-2 grid size-9 place-items-center rounded-full transition-colors"
+            className="text-foreground border-input hover:bg-primary hover:text-primary-foreground hover:border-primary -ml-1 grid size-9 shrink-0 place-items-center rounded-full border transition-colors duration-150 ease-standard"
           >
             <ArrowLeft className="size-5" aria-hidden />
           </button>
         ) : (
-          <span className="size-9 -ml-2" aria-hidden />
+          <span className="size-9 shrink-0 -ml-1" aria-hidden />
         )}
-        <div
-          className="bg-white/15 h-1 flex-1 overflow-hidden rounded-full"
-          role="progressbar"
-          aria-label="Setup progress"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(progress * 100)}
-        >
-          <div
-            className="bg-brand h-full rounded-full transition-[width] duration-500 ease-out"
-            style={{ width: `${progress * 100}%` }}
-          />
-        </div>
+        <Stepper
+          steps={visibleGroups.length}
+          current={groupIndex}
+          progress={progress}
+        />
         {groupIndex >= 0 ? (
-          <p className="text-muted-foreground w-12 text-right text-[13px] tabular-nums">
+          <p className="text-muted-foreground w-12 shrink-0 text-right text-body-sm tabular-nums">
             {groupIndex + 1}/{visibleGroups.length}
           </p>
         ) : (
-          <span className="w-12" aria-hidden />
+          <span className="w-12 shrink-0" aria-hidden />
         )}
       </div>
 
@@ -218,10 +212,14 @@ export function OnboardingFlow({
         <motion.div
           key={step}
           className="flex flex-1 flex-col"
-          initial={reducedMotion ? false : { opacity: 0, x: 24 * direction }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={reducedMotion ? undefined : { opacity: 0, x: -24 * direction, transition: { duration: 0.15 } }}
-          transition={{ duration: 0.3, ease: EASE }}
+          initial={reducedMotion ? false : { opacity: 0, y: 14 * direction, filter: "blur(3px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          exit={
+            reducedMotion
+              ? undefined
+              : { opacity: 0, y: -14 * direction, filter: "blur(3px)", transition: { duration: 0.18, ease: EXIT } }
+          }
+          transition={{ duration: 0.36, ease: EASE }}
         >
           {step === "intro" || step === "role" ? (
             <RoleStep
@@ -416,13 +414,61 @@ export function OnboardingFlow({
           ) : null}
 
           {error && step !== "summary" && step !== "review" ? (
-            <p role="alert" className="text-destructive mt-4 text-center text-[15px]">
+            <p role="alert" className="text-destructive mt-4 text-center text-body">
               {error}
             </p>
           ) : null}
         </motion.div>
       </AnimatePresence>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Setup progress: one dot per question group joined by a line that fills in
+ * verdigris up to the current step. Advances only when the user answers.
+ */
+function Stepper({
+  steps,
+  current,
+  progress,
+}: {
+  steps: number;
+  current: number;
+  progress: number;
+}) {
+  const done = current < 0;
+  const fill = done ? 100 : steps > 1 ? (current / (steps - 1)) * 100 : 100;
+  return (
+    <div
+      className="relative flex h-3 flex-1 items-center justify-between"
+      role="progressbar"
+      aria-label="Setup progress"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(progress * 100)}
+    >
+      <span aria-hidden className="bg-border-strong absolute inset-x-1 top-1/2 h-0.5 -translate-y-1/2 rounded-full" />
+      <span
+        aria-hidden
+        className="bg-brand absolute top-1/2 left-1 h-0.5 -translate-y-1/2 rounded-full transition-[width] duration-700 ease-enter motion-reduce:transition-none"
+        style={{ width: `calc(${fill}% - ${fill > 0 ? "0.5rem" : "0rem"})` }}
+      />
+      {Array.from({ length: steps }, (_, index) => {
+        const reached = done || index <= current;
+        return (
+          <span
+            key={index}
+            aria-hidden
+            className={cn(
+              "relative size-3 rounded-full border transition-colors duration-300 ease-standard",
+              reached ? "border-brand bg-brand" : "bg-card border-border-strong",
+              index === current && "ring-brand/20 ring-4",
+            )}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -441,15 +487,15 @@ function Screen({
   return (
     <div className="flex flex-col items-center text-center">
       {eyebrow ? (
-        <p className="text-brand-ink mb-3 text-[13px] font-medium tracking-[0.14em] uppercase">
+        <p className="text-brand-ink mb-3 text-body-sm font-medium">
           {eyebrow}
         </p>
       ) : null}
-      <h1 className="max-w-3xl text-[clamp(1.85rem,4vw,2.75rem)] leading-[1.08] font-medium tracking-tight text-foreground">
+      <h1 className="text-h3 sm:text-h2 max-w-3xl font-medium text-foreground">
         {title}
       </h1>
       {hint ? (
-        <p className="text-muted-foreground mt-4 max-w-xl text-[18px] leading-relaxed sm:text-[20px]">{hint}</p>
+        <p className="text-muted-foreground mt-4 max-w-xl text-body sm:text-body-lg">{hint}</p>
       ) : null}
       <div className="mt-10 w-full">{children}</div>
     </div>
@@ -474,14 +520,17 @@ function PrimaryButton({
   return (
     <Button
       type={type}
-      size="lg"
+      variant="capsule"
       disabled={disabled || pending}
       onClick={onClick}
-      className={cn("mx-auto h-14 w-full max-w-sm rounded-2xl text-[18px]", className)}
+      className={cn("mx-auto w-full max-w-sm", className)}
     >
-      {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-      {children}
-      {!pending ? <ArrowRight className="size-4" aria-hidden /> : null}
+      <CapsuleLabel
+        className="w-full justify-between"
+        icon={pending ? <Loader2 className="animate-spin" aria-hidden /> : <ArrowRight aria-hidden />}
+      >
+        {children}
+      </CapsuleLabel>
     </Button>
   );
 }
@@ -492,7 +541,7 @@ function SkipButton({ onClick, disabled }: { onClick: () => void; disabled?: boo
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="text-muted-foreground hover:text-foreground h-12 px-3 text-[15px] font-medium transition-colors"
+      className={buttonVariants({ variant: "ghost", size: "lg" })}
     >
       Skip
     </button>
@@ -527,16 +576,16 @@ function Choices<T extends string>({
             disabled={disabled}
             onClick={() => onPick(option.id)}
             className={cn(
-              "flex min-h-20 items-center justify-between gap-4 rounded-3xl border-2 px-6 py-4 text-left text-[1.2rem] font-medium transition-colors disabled:opacity-60 sm:min-h-24 sm:text-[1.45rem]",
+              "flex min-h-20 items-center justify-between gap-4 rounded-card border px-6 py-4 text-left text-h5 transition-colors duration-150 ease-standard disabled:opacity-60 sm:min-h-24 sm:text-h4",
               selected
-                ? "border-brand bg-[color-mix(in_oklch,var(--brand)_42%,#10141c)] font-medium text-foreground"
-                : "border-white/25 bg-secondary text-foreground hover:border-white/45",
+                ? "border-brand bg-brand-wash text-foreground"
+                : "bg-card text-foreground border-transparent hover:border-border-strong",
             )}
           >
             <span className="flex flex-col">
               {option.label}
               {option.detail ? (
-                <span className="text-muted-foreground text-[14px] font-normal">{option.detail}</span>
+                <span className="text-muted-foreground text-body-sm font-normal">{option.detail}</span>
               ) : null}
             </span>
             {selected ? (
@@ -544,7 +593,7 @@ function Choices<T extends string>({
                 <Check className="size-4" strokeWidth={2.75} aria-hidden />
               </span>
             ) : (
-              <span className="size-7 shrink-0 rounded-full border-2 border-white/25" aria-hidden />
+              <span className="border-input size-7 shrink-0 rounded-full border" aria-hidden />
             )}
           </button>
         );
@@ -571,10 +620,10 @@ function Chip({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "inline-flex h-12 items-center gap-2 rounded-full border-2 px-5 text-[16px] font-medium transition-colors disabled:opacity-40",
+        "inline-flex h-11 items-center gap-2 rounded-full border px-5 text-body transition-colors duration-150 ease-standard disabled:opacity-40",
         selected
-          ? "border-brand bg-[color-mix(in_oklch,var(--brand)_42%,#10141c)] font-medium text-foreground"
-          : "border-white/25 bg-secondary text-foreground hover:border-white/45",
+          ? "bg-primary text-primary-foreground border-primary"
+          : "bg-card text-foreground border-border-strong hover:bg-subtle",
       )}
     >
       {selected ? <Check className="size-4 shrink-0" strokeWidth={2.75} aria-hidden /> : null}
@@ -622,10 +671,10 @@ function RoleStep({
           placeholder="Nurse, truck driver, accountant"
           maxLength={80}
           aria-autocomplete="list"
-          className="h-16 rounded-2xl text-center text-[22px]"
+          className="h-16 rounded-2xl text-center text-h5"
         />
         {matches.length > 0 ? (
-          <ul className="divide-y divide-white/10 overflow-hidden rounded-2xl border-2 border-white/15" role="listbox">
+          <ul className="bg-card divide-y divide-border overflow-hidden rounded-card" role="listbox">
             {matches.map((occupation) => (
               <li key={occupation.id}>
                 <button
@@ -634,10 +683,10 @@ function RoleStep({
                   aria-selected={false}
                   disabled={pending}
                   onClick={() => onPick(occupation)}
-                  className="hover:bg-card/70 flex w-full items-center justify-between gap-3 px-5 py-3 text-left disabled:opacity-60"
+                  className="hover:bg-subtle flex w-full items-center justify-between gap-3 px-5 py-3 text-left transition-colors duration-150 disabled:opacity-60"
                 >
-                  <span className="text-[16px] font-medium text-foreground">{occupation.en}</span>
-                  <span className="text-muted-foreground shrink-0 text-[13px]">
+                  <span className="text-body text-foreground">{occupation.en}</span>
+                  <span className="text-muted-foreground shrink-0 text-body-sm">
                     {FAMILY_PROFILES[occupation.family].label}
                   </span>
                 </button>
@@ -664,8 +713,8 @@ function RoleStep({
 function Ask({ title, hint, children }: { title: string; hint: string; children: ReactNode }) {
   return (
     <div>
-      <p className="text-[18px] font-medium text-foreground">{title}</p>
-      <p className="text-muted-foreground mt-1 mb-4 text-[14px]">{hint}</p>
+      <p className="text-body-lg font-medium text-foreground">{title}</p>
+      <p className="text-muted-foreground mt-1 mb-4 text-body-sm">{hint}</p>
       {children}
     </div>
   );
@@ -909,7 +958,7 @@ function PlacePayStep({
             value={currency}
             onChange={(event) => setCurrency(event.target.value as Currency)}
             aria-label="Currency"
-            className="border-white/25 bg-secondary h-14 rounded-2xl border-2 px-4 text-[16px]"
+            className="border-input bg-card h-14 rounded-full border px-4 text-body"
           >
             {(["EUR", "USD", "GBP", "CHF", "RSD"] as const).map((code) => (
               <option key={code} value={code}>
@@ -922,7 +971,7 @@ function PlacePayStep({
             value={amount}
             onChange={(event) => setAmount(event.target.value)}
             placeholder={placeholder}
-            className="h-14 rounded-2xl text-center text-[20px]"
+            className="h-14 rounded-2xl text-center text-h5"
           />
         </div>
       </Ask>
@@ -950,7 +999,7 @@ function PlacePayStep({
           type="button"
           onClick={() => finish(null)}
           disabled={pending || !start || picked.length === 0}
-          className="text-muted-foreground hover:text-foreground h-12 px-3 text-[16px] font-medium transition-colors"
+          className="text-muted-foreground hover:text-foreground h-12 px-3 text-body font-medium transition-colors"
         >
           Skip the pay
         </button>
@@ -1008,7 +1057,7 @@ function TagInput({
 
   return (
     <div>
-      <p className="mb-3 text-[15px] font-medium">{label}</p>
+      <p className="mb-3 text-body font-medium">{label}</p>
       {values.length ? (
         <div className="mb-3 flex flex-wrap gap-2">
           {values.map((v) => (
@@ -1016,7 +1065,7 @@ function TagInput({
               key={v}
               type="button"
               onClick={() => onChange(values.filter((x) => x !== v))}
-              className="border-brand bg-brand/12 inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-[14px] font-medium"
+              className="bg-primary text-primary-foreground inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-body-sm"
               aria-label={`Remove ${v}`}
             >
               {v}
@@ -1088,8 +1137,8 @@ function FitStep({
 
   const schedule = (
     <div>
-      <p className="mb-1 text-[15px] font-medium">I can work</p>
-      <p className="text-muted-foreground mb-3 text-[14px]">Select all that apply</p>
+      <p className="mb-1 text-body font-medium">I can work</p>
+      <p className="text-muted-foreground mb-3 text-body-sm">Select all that apply</p>
       <div className="flex flex-wrap gap-2">
         <Toggle label="Shifts" value={d.shifts} onChange={(shifts) => set({ shifts })} />
         <Toggle label="Nights" value={d.nights} onChange={(nights) => set({ nights })} />
@@ -1115,8 +1164,8 @@ function FitStep({
       body: (
         <>
           <div>
-            <p className="mb-1 text-[15px] font-medium">Driving licence categories</p>
-            <p className="text-muted-foreground mb-3 text-[14px]">Select all that apply</p>
+            <p className="mb-1 text-body font-medium">Driving licence categories</p>
+            <p className="text-muted-foreground mb-3 text-body-sm">Select all that apply</p>
             <div className="flex flex-wrap gap-2">
               {LICENCE_CATEGORIES.map((cat) => (
                 <Chip
@@ -1230,10 +1279,10 @@ function FitStep({
             </Button>
           </form>
           {rows.length ? (
-            <ul className="mt-4 divide-y divide-white/10 rounded-2xl border-2 border-white/15">
+            <ul className="bg-card mt-4 divide-y divide-border rounded-card">
               {rows.map((row) => (
                 <li key={row.language} className="flex items-center justify-between gap-3 px-4 py-3">
-                  <span className="text-[16px] font-medium">{row.language}</span>
+                  <span className="text-body font-medium">{row.language}</span>
                   <span className="flex items-center gap-2">
                     <select
                       value={row.level}
@@ -1247,7 +1296,7 @@ function FitStep({
                           ),
                         )
                       }
-                      className="border-white/25 bg-secondary h-10 rounded-xl border-2 px-3 text-[15px]"
+                      className="border-input bg-card h-10 rounded-full border px-3 text-body"
                     >
                       {LANGUAGE_LEVELS.map((level) => (
                         <option key={level} value={level}>
@@ -1377,10 +1426,10 @@ function DropZone({
       }}
       disabled={pending}
       className={cn(
-        "flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-center transition-colors",
+        "bg-card flex w-full flex-col items-center justify-center gap-2 rounded-card border border-dashed text-center transition-colors duration-150 ease-standard",
         compact ? "px-6 py-10" : "min-h-64 px-6 py-16 sm:min-h-72 sm:py-20",
-        dragging ? "border-brand bg-brand/10" : "border-white/25 bg-card/30 hover:border-brand/50",
-        doneLabel && "border-brand/60 border-solid",
+        dragging ? "border-brand bg-brand-wash" : "border-ink-tertiary hover:border-brand",
+        doneLabel && "border-brand border-solid",
       )}
     >
       <input
@@ -1397,10 +1446,10 @@ function DropZone({
       ) : (
         <UploadCloud className="text-muted-foreground size-10" aria-hidden />
       )}
-      <span className="text-[22px] font-medium text-foreground">
+      <span className="text-h5 text-foreground">
         {pending ? "Reading your file…" : doneLabel ?? title}
       </span>
-      <span className="text-muted-foreground text-[14px]">{doneLabel ? "Click to replace" : hint}</span>
+      <span className="text-muted-foreground text-body-sm">{doneLabel ? "Click to replace" : hint}</span>
     </button>
   );
 }
@@ -1458,7 +1507,7 @@ function CvStep({
           pending={pending}
           onFile={upload}
         />
-        {error ? <p role="alert" className="text-destructive text-[15px]">{error}</p> : null}
+        {error ? <p role="alert" className="text-destructive text-body">{error}</p> : null}
         {askWebsite ? (
           <Input
             value={website}
@@ -1468,10 +1517,10 @@ function CvStep({
             }}
             placeholder="yourname.com — optional"
             inputMode="url"
-            className="h-16 rounded-2xl text-center text-[20px]"
+            className="h-16 rounded-2xl text-center text-h5"
           />
         ) : null}
-        {siteError ? <p role="alert" className="text-destructive text-[15px]">{siteError}</p> : null}
+        {siteError ? <p role="alert" className="text-destructive text-body">{siteError}</p> : null}
         {askLinkedin ? (
           <DropZone
             compact
@@ -1482,7 +1531,7 @@ function CvStep({
             onFile={linkedin.upload}
           />
         ) : null}
-        {linkedin.error ? <p role="alert" className="text-destructive text-[15px]">{linkedin.error}</p> : null}
+        {linkedin.error ? <p role="alert" className="text-destructive text-body">{linkedin.error}</p> : null}
         <PrimaryButton disabled={!fileName || pending || busy || linkedin.pending} onClick={finish}>
           {busy ? "Opening your site…" : "Analyze"}
         </PrimaryButton>
@@ -1525,7 +1574,7 @@ function AnalyzingStep({
           >
             Try again
           </PrimaryButton>
-          <button type="button" onClick={onBack} className="text-muted-foreground hover:text-foreground h-12 px-3 text-[15px] font-medium">
+          <button type="button" onClick={onBack} className={buttonVariants({ variant: "ghost", size: "lg" })}>
             Change files
           </button>
         </div>
@@ -1575,10 +1624,10 @@ function SummaryStep({
             key={row.label}
             className={cn(
               "grid grid-cols-1 gap-2 py-5 sm:grid-cols-[11rem_1fr] sm:items-start sm:gap-8",
-              index > 0 && "border-t border-white/10",
+              index > 0 && "border-t border-border",
             )}
           >
-            <dt className="text-muted-foreground text-[14px] tracking-[0.04em] sm:pt-1.5 sm:text-right">
+            <dt className="text-muted-foreground text-body-sm sm:pt-1.5 sm:text-right">
               {row.label}
             </dt>
             <dd>
@@ -1587,21 +1636,21 @@ function SummaryStep({
                   {row.chips.map((chip) => (
                     <li
                       key={chip}
-                      className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-[15px] leading-none text-foreground ring-1 ring-white/10"
+                      className="bg-card text-foreground rounded-full border border-border-strong px-3.5 py-1.5 text-body-sm"
                     >
                       {chip}
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-[18px] leading-snug text-foreground">{row.value}</p>
+                <p className="text-body-lg leading-snug text-foreground">{row.value}</p>
               )}
             </dd>
           </div>
         ))}
       </dl>
       {error ? (
-        <p role="alert" className="text-destructive mt-4 text-[15px]">
+        <p role="alert" className="text-destructive mt-4 text-body">
           {error}
         </p>
       ) : null}
@@ -1613,7 +1662,7 @@ function SummaryStep({
           type="button"
           onClick={onEdit}
           disabled={pending}
-          className="text-muted-foreground hover:text-foreground h-14 px-4 text-[16px] font-medium disabled:opacity-60"
+          className={buttonVariants({ variant: "ghost", size: "lg" })}
         >
           Change answers
         </button>
@@ -1640,15 +1689,15 @@ function ReviewStep({
 
   return (
     <div className="flex flex-col">
-      <p className="text-brand-ink mb-3 text-center text-[13px] font-medium tracking-[0.14em] uppercase">
+      <p className="text-brand-ink mb-3 text-center text-body-sm font-medium">
         Your CV score
       </p>
       {review ? (
         <CvScore review={review} />
       ) : (
-        <div className="border-border rounded-2xl border px-5 py-6 text-center">
-          <p className="text-[16px]">We couldn&apos;t score your CV this time.</p>
-          {retryError ? <p className="text-destructive mt-2 text-[14px]">{retryError}</p> : null}
+        <div className="bg-card rounded-card px-5 py-6 text-center">
+          <p className="text-body">We couldn&apos;t score your CV this time.</p>
+          {retryError ? <p className="text-destructive mt-2 text-body-sm">{retryError}</p> : null}
           <Button
             variant="outline"
             className="mt-4"
@@ -1666,7 +1715,7 @@ function ReviewStep({
         </div>
       )}
       {error ? (
-        <p role="alert" className="text-destructive mt-4 text-center text-[14px]">
+        <p role="alert" className="text-destructive mt-4 text-center text-body-sm">
           {error}
         </p>
       ) : null}

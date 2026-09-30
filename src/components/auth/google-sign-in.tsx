@@ -31,7 +31,7 @@ function GoogleSubmit({ className }: { className?: string }) {
 
 export function AuthDivider() {
   return (
-    <div className="text-muted-foreground flex items-center gap-3 text-[13px]">
+    <div className="text-muted-foreground flex items-center gap-3 text-body-sm">
       <span className="bg-border h-px flex-1" />
       or
       <span className="bg-border h-px flex-1" />
