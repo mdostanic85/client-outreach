@@ -43,7 +43,7 @@ export default function WelcomePage() {
               href="/signup"
               className={buttonVariants({ variant: "capsule", className: "max-sm:w-full" })}
             >
-              <CapsuleLabel className="max-sm:w-full max-sm:justify-between">
+              <CapsuleLabel className="max-sm:w-full">
                 Get started
               </CapsuleLabel>
             </Link>

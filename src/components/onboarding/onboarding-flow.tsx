@@ -526,7 +526,7 @@ function PrimaryButton({
       className={cn("mx-auto w-full max-w-sm", className)}
     >
       <CapsuleLabel
-        className="w-full justify-between"
+        className="w-full"
         icon={pending ? <Loader2 className="animate-spin" aria-hidden /> : <ArrowRight aria-hidden />}
       >
         {children}

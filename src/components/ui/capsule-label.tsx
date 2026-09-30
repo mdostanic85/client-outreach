@@ -56,7 +56,7 @@ export function CapsuleLabel({
       </span>
       <span
         ref={labelRef}
-        className="px-5 transition-transform duration-700 ease-standard group-hover/button:translate-x-(--label-shift) group-focus-visible/button:translate-x-(--label-shift) motion-reduce:transition-none motion-reduce:group-hover/button:translate-x-0 motion-reduce:group-focus-visible/button:translate-x-0"
+        className="flex-1 px-5 text-center transition-transform duration-700 ease-standard group-hover/button:translate-x-(--label-shift) group-focus-visible/button:translate-x-(--label-shift) motion-reduce:transition-none motion-reduce:group-hover/button:translate-x-0 motion-reduce:group-focus-visible/button:translate-x-0"
       >
         {children}
       </span>
