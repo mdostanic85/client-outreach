@@ -144,17 +144,14 @@ export const OCCUPATIONS: Occupation[] = [
   o("seafarer", "Seafarer", "Pomorac", "transport_logistics", ["Deck Officer", "Mornar", "Ship Engineer", "Brodski mašinista"]),
   o("customs_officer", "Customs Clerk", "Carinski referent", "transport_logistics", ["Customs Declarant", "Deklarant"]),
 
-  // Hospitality and retail (qualified roles only in v1)
+  // Hospitality and retail (qualified roles only in v1 — no cashier / waiter / shop assistant)
   o("chef", "Chef", "Kuvar", "hospitality_retail", ["Cook", "Head Chef", "Sous Chef", "Glavni kuvar", "Line Cook", "Kuvarica", "Šef kuhinje"]),
   o("bartender", "Bartender", "Barmen", "hospitality_retail", ["Barista", "Mixologist", "Šanker"]),
-  o("waiter", "Waiter", "Konobar", "hospitality_retail", ["Server", "Waitress", "Konobarica"]),
   o("sommelier", "Sommelier", "Somelijer", "hospitality_retail", []),
   o("restaurant_manager", "Restaurant Manager", "Menadžer restorana", "hospitality_retail", ["F&B Manager", "Šef sale", "Upravnik restorana"]),
   o("hotel_receptionist", "Hotel Receptionist", "Recepcioner", "hospitality_retail", ["Front Desk Agent", "Recepcionerka", "Front Office"]),
   o("hotel_manager", "Hotel Manager", "Menadžer hotela", "hospitality_retail", ["General Manager Hotel", "Direktor hotela"]),
   o("store_manager", "Store Manager", "Poslovođa", "hospitality_retail", ["Retail Manager", "Šef prodavnice", "Menadžer prodavnice", "Shop Manager", "Area Manager"]),
-  o("sales_associate", "Sales Associate", "Prodavac", "hospitality_retail", ["Retail Assistant", "Prodavačica", "Sales Assistant", "Shop Assistant", "Trgovac"]),
-  o("cashier", "Cashier", "Kasir", "hospitality_retail", ["Kasirka", "Blagajnik"]),
   o("merchandiser", "Merchandiser", "Merčendajzer", "hospitality_retail", ["Visual Merchandiser"]),
   o("travel_agent", "Travel Agent", "Turistički agent", "hospitality_retail", ["Travel Consultant", "Tour Guide", "Turistički vodič"]),
   o("event_coordinator", "Event Coordinator", "Organizator događaja", "hospitality_retail", ["Event Manager", "Event Planner"]),
