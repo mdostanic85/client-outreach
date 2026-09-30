@@ -59,10 +59,10 @@ export function LinkedInImportCard({
   return (
     <Surface>
       <PanelHeader className="flex-col items-start gap-1">
-        <p className="text-[16px] font-medium tracking-tight">
+        <p className="text-body font-medium">
           Add LinkedIn profile
         </p>
-        <p className="text-muted-foreground text-[14px] leading-relaxed">
+        <p className="text-muted-foreground text-body-sm leading-relaxed">
           LinkedIn can help us understand your work history, roles, skills,
           education, and professional background more accurately. It will be
           combined with your portfolio, CV, and manually added information.
@@ -76,9 +76,9 @@ export function LinkedInImportCard({
           </InlineAlert>
         ) : null}
 
-        <div className="border-border space-y-3 rounded-xl border px-4 py-4">
-          <p className="text-[15px] font-medium">How to add your LinkedIn profile</p>
-          <ol className="text-muted-foreground list-decimal space-y-1.5 pl-5 text-[14px] leading-relaxed">
+        <div className="bg-subtle space-y-3 rounded-panel px-4 py-4">
+          <p className="text-body font-medium">How to add your LinkedIn profile</p>
+          <ol className="text-muted-foreground list-decimal space-y-1.5 pl-5 text-body-sm leading-relaxed">
             <li>Open your LinkedIn profile.</li>
             <li>
               Select <strong className="text-foreground">Resources</strong> or{" "}
@@ -90,7 +90,7 @@ export function LinkedInImportCard({
             <li>Upload the downloaded PDF here.</li>
             <li>Review the extracted information before saving it.</li>
           </ol>
-          <p className="text-muted-foreground text-[13px]">
+          <p className="text-muted-foreground text-body-sm">
             Optra does not connect directly to LinkedIn — you upload the PDF
             yourself.
           </p>
@@ -110,7 +110,7 @@ export function LinkedInImportCard({
         {showSteps ? (
           <div
             className={cn(
-              "text-muted-foreground space-y-2 rounded-xl bg-muted/40 px-4 py-3 text-[14px] leading-relaxed",
+              "text-muted-foreground space-y-2 rounded-xl bg-subtle px-4 py-3 text-body-sm leading-relaxed",
             )}
           >
             <p>
@@ -128,7 +128,7 @@ export function LinkedInImportCard({
         ) : null}
 
         <div className="space-y-2">
-          <p className="text-[14px] font-medium">Upload LinkedIn PDF</p>
+          <p className="text-body-sm font-medium">Upload LinkedIn PDF</p>
           <FileDropzone
             accept=".pdf,application/pdf"
             disabled={pending}

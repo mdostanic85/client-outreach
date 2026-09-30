@@ -34,10 +34,10 @@ export function ProfileOverview({
 
   return (
     <div className="mb-4 flex flex-col gap-4">
-      <section className="border-border bg-card/40 rounded-2xl border p-5">
+      <section className="bg-card rounded-card p-5 sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-muted-foreground text-[13px] font-medium tracking-[0.12em] uppercase">
+            <p className="text-muted-foreground text-body-sm font-medium">
               CV score
             </p>
             {review ? (
@@ -46,16 +46,16 @@ export function ProfileOverview({
                   <span className="text-[2rem] leading-none font-medium tabular-nums text-foreground">
                     {review.overall}
                   </span>
-                  <span className="text-[14px] font-medium" style={{ color: scoreTone(review.overall).color }}>
+                  <span className="text-body-sm font-medium" style={{ color: scoreTone(review.overall).color }}>
                     {scoreTone(review.overall).label}
                   </span>
                 </p>
-                <p className="text-muted-foreground mt-2 max-w-xl text-[15px] leading-relaxed">
+                <p className="text-muted-foreground mt-2 max-w-xl text-body leading-relaxed">
                   {review.headline}
                 </p>
               </>
             ) : (
-              <p className="text-muted-foreground mt-2 text-[15px]">
+              <p className="text-muted-foreground mt-2 text-body">
                 {hasCv ? "Your CV hasn't been scored yet." : "Upload a CV below to get a score."}
               </p>
             )}
@@ -65,7 +65,7 @@ export function ProfileOverview({
               type="button"
               onClick={() => setOpen((v) => !v)}
               aria-expanded={open}
-              className="text-muted-foreground hover:text-foreground inline-flex shrink-0 items-center gap-1 text-[14px] font-medium"
+              className="text-muted-foreground hover:text-foreground inline-flex shrink-0 items-center gap-1 text-body-sm font-medium"
             >
               {open ? "Hide" : "What to fix"}
               <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} aria-hidden />
@@ -76,7 +76,7 @@ export function ProfileOverview({
             </Button>
           ) : null}
         </div>
-        {error ? <p className="text-destructive mt-3 text-[14px]">{error}</p> : null}
+        {error ? <p className="text-destructive mt-3 text-body-sm">{error}</p> : null}
         {review && open ? (
           <div className="border-border mt-6 border-t pt-6">
             <CvScore review={review} detailsOnly />
@@ -84,7 +84,7 @@ export function ProfileOverview({
               type="button"
               onClick={rescore}
               disabled={pending}
-              className="text-muted-foreground hover:text-foreground mt-6 text-[14px] font-medium"
+              className="text-muted-foreground hover:text-foreground mt-6 text-body-sm font-medium"
             >
               {pending ? "Scoring…" : "Updated your CV? Score it again"}
             </button>

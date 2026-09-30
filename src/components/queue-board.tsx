@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { QueueControls } from "@/components/queue-controls";
 import { EmptyState } from "@/components/empty-state";
 import {
@@ -77,7 +77,7 @@ export function QueueBoard({
         </div>
       )}
 
-      <div className="bg-card border-border flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border px-5 py-3.5 text-[14px]">
+      <div className="bg-card flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card px-5 py-3.5 text-body-sm">
         <span
           className={cn(
             "size-2 rounded-full",
@@ -85,7 +85,7 @@ export function QueueBoard({
               ? "bg-destructive status-pulse"
               : status.credentialsConfigured
                 ? "bg-brand status-pulse"
-                : "bg-warn status-pulse",
+                : "bg-warn-fill status-pulse",
           )}
         />
         {paused ? (
@@ -157,14 +157,13 @@ export function QueueBoard({
               description="Write outreach on a company from Today, then approve it into the send queue."
               actionLabel="Go to Today"
               actionHref="/"
-              icon={<Inbox className="size-6 opacity-70" strokeWidth={1.5} />}
+              icon={<Inbox className="size-5" strokeWidth={1.5} />}
             />
           ) : (
             <ul className="divide-border divide-y">
-              {board.pending.map((item, index) => (
+              {board.pending.map((item) => (
                 <QueueRow
                   key={item.draft.id}
-                  index={index}
                   href={`/leads/${item.lead?.id}`}
                   title={item.company?.name ?? "Lead"}
                   subtitle={`To: ${item.contact?.email ?? "—"}`}
@@ -184,14 +183,13 @@ export function QueueBoard({
               description="Approved drafts wait here until the send worker processes them."
               actionLabel="Review pending"
               onAction={() => setTab("pending")}
-              icon={<Mail className="size-6 opacity-70" strokeWidth={1.5} />}
+              icon={<Mail className="size-5" strokeWidth={1.5} />}
             />
           ) : (
             <ul className="divide-border divide-y">
-              {board.scheduled.map((item, index) => (
+              {board.scheduled.map((item) => (
                 <QueueRow
                   key={item.approval.id}
-                  index={index}
                   href={`/leads/${item.lead?.id}`}
                   title={item.company?.name ?? "Lead"}
                   subtitle={`To: ${item.approval.recipientEmail}`}
@@ -212,14 +210,13 @@ export function QueueBoard({
               description="Successful sends show up here after the worker processes the queue."
               actionLabel="View scheduled"
               onAction={() => setTab("scheduled")}
-              icon={<Send className="size-6 opacity-70" strokeWidth={1.5} />}
+              icon={<Send className="size-5" strokeWidth={1.5} />}
             />
           ) : (
             <ul className="divide-border divide-y">
-              {board.sent.map((item, index) => (
+              {board.sent.map((item) => (
                 <QueueRow
                   key={item.draft.id}
-                  index={index}
                   href={`/leads/${item.lead?.id}`}
                   title={item.company?.name ?? "Lead"}
                   subtitle={`To: ${item.contact?.email ?? "—"}`}
@@ -238,13 +235,13 @@ export function QueueBoard({
               title="No delivery failures"
               description="Bounces and send failures will list here if something goes wrong."
               icon={
-                <TriangleAlert className="size-6 opacity-70" strokeWidth={1.5} />
+                <TriangleAlert className="size-5" strokeWidth={1.5} />
               }
             />
           ) : (
             <ul className="divide-border divide-y">
               {board.failed.map((item) => (
-                <li key={item.event.id} className="row-accent space-y-2 px-4 py-3">
+                <li key={item.event.id} className="space-y-2 px-4 py-3">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 wrap-anywhere">
                       {item.lead ? (
@@ -288,7 +285,7 @@ export function QueueBoard({
                 No events yet.
               </p>
             ) : (
-              <ul className="divide-border divide-y text-sm">
+              <ul className="divide-border divide-y text-body-sm">
                 {events.map((e) => (
                   <li
                     key={e.id}
@@ -328,7 +325,6 @@ function QueueRow({
   meta,
   badge,
   preview,
-  index = 0,
 }: {
   href: string;
   title: string;
@@ -337,39 +333,36 @@ function QueueRow({
   meta: string;
   badge: string;
   preview?: string | null;
-  index?: number;
 }) {
   const [open, setOpen] = useState(false);
-  const stagger = Math.min(Math.max(index, 0), 10);
 
   return (
     <li
-      className="row-accent interactive-row stagger-item space-y-3 px-5 py-5 sm:px-8 sm:py-6"
-      style={{ "--stagger-index": stagger } as CSSProperties}
+      className="interactive-row space-y-3 px-4 py-4 sm:px-6 sm:py-5"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <Link
             href={href}
-            className="text-[16px] font-medium text-foreground hover:text-brand-ink"
+            className="text-foreground hover:text-brand-ink rounded-md text-body-lg transition-colors duration-150"
           >
             {title}
           </Link>
-          <p className="text-muted-foreground text-[15px]">{subtitle}</p>
+          <p className="text-muted-foreground text-body-sm">{subtitle}</p>
         </div>
         <Badge variant="outline">{badge}</Badge>
       </div>
-      {subject ? <p className="text-[15px]">{subject}</p> : null}
+      {subject ? <p className="text-body">{subject}</p> : null}
       <div className="flex flex-wrap items-center gap-2">
-        <p className="text-muted-foreground tabular text-sm">{meta}</p>
+        <p className="text-muted-foreground tabular text-body-sm">{meta}</p>
         {preview ? (
-          <Button size="lg" variant="ghost" onClick={() => setOpen((v) => !v)}>
+          <Button size="sm" variant="ghost" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
             {open ? "Hide" : "Preview"}
           </Button>
         ) : null}
       </div>
       {open && preview ? (
-        <pre className="animate-expand bg-muted/50 text-muted-foreground max-h-40 overflow-auto rounded-md p-3 text-sm whitespace-pre-wrap">
+        <pre className="animate-expand bg-subtle text-ink-emphasis max-h-40 overflow-auto rounded-tile p-4 font-sans text-body-sm whitespace-pre-wrap">
           {preview}
         </pre>
       ) : null}

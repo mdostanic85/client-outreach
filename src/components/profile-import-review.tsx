@@ -24,11 +24,11 @@ const CATEGORY_META: Record<
   },
   updated: {
     label: "Updated",
-    className: "bg-sky-500/12 text-sky-100 ring-1 ring-sky-500/25",
+    className: "bg-subtle text-ink-emphasis ring-1 ring-border",
   },
   conflict: {
     label: "Conflict",
-    className: "bg-amber-500/12 text-amber-100 ring-1 ring-amber-500/30",
+    className: "bg-warn-wash text-warn ring-1 ring-warn/25",
   },
   missing: {
     label: "Missing in import",
@@ -122,10 +122,10 @@ export function ProfileImportReview({
   return (
     <Surface>
       <PanelHeader className="flex-col items-start gap-2">
-        <p className="text-[16px] font-medium tracking-tight">
+        <p className="text-body font-medium">
           Review before saving
         </p>
-        <p className="text-muted-foreground text-[14px] leading-relaxed">
+        <p className="text-muted-foreground text-body-sm leading-relaxed">
           New information from your latest import. Accept, edit, or reject each
           item before it merges into your Professional Profile.
         </p>
@@ -163,7 +163,7 @@ export function ProfileImportReview({
 
         {grouped.map(([section, sectionItems]) => (
           <div key={section} className="space-y-3">
-            <p className="text-muted-foreground text-[13px] font-medium tracking-wide uppercase">
+            <p className="text-muted-foreground text-body-sm font-medium">
               {section}
             </p>
             <ul className="space-y-3">
@@ -175,15 +175,15 @@ export function ProfileImportReview({
                 return (
                   <li
                     key={item.id}
-                    className="border-border space-y-3 rounded-xl border px-4 py-3"
+                    className="bg-subtle space-y-3 rounded-tile px-4 py-3"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-[15px] font-medium">{item.label}</p>
+                          <p className="text-body font-medium">{item.label}</p>
                           <span
                             className={cn(
-                              "rounded-md px-2 py-0.5 text-[12px] font-medium",
+                              "rounded-md px-2 py-0.5 text-caption font-medium",
                               meta.className,
                             )}
                           >
@@ -191,7 +191,7 @@ export function ProfileImportReview({
                           </span>
                         </div>
                         {item.note ? (
-                          <p className="text-muted-foreground mt-1 text-[13px]">
+                          <p className="text-muted-foreground mt-1 text-body-sm">
                             {item.note}
                           </p>
                         ) : null}
@@ -199,7 +199,7 @@ export function ProfileImportReview({
                     </div>
 
                     {item.previous ? (
-                      <p className="text-muted-foreground text-[13px]">
+                      <p className="text-muted-foreground text-body-sm">
                         Current:{" "}
                         <span className="text-foreground">{item.previous}</span>
                       </p>
@@ -219,11 +219,11 @@ export function ProfileImportReview({
                         placeholder="Imported value"
                       />
                     ) : item.next ? (
-                      <p className="text-[14px]">{item.next}</p>
+                      <p className="text-body-sm">{item.next}</p>
                     ) : null}
 
                     {item.sources?.length ? (
-                      <p className="text-muted-foreground text-[12px]">
+                      <p className="text-muted-foreground text-caption">
                         Sources: {item.sources.join(", ")}
                       </p>
                     ) : null}
@@ -291,11 +291,11 @@ export function ProfileImportReview({
           </div>
         ))}
 
-        <div className="flex flex-wrap gap-3 border-t pt-4">
+        <div className="flex flex-wrap gap-3 border-t border-border pt-4">
           <Button size="lg" disabled={pending} onClick={apply}>
             {pending ? "Applying…" : "Apply review to draft"}
           </Button>
-          <p className="text-muted-foreground self-center text-[13px]">
+          <p className="text-muted-foreground self-center text-body-sm">
             Then approve the draft when the Professional Profile looks right.
           </p>
         </div>

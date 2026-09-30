@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { ChevronDown, X } from "lucide-react";
+import { X } from "lucide-react";
 import {
   approveProfileAction,
   createProfileDraftFromApprovedAction,
@@ -17,6 +17,12 @@ import {
   ingestTextSourceAction,
   saveProfileDraftAction,
 } from "@/app/actions";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionPanel,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -140,13 +146,13 @@ function ProfileSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-border bg-muted/20 space-y-4 rounded-2xl border px-4 py-4 sm:px-5 sm:py-5">
+    <section className="bg-subtle space-y-4 rounded-panel px-4 py-4 sm:px-5 sm:py-5">
       <header className="space-y-1">
-        <h3 className="text-[16px] font-medium tracking-tight text-foreground">
+        <h3 className="text-body font-medium text-foreground">
           {title}
         </h3>
         {description ? (
-          <p className="text-muted-foreground text-[14px] leading-relaxed">
+          <p className="text-muted-foreground text-body-sm leading-relaxed">
             {description}
           </p>
         ) : null}
@@ -181,11 +187,11 @@ function Field({
   return (
     <div className={cn("space-y-2", className)}>
       <div className="space-y-1">
-        <Label className="text-muted-foreground text-[15px] font-medium sm:text-[14px]">
+        <Label className="text-muted-foreground text-body font-medium sm:text-body-sm">
           {label}
         </Label>
         {hint ? (
-          <p className="text-muted-foreground/80 text-[14px] leading-snug sm:text-[15px]">
+          <p className="text-muted-foreground/80 text-body-sm leading-snug sm:text-body">
             {hint}
           </p>
         ) : null}
@@ -230,12 +236,12 @@ function CompensationField({
     >
       <div
         className={cn(
-          "border-border bg-background space-y-4 rounded-2xl border p-4 sm:p-5",
+          "bg-subtle space-y-4 rounded-panel p-4 sm:p-5",
           disabled && "pointer-events-none opacity-50",
         )}
       >
         <div
-          className="bg-muted/50 grid grid-cols-3 gap-1 rounded-xl p-1"
+          className="bg-card grid grid-cols-3 gap-1 rounded-full p-1"
           role="group"
           aria-label="Pay type"
         >
@@ -255,9 +261,9 @@ function CompensationField({
                 aria-pressed={active}
                 onClick={() => onChange({ ...value, mode: opt.id })}
                 className={cn(
-                  "rounded-lg px-3 py-2.5 text-[14px] font-medium transition-colors",
+                  "h-9 rounded-full px-3 text-body-sm transition-colors duration-150 ease-standard",
                   active
-                    ? "bg-background text-foreground shadow-sm"
+                    ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -269,11 +275,11 @@ function CompensationField({
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="space-y-1.5 sm:min-w-[12rem]">
-            <span className="text-muted-foreground text-[14px] font-medium">
+            <span className="text-muted-foreground text-body-sm font-medium">
               Currency
             </span>
             <div
-              className="bg-muted/50 flex flex-wrap gap-1 rounded-xl p-1"
+              className="bg-card flex flex-wrap gap-1 rounded-full p-1"
               role="group"
               aria-label="Currency"
             >
@@ -287,9 +293,9 @@ function CompensationField({
                     aria-pressed={active}
                     onClick={() => onChange({ ...value, currency: code })}
                     className={cn(
-                      "h-9 min-w-[2.75rem] rounded-lg px-2.5 text-[15px] font-medium tabular-nums transition-colors",
+                      "h-9 min-w-[2.75rem] rounded-full px-3 text-body-sm tabular-nums transition-colors duration-150 ease-standard",
                       active
-                        ? "bg-background text-foreground shadow-sm"
+                        ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:text-foreground",
                     )}
                   >
@@ -302,7 +308,7 @@ function CompensationField({
 
           <div className="grid flex-1 grid-cols-[1fr_auto_1fr] items-end gap-2 sm:gap-3">
             <div className="space-y-1.5">
-              <span className="text-muted-foreground text-[14px] font-medium">
+              <span className="text-muted-foreground text-body-sm font-medium">
                 From
               </span>
               <Input
@@ -314,13 +320,13 @@ function CompensationField({
               />
             </div>
             <span
-              className="text-muted-foreground pb-3 text-[15px] font-medium"
+              className="text-muted-foreground pb-3 text-body font-medium"
               aria-hidden
             >
               –
             </span>
             <div className="space-y-1.5">
-              <span className="text-muted-foreground text-[14px] font-medium">
+              <span className="text-muted-foreground text-body-sm font-medium">
                 To
               </span>
               <Input
@@ -333,18 +339,18 @@ function CompensationField({
             </div>
           </div>
 
-          <span className="text-muted-foreground pb-3 text-[15px] font-medium sm:min-w-[4.5rem]">
+          <span className="text-muted-foreground pb-3 text-body font-medium sm:min-w-[4.5rem]">
             {period}
           </span>
         </div>
 
         {summary ? (
-          <p className="text-muted-foreground text-[15px]">
+          <p className="text-muted-foreground text-body">
             Saved as{" "}
             <span className="text-foreground font-medium">{summary}</span>
           </p>
         ) : (
-          <p className="text-muted-foreground text-[15px]">
+          <p className="text-muted-foreground text-body">
             Optional — leave blank if you prefer not to set a range yet.
           </p>
         )}
@@ -400,7 +406,7 @@ function EmploymentTypeField({
               aria-pressed={active}
               onClick={() => toggle(option)}
               className={cn(
-                "rounded-xl border px-4 py-2.5 text-[14px] font-medium transition-colors",
+                "rounded-xl border px-4 py-2.5 text-body-sm font-medium transition-colors",
                 active
                   ? "border-brand bg-brand/15 text-foreground"
                   : "border-border bg-background text-muted-foreground hover:border-brand/40 hover:text-foreground",
@@ -463,7 +469,7 @@ function ChipListField({
         {items.map((item, i) => (
           <span
             key={`${item}-${i}`}
-            className="bg-secondary text-secondary-foreground inline-flex max-w-full items-center gap-1 rounded-md px-2 py-0.5 text-[14px] font-medium"
+            className="bg-card text-foreground border-border-strong inline-flex max-w-full items-center gap-1 rounded-full border py-0.5 pr-1 pl-2.5 text-body-sm"
           >
             <span className="truncate">{item}</span>
             {!disabled ? (
@@ -482,7 +488,7 @@ function ChipListField({
           value={draft}
           disabled={disabled}
           placeholder={items.length === 0 ? placeholder : "Add…"}
-          className="placeholder:text-muted-foreground min-w-[120px] flex-1 bg-transparent py-0.5 text-[15px] outline-none"
+          className="placeholder:text-muted-foreground min-w-[120px] flex-1 bg-transparent py-0.5 text-body outline-none"
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === ",") {
@@ -904,7 +910,7 @@ export function ProfileWorkspace({
           disabled={!canEdit}
           rows={3}
           placeholder="e.g. Led a shift of 6 nurses, or a team of 4 developers"
-          className="min-h-[5.5rem] text-[14px]"
+          className="min-h-[5.5rem] text-body-sm"
         />
       </ProfileSection>
     </div>
@@ -970,7 +976,7 @@ export function ProfileWorkspace({
             onChange={(e) => setProjectsJson(e.target.value)}
             disabled={!canEdit}
             rows={10}
-            className="font-mono text-[15px]"
+            className="font-mono text-body"
           />
         </Field>
       </ProfileSection>
@@ -995,21 +1001,22 @@ export function ProfileWorkspace({
 
   function renderTabChrome(actions?: React.ReactNode) {
     return (
-      <div className="border-border space-y-3 border-b px-5 py-5 sm:px-8 sm:py-6">
+      <div className="border-border space-y-3 border-b px-4 py-5 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <nav
             aria-label="Profile sections"
-            className="bg-muted/50 flex flex-wrap gap-1 rounded-xl p-1"
+            className="bg-subtle flex flex-wrap gap-0.5 rounded-full p-1"
           >
             {REVIEW_TABS.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
+                aria-current={reviewTab === tab.id ? "page" : undefined}
                 onClick={() => setReviewTab(tab.id)}
                 className={cn(
-                  "rounded-lg px-3.5 py-2 text-[15px] font-medium transition-colors",
+                  "h-9 rounded-full px-4 text-body-sm font-medium transition-colors duration-150 ease-standard",
                   reviewTab === tab.id
-                    ? "bg-background text-foreground shadow-sm"
+                    ? "bg-card text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -1019,7 +1026,7 @@ export function ProfileWorkspace({
           </nav>
           {actions}
         </div>
-        <p className="text-muted-foreground text-[14px] leading-relaxed">
+        <p className="text-muted-foreground text-body-sm leading-relaxed">
           {activeTabMeta.description}
         </p>
       </div>
@@ -1032,7 +1039,7 @@ export function ProfileWorkspace({
         <li key={s.id} className="space-y-2 py-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="truncate text-[15px] font-medium">
+              <p className="truncate text-body font-medium">
                 {SOURCE_LABELS[s.type] ?? s.type}
                 {s.label ? (
                   <span className="text-muted-foreground font-normal">
@@ -1041,7 +1048,7 @@ export function ProfileWorkspace({
                   </span>
                 ) : null}
               </p>
-              <p className="text-muted-foreground text-[14px] wrap-anywhere">
+              <p className="text-muted-foreground text-body-sm wrap-anywhere">
                 {s.textLength.toLocaleString()} chars
                 {s.sourceUrl ? ` · ${s.sourceUrl}` : ""}
                 {s.lastSyncedAt
@@ -1049,7 +1056,7 @@ export function ProfileWorkspace({
                   : ""}
               </p>
               {confirmDeleteId === s.id ? null : (
-                <label className="text-muted-foreground mt-2 flex items-center gap-2 text-[13px]">
+                <label className="text-muted-foreground mt-2 flex items-center gap-2 text-body-sm">
                   <input
                     type="checkbox"
                     className="border-input size-4 rounded"
@@ -1074,8 +1081,8 @@ export function ProfileWorkspace({
             )}
           </div>
           {confirmDeleteId === s.id ? (
-            <div className="border-destructive/30 bg-destructive/5 space-y-2 rounded-xl border px-3 py-3">
-              <p className="text-destructive text-[13px] leading-relaxed">
+            <div className="bg-destructive-wash space-y-2 rounded-tile px-4 py-3">
+              <p className="text-destructive text-body-sm leading-relaxed">
                 Remove this connected source? Extracted Professional Profile
                 facts stay until you edit or regenerate a draft. This does not
                 change matching toggles for other sources.
@@ -1118,7 +1125,7 @@ export function ProfileWorkspace({
     <div className="space-y-4">
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Label className="text-[15px]">Files</Label>
+          <Label className="text-body">Files</Label>
           <div className="flex gap-1">
             {(
               [
@@ -1155,7 +1162,7 @@ export function ProfileWorkspace({
         />
         {fileKind === "linkedin_text" ? (
           <div className="space-y-2">
-            <ol className="text-muted-foreground list-decimal space-y-1 pl-5 text-[14px] leading-relaxed">
+            <ol className="text-muted-foreground list-decimal space-y-1 pl-5 text-body-sm leading-relaxed">
               <li>Open your LinkedIn profile</li>
               <li>
                 Choose <span className="text-foreground font-medium">Resources</span>{" "}
@@ -1167,7 +1174,7 @@ export function ProfileWorkspace({
               </li>
               <li>Upload the PDF here (Optra does not connect to LinkedIn)</li>
             </ol>
-            <p className="text-muted-foreground text-[14px]">
+            <p className="text-muted-foreground text-body-sm">
               <button
                 type="button"
                 className="underline underline-offset-2"
@@ -1213,7 +1220,7 @@ export function ProfileWorkspace({
       <Separator />
 
       <div className="space-y-2">
-        <Label htmlFor="portfolio-url" className="text-[15px]">
+        <Label htmlFor="portfolio-url" className="text-body">
           Website
         </Label>
         <div className="flex flex-wrap gap-2">
@@ -1244,10 +1251,10 @@ export function ProfileWorkspace({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="github-profile" className="text-[15px]">
+        <Label htmlFor="github-profile" className="text-body">
           GitHub
         </Label>
-        <p className="text-muted-foreground text-[14px] leading-snug">
+        <p className="text-muted-foreground text-body-sm leading-snug">
           We pull public repos, descriptions, and README excerpts — then draft
           projects for your profile.
         </p>
@@ -1281,7 +1288,7 @@ export function ProfileWorkspace({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="about-you" className="text-[15px]">
+        <Label htmlFor="about-you" className="text-body">
           About you
         </Label>
         <Textarea
@@ -1333,8 +1340,8 @@ export function ProfileWorkspace({
       {!active ? (
         <Surface>
           <div className="flex flex-col items-center justify-center gap-5 px-6 py-12 text-center sm:px-8 sm:py-14">
-            <p className="text-[20px] font-medium">No profile yet</p>
-            <p className="text-muted-foreground mx-auto max-w-sm text-[15px] leading-relaxed">
+            <p className="text-h5 font-medium">No profile yet</p>
+            <p className="text-muted-foreground mx-auto max-w-sm text-body leading-relaxed">
               {sources.length === 0
                 ? "Add your CV below. Optra reads it and builds your profile."
                 : "Build your profile from the sources you added."}
@@ -1343,7 +1350,7 @@ export function ProfileWorkspace({
               <Button
                 type="button"
                 size="lg"
-                className="h-12 min-w-[12rem] rounded-xl px-6 text-[16px]"
+                className="min-w-[12rem]"
                 disabled={pending}
                 onClick={() => run("Profile drafted", () => extractProfileAction())}
               >
@@ -1361,35 +1368,22 @@ export function ProfileWorkspace({
         <ProfileSummaryCard profile={active.profile} action={editButton} />
       )}
 
-      <Surface>
-        <button
-          type="button"
-          className="flex w-full items-center justify-between gap-3 px-6 py-5 text-left"
-          onClick={() => setSourcesOpen((v) => !v)}
-          aria-expanded={pageSourcesOpen}
-        >
-          <div>
-            <p className="text-[16px] font-medium tracking-tight text-foreground">
-              Sources
-            </p>
-            <p className="text-muted-foreground mt-0.5 text-[14px]">
+      <Accordion
+        value={pageSourcesOpen ? ["sources"] : []}
+        onValueChange={(value) => setSourcesOpen(value.includes("sources"))}
+      >
+        <AccordionItem value="sources">
+          <AccordionTrigger>
+            <span className="text-foreground block text-body font-medium">Sources</span>
+            <span className="text-muted-foreground block text-body-sm">
               {sources.length === 0
                 ? "Nothing added yet"
                 : pageSourcesOpen
                   ? `${sources.length} connected`
                   : sources.map((s) => SOURCE_LABELS[s.type] ?? s.type).join(" · ")}
-            </p>
-          </div>
-          <ChevronDown
-            className={cn(
-              "text-muted-foreground size-4 shrink-0 transition-transform",
-              pageSourcesOpen && "rotate-180",
-            )}
-            aria-hidden
-          />
-        </button>
-        {pageSourcesOpen ? (
-          <PanelBody className="border-border space-y-6 border-t">
+            </span>
+          </AccordionTrigger>
+          <AccordionPanel className="text-foreground space-y-6 text-body-sm">
             {sourceList}
             {sources.length > 0 && active ? (
               <div className="flex flex-wrap items-center gap-3">
@@ -1401,7 +1395,7 @@ export function ProfileWorkspace({
                 >
                   {pending ? "Reading…" : "Rebuild profile from sources"}
                 </Button>
-                <p className="text-muted-foreground text-[14px]">
+                <p className="text-muted-foreground text-body-sm">
                   Use after adding or updating a source.
                 </p>
               </div>
@@ -1414,9 +1408,9 @@ export function ProfileWorkspace({
                 {children}
               </>
             ) : null}
-          </PanelBody>
-        ) : null}
-      </Surface>
+          </AccordionPanel>
+        </AccordionItem>
+      </Accordion>
 
       {draft ? (
         <StickyFormActions message="Matching keeps using your approved profile until you approve this one.">
@@ -1441,8 +1435,8 @@ export function ProfileWorkspace({
 function SummaryRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:gap-6 sm:px-6">
-      <dt className="text-muted-foreground w-36 shrink-0 text-[14px]">{label}</dt>
-      <dd className="min-w-0 flex-1 text-[15px] leading-relaxed text-foreground">
+      <dt className="text-muted-foreground w-36 shrink-0 text-body-sm">{label}</dt>
+      <dd className="min-w-0 flex-1 text-body leading-relaxed text-foreground">
         {children}
       </dd>
     </div>
@@ -1453,7 +1447,7 @@ function Chips({ items }: { items: string[] }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {items.map((item) => (
-        <span key={item} className="bg-secondary rounded-full px-2.5 py-1 text-[13px]">
+        <span key={item} className="bg-subtle rounded-full px-3 py-1 text-body-sm">
           {item}
         </span>
       ))}
@@ -1486,11 +1480,11 @@ function ProfileSummaryCard({
     <Surface>
       <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-5 sm:px-6">
         <div className="min-w-0">
-          <p className="text-[20px] font-medium tracking-tight text-foreground">
+          <p className="text-h5 font-medium text-foreground">
             {headline || "Your profile"}
           </p>
           {profile.yearsExperience ? (
-            <p className="text-muted-foreground mt-0.5 text-[14px]">
+            <p className="text-muted-foreground mt-0.5 text-body-sm">
               {profile.yearsExperience} years of experience
             </p>
           ) : null}

@@ -64,19 +64,19 @@ export function FileDropzone({
           takeFile(e.dataTransfer.files?.[0]);
         }}
         className={cn(
-          "border-border bg-muted/20 flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed px-6 py-8 text-center transition-[border-color,background-color,transform] duration-200 ease-standard hover:-translate-y-0.5 hover:border-brand/50 hover:bg-muted/35",
-          "focus-within:border-ring focus-within:ring-ring/40 focus-within:ring-3",
+          "border-ink-tertiary bg-card flex cursor-pointer flex-col items-center justify-center gap-3 rounded-card border border-dashed px-6 py-8 text-center transition-[border-color,background-color] duration-150 ease-standard hover:border-brand in-[.bg-card]:bg-subtle",
+          "focus-within:outline-ring focus-within:outline-2 focus-within:outline-offset-2",
           dragging && "border-brand bg-brand-wash",
           disabled && "pointer-events-none opacity-50",
         )}
       >
-        <span className="bg-secondary text-brand-ink flex size-12 items-center justify-center rounded-xl">
+        <span className="bg-brand-wash text-brand-ink flex size-12 items-center justify-center rounded-tile">
           <Upload className="size-5" aria-hidden />
         </span>
-        <span className="text-card-foreground text-[15px] font-medium sm:text-[16px]">
+        <span className="text-foreground text-body font-medium">
           {label}
         </span>
-        <span className="text-muted-foreground text-[15px] sm:text-[14px]">
+        <span className="text-muted-foreground text-body-sm">
           {hint}
         </span>
       </label>

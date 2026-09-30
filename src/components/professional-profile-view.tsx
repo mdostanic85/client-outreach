@@ -25,7 +25,7 @@ function SourceBadges({ sources }: { sources: string[] | undefined }) {
   return (
     <div className="mt-1.5 flex flex-wrap gap-1.5">
       {sources.map((s) => (
-        <Badge key={s} variant="outline" className="h-6 px-2 text-[12px]">
+        <Badge key={s} variant="outline" className="h-6 px-2 text-caption">
           {s}
         </Badge>
       ))}
@@ -213,7 +213,7 @@ export function ProfessionalProfileView({
       if (!editable.canEdit) return null;
       return (
         <div className="space-y-2">
-          <p className="text-muted-foreground text-[13px] font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground text-body-sm font-medium">
             {label}
           </p>
           {addingField === field ? (
@@ -273,7 +273,7 @@ export function ProfessionalProfileView({
     return (
       <div className="space-y-1">
         <div className="flex items-start justify-between gap-3">
-          <p className="text-muted-foreground text-[13px] font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground text-body-sm font-medium">
             {label}
           </p>
           {editable.canEdit ? (
@@ -319,7 +319,7 @@ export function ProfessionalProfileView({
             </div>
           </div>
         ) : (
-          <div className="text-[15px] leading-relaxed text-foreground">
+          <div className="text-body leading-relaxed text-foreground">
             {display}
           </div>
         )}
@@ -332,7 +332,7 @@ export function ProfessionalProfileView({
     if (!items.length && !editable.canEdit) return null;
     return (
       <div className="space-y-2">
-        <p className="text-muted-foreground text-[13px] font-medium tracking-wide uppercase">
+        <p className="text-muted-foreground text-body-sm font-medium">
           {label}
         </p>
         <ul className="flex flex-wrap gap-1.5">
@@ -341,7 +341,7 @@ export function ProfessionalProfileView({
             return (
               <li
                 key={key}
-                className="bg-muted/60 flex items-center gap-1 rounded-lg py-1 pl-2.5 pr-1 text-[14px]"
+                className="bg-subtle flex items-center gap-1 rounded-full py-1 pl-3 pr-1 text-body-sm"
               >
                 {editingKey === key ? (
                   <Input
@@ -372,7 +372,7 @@ export function ProfessionalProfileView({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 px-1.5 text-[12px]"
+                        className="h-7 px-1.5 text-caption"
                         disabled={pending}
                         onClick={() => {
                           setEditingKey(key);
@@ -385,7 +385,7 @@ export function ProfessionalProfileView({
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-7 px-1.5 text-[12px]"
+                      className="h-7 px-1.5 text-caption"
                       disabled={pending}
                       onClick={() => removeListItem(field, index, item)}
                     >
@@ -442,7 +442,7 @@ export function ProfessionalProfileView({
     return (
       <Surface>
         <PanelBody>
-          <p className="text-muted-foreground text-[15px] leading-relaxed">
+          <p className="text-muted-foreground text-body leading-relaxed">
             Nothing in your Professional Profile yet. Add a CV, LinkedIn PDF,
             portfolio website, or notes below, then generate a draft to review.
           </p>
@@ -454,15 +454,15 @@ export function ProfessionalProfileView({
   return (
     <Surface>
       <PanelHeader className="flex-col items-start gap-1">
-        <p className="text-[16px] font-medium tracking-tight">
+        <p className="text-body font-medium">
           Approved knowledge
         </p>
-        <p className="text-muted-foreground text-[14px] leading-relaxed">
+        <p className="text-muted-foreground text-body-sm leading-relaxed">
           Quick fact edits on the approved profile. For bigger changes, use Edit
           profile above — matching toggles never delete this knowledge.
         </p>
         {sourceLabels && sourceLabels.length > 0 ? (
-          <p className="text-muted-foreground text-[13px]">
+          <p className="text-muted-foreground text-body-sm">
             Built from: {sourceLabels.join(" · ")}
           </p>
         ) : null}
@@ -507,7 +507,7 @@ export function ProfessionalProfileView({
         {(pay || editable.canEdit) && (
           <div className="space-y-1">
             <div className="flex items-start justify-between gap-3">
-              <p className="text-muted-foreground text-[13px] font-medium tracking-wide uppercase">
+              <p className="text-muted-foreground text-body-sm font-medium">
                 Salary or rate preferences
               </p>
               {editable.canEdit && pay ? (
@@ -518,9 +518,9 @@ export function ProfessionalProfileView({
               ) : null}
             </div>
             {pay ? (
-              <p className="text-[15px]">{pay}</p>
+              <p className="text-body">{pay}</p>
             ) : (
-              <p className="text-muted-foreground text-[14px]">
+              <p className="text-muted-foreground text-body-sm">
                 Set pay preferences in the draft editor below.
               </p>
             )}
@@ -549,7 +549,7 @@ export function ProfessionalProfileView({
 
         {otherProjects.length > 0 ? (
           <div className="space-y-3">
-            <p className="text-muted-foreground text-[13px] font-medium tracking-wide uppercase">
+            <p className="text-muted-foreground text-body-sm font-medium">
               Work history
             </p>
             <ul className="space-y-3">
@@ -558,7 +558,7 @@ export function ProfessionalProfileView({
                 return (
                   <li
                     key={key}
-                    className="border-border rounded-xl border px-4 py-3"
+                    className="bg-subtle rounded-tile px-4 py-3"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -568,7 +568,7 @@ export function ProfessionalProfileView({
                             : p.title}
                         </p>
                         {(p.start || p.end) && (
-                          <p className="text-muted-foreground mt-0.5 text-[13px]">
+                          <p className="text-muted-foreground mt-0.5 text-body-sm">
                             {[p.start, p.end].filter(Boolean).join(" – ")}
                             {p.location ? ` · ${p.location}` : ""}
                           </p>
@@ -619,12 +619,12 @@ export function ProfessionalProfileView({
                     ) : (
                       <>
                         {p.summary ? (
-                          <p className="text-muted-foreground mt-1 text-[14px]">
+                          <p className="text-muted-foreground mt-1 text-body-sm">
                             {p.summary}
                           </p>
                         ) : null}
                         {p.outcomes.length ? (
-                          <ul className="text-muted-foreground mt-2 list-disc space-y-1 pl-4 text-[13px]">
+                          <ul className="text-muted-foreground mt-2 list-disc space-y-1 pl-4 text-body-sm">
                             {p.outcomes.slice(0, 4).map((o) => (
                               <li key={o}>{o}</li>
                             ))}
@@ -643,15 +643,15 @@ export function ProfessionalProfileView({
         {portfolioProjects.length > 0 ? (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-muted-foreground text-[13px] font-medium tracking-wide uppercase">
+              <p className="text-muted-foreground text-body-sm font-medium">
                 Portfolio projects
               </p>
               {portfolioProjectsExcludedFromMatching ? (
-                <Badge variant="secondary" className="h-6 px-2 text-[12px]">
+                <Badge variant="secondary">
                   Excluded from matching
                 </Badge>
               ) : (
-                <Badge variant="outline" className="h-6 px-2 text-[12px]">
+                <Badge variant="outline">
                   Used for matching
                 </Badge>
               )}
@@ -683,7 +683,7 @@ export function ProfessionalProfileView({
                     ) : null}
                   </div>
                   {p.summary ? (
-                    <p className="text-muted-foreground mt-1 text-[14px]">
+                    <p className="text-muted-foreground mt-1 text-body-sm">
                       {p.summary}
                     </p>
                   ) : null}

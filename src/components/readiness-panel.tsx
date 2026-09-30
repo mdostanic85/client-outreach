@@ -10,8 +10,8 @@ function ItemList({ items }: { items: ChecklistItem[] }) {
   return (
     <ul className="space-y-2 text-sm">
       {items.map((item) => (
-        <li key={item.id} className="flex gap-4 border-b py-2">
-          <span className={item.done ? "text-green-700" : "text-muted-foreground"}>
+        <li key={item.id} className="flex gap-4 border-b border-border py-2">
+          <span className={item.done ? "text-success" : "text-muted-foreground"}>
             {item.done ? "✓" : "○"}
           </span>
           <div className="min-w-0 flex-1">
@@ -67,7 +67,7 @@ export function ReadinessPanel({
       <section className="space-y-4">
         <h3 className="font-medium">Phase 3 — Mailbox ops (manual)</h3>
         <ItemList items={phase3Ops} />
-        <div className="space-y-2 rounded-md border p-3">
+        <div className="bg-subtle space-y-2 rounded-tile p-4">
           {OPS_FIELDS.map(({ key, label }) => (
             <label key={key} className="flex items-center gap-2 text-sm">
               <input
@@ -82,7 +82,7 @@ export function ReadinessPanel({
             </label>
           ))}
           <textarea
-            className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
+            className="border-input bg-card w-full rounded-tile border px-4 py-2.5 text-body-sm outline-none focus-visible:border-brand"
             rows={2}
             placeholder="Notes (unsupported claims %, review time, mailbox address…)"
             value={local.notes ?? ""}

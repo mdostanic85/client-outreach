@@ -15,8 +15,8 @@ export function WorthImproving({ report }: { report: MarketFitReport }) {
   if (actions.length === 0 && gaps.length === 0) return null;
 
   return (
-    <section className="border-border bg-card/40 mb-10 rounded-2xl border p-5">
-      <p className="text-muted-foreground text-[13px] font-medium tracking-[0.12em] uppercase">
+    <section className="bg-card mb-10 rounded-card p-5 sm:p-6">
+      <p className="text-muted-foreground text-body-sm font-medium">
         Worth improving
       </p>
       {actions.length ? (
@@ -25,14 +25,14 @@ export function WorthImproving({ report }: { report: MarketFitReport }) {
             <li key={action.id}>
               <Link
                 href={`/profile?fix=${action.fix}`}
-                className="hover:bg-muted/30 -mx-2 flex items-center gap-3 rounded-xl px-2 py-2 transition-colors"
+                className="hover:bg-subtle -mx-2 flex items-center gap-3 rounded-tile px-2 py-2 transition-colors duration-150"
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] font-medium text-foreground">
+                  <span className="block text-body font-medium text-foreground">
                     {action.label}
                   </span>
                   {action.detail ? (
-                    <span className="text-muted-foreground mt-0.5 block text-[14px]">
+                    <span className="text-muted-foreground mt-0.5 block text-body-sm">
                       {action.detail}
                     </span>
                   ) : null}
@@ -45,8 +45,8 @@ export function WorthImproving({ report }: { report: MarketFitReport }) {
       ) : null}
       {gaps.length ? (
         <div className="border-border mt-4 border-t pt-4">
-          <p className="text-[14px] font-medium">Roles you matched keep asking for</p>
-          <ul className="text-muted-foreground mt-2 space-y-1 text-[14px]">
+          <p className="text-body-sm font-medium">Roles you matched keep asking for</p>
+          <ul className="text-muted-foreground mt-2 space-y-1 text-body-sm">
             {gaps.map((gap) => (
               <li key={gap.text}>
                 {gap.text}{" "}
