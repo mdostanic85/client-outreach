@@ -68,7 +68,7 @@ test("family answers land in the profile", () => {
     { ...EMPTY_STRUCTURED_PROFILE, languages: ["German (B2)", "English"] },
     driver,
   );
-  assert.equal(profile.seniority, "5+ years");
+  assert.equal(profile.seniority, undefined, "experience never becomes a level prefix");
   assert.deepEqual(profile.licenses, ["C", "CE", "ADR"]);
   assert.ok(profile.certifications.includes("Digital tachograph card"));
   assert.deepEqual(profile.schedule, { shifts: true, nights: false, weekends: true });

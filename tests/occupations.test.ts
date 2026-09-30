@@ -121,11 +121,18 @@ test("title filter matches Serbian synonyms and ignores accents", () => {
       job("VOZAC CE KATEGORIJE"),
       job("Vozač kamiona"),
       job("Računovođa"),
+      job("Truck Driver Recruiter"),
     ],
     params,
   );
   assert.deepEqual(kept.map((j) => j.title), ["Vozač C kategorije - međunarodni transport", "VOZAC CE KATEGORIJE", "Vozač kamiona"]);
-  assert.equal(dropped[0]?.reason, "unrelated_title");
+  assert.deepEqual(dropped.map((d) => d.reason), ["unrelated_title", "unrelated_title"]);
+  // A recruiter searching for recruiter jobs still finds them.
+  const recruiter = withMarketDefaults(
+    { ...EMPTY_SEARCH_PARAMS, targetTitles: ["Recruiter"] },
+    { family: "office_business", synonyms: ["IT Recruiter"] },
+  );
+  assert.equal(filterRawJobs([job("Truck Driver Recruiter")], recruiter).kept.length, 1);
 });
 
 test("on-site searches keep on-site jobs; acronyms don't match inside words", () => {

@@ -289,8 +289,9 @@ export function applySurveyToProfile(
   if (survey.role) next.targetRoles = unique([survey.role, ...profile.targetRoles]);
   if (survey.occupationFamily) next.occupationFamily = survey.occupationFamily;
   if (survey.occupationId) next.occupationId = survey.occupationId;
+  // Only a real level goes into `seniority` — it prefixes the role and CV
+  // headline, and "5+ years Truck Driver" reads wrong. Years come from the CV.
   if (survey.level) next.seniority = LEVEL_LABELS[survey.level];
-  else if (survey.experience) next.seniority = EXPERIENCE_LABELS[survey.experience];
   if (hasEngagementAnswer(survey)) next.preferredEmploymentTypes = employmentTypes(survey);
   if (survey.workMode || survey.locations?.length) {
     next.preferredLocations = locationList(survey);

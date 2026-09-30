@@ -117,6 +117,20 @@ function titleRelevant(
   return false;
 }
 
+/**
+ * "Truck Driver Recruiter", "Nurse Instructor": the title names the job but
+ * the work is recruiting / selling / teaching it. Kept only when the person
+ * searches for that kind of role themselves.
+ */
+const ABOUT_THE_ROLE_RE =
+  /\b(recruit\w*|recrutier|regruter\w*|talent acquisition|sourcer|headhunter|instructor|instruktor\w*|trainer|trener|sales|prodaj\w*)\b/i;
+
+function aboutHiringTheRole(title: string, targetTitles: string[]): boolean {
+  const hit = normalizeTitle(title).match(ABOUT_THE_ROLE_RE)?.[0];
+  if (!hit) return false;
+  return !targetTitles.some((target) => ABOUT_THE_ROLE_RE.test(normalizeTitle(target)));
+}
+
 function employmentTypesForFilter(types: string[]): string[] {
   return types.filter((t) => !WORK_MODE_RE.test(t.trim()));
 }
@@ -147,7 +161,10 @@ export function filterRawJobs(
       continue;
     }
 
-    if (!titleRelevant(job.title, params.targetTitles, params.titleSynonyms)) {
+    if (
+      !titleRelevant(job.title, params.targetTitles, params.titleSynonyms) ||
+      aboutHiringTheRole(job.title, params.targetTitles)
+    ) {
       dropped.push({ job, reason: "unrelated_title" });
       continue;
     }
