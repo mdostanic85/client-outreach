@@ -16,6 +16,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { MakerCredit } from "@/components/maker-credit";
+import { OptraLogo } from "@/components/optra-logo";
 import { cn } from "@/lib/utils";
 
 export type NavItem = {
@@ -26,6 +27,10 @@ export type NavItem = {
   description?: string;
 };
 
+/**
+ * 40px pill. Inactive at secondary ink with a hairline pill outline on hover;
+ * active sits on a white surface with a small verdigris indicator.
+ */
 function NavLink({
   item,
   active,
@@ -41,42 +46,33 @@ function NavLink({
       href={item.href}
       onClick={onNavigate}
       prefetch
+      aria-current={active ? "page" : undefined}
       className={cn(
-        "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] transition-[background-color,color,transform] duration-150 ease-standard active:scale-[0.98]",
+        "group relative flex h-10 items-center gap-3 rounded-full border px-3.5 text-body-sm transition-[background-color,color,border-color] duration-150 ease-standard sm:text-body",
         active
-          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-          : "text-sidebar-foreground hover:bg-white/5 hover:text-foreground",
+          ? "bg-sidebar-accent text-sidebar-accent-foreground border-transparent"
+          : "text-sidebar-foreground hover:border-border-hover hover:text-foreground border-transparent",
       )}
     >
-      <span
-        aria-hidden
-        className={cn(
-          "absolute top-1/2 left-0 h-5 w-[3px] -translate-y-1/2 rounded-r-full transition-[background-color,height,opacity] duration-200 ease-enter",
-          active
-            ? "bg-brand h-6"
-            : "bg-transparent group-hover:bg-brand/40",
-        )}
-      />
       <Icon
         className={cn(
-          "nav-icon-motion size-[18px] shrink-0",
-          active
-            ? "text-brand-ink"
-            : "text-muted-foreground group-hover:text-foreground",
+          "size-[18px] shrink-0 transition-colors duration-150 ease-standard",
+          active ? "text-brand-ink" : "text-muted-foreground group-hover:text-foreground",
         )}
       />
       <span className="flex-1 truncate">{item.label}</span>
       {item.count != null && item.count > 0 ? (
         <span
           className={cn(
-            "badge-pop tabular rounded-md px-1.5 py-0.5 text-[12px] font-medium",
-            active
-              ? "bg-brand/20 text-brand-ink"
-              : "bg-white/8 text-muted-foreground",
+            "tabular rounded-full px-2 py-0.5 text-caption",
+            active ? "bg-brand-wash text-brand-ink" : "bg-subtle text-muted-foreground",
           )}
         >
           {item.count}
         </span>
+      ) : null}
+      {active ? (
+        <span aria-hidden className="bg-brand size-1.5 shrink-0 rounded-full" />
       ) : null}
     </Link>
   );
@@ -160,25 +156,15 @@ export function AppSidebarNav({
   return (
     <aside
       className={cn(
-        "border-sidebar-border bg-sidebar text-sidebar-foreground flex h-full w-[240px] shrink-0 flex-col border-r",
+        "bg-sidebar text-sidebar-foreground flex h-full w-[240px] shrink-0 flex-col",
         className,
       )}
     >
-      <div className="flex h-14 items-center gap-3 px-4">
-        <span
-          aria-hidden
-          className="brand-breathe bg-brand size-2.5 rounded-[5px]"
-        />
-        <Link
-          href="/"
-          onClick={() => handleNavigate("/")}
-          className="text-[17px] font-medium tracking-tight text-foreground"
-        >
-          Optra
-        </Link>
+      <div className="flex h-16 items-center px-5">
+        <OptraLogo href="/" width={84} onClick={() => handleNavigate("/")} />
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2.5 pt-2 pb-4">
+      <nav aria-label="Main" className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 pt-2 pb-4">
         {main.map((item) => (
           <NavLink
             key={item.href}
@@ -193,7 +179,7 @@ export function AppSidebarNav({
             active={isActive(activeHref, settingsItem.href)}
             onNavigate={() => handleNavigate(settingsItem.href)}
           />
-          <MakerCredit className="px-3 pb-2" />
+          <MakerCredit className="px-3.5 pb-2" />
         </div>
       </nav>
     </aside>

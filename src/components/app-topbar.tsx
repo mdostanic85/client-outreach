@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AlertTriangle, ChevronRight, LogOut, Menu, Radar, SlidersHorizontal, X } from "lucide-react";
 import { AppSidebarNav, navContextFor } from "@/components/app-sidebar";
+import { OptraLogo } from "@/components/optra-logo";
 import { useJobSearch } from "@/components/job-search-provider";
 import {
   DropdownMenu,
@@ -49,6 +50,22 @@ type BudgetMeter = {
   alert?: string;
 };
 
+/**
+ * True once the page has scrolled past `threshold` px. The topbar never hides;
+ * it only gains a hairline divider (250ms).
+ */
+function useScrolledPast(threshold: number): boolean {
+  return useSyncExternalStore(
+    subscribeScroll,
+    () => window.scrollY > threshold,
+    () => false,
+  );
+}
+const subscribeScroll = (onChange: () => void) => {
+  window.addEventListener("scroll", onChange, { passive: true });
+  return () => window.removeEventListener("scroll", onChange);
+};
+
 /** Minute-resolution clock; null on the server and during hydration so they agree. */
 const subscribeMinute = (tick: () => void) => {
   const id = window.setInterval(tick, 60_000);
@@ -78,21 +95,19 @@ function PageContext() {
   const Icon = context.item.icon;
   const deeper = pathname !== context.item.href;
   return (
-    <nav aria-label="Current page" className="hidden min-w-0 items-center gap-2 text-[14px] md:flex">
-      <span className="text-muted-foreground/80 text-[12px] font-medium tracking-[0.08em] uppercase">
-        {context.group}
-      </span>
-      <ChevronRight aria-hidden className="text-muted-foreground/50 size-3.5 shrink-0" />
+    <nav aria-label="Current page" className="hidden min-w-0 items-center gap-2 text-body-sm md:flex">
+      <span className="text-muted-foreground">{context.group}</span>
+      <ChevronRight aria-hidden className="text-ink-tertiary size-3.5 shrink-0" />
       {deeper ? (
         <Link
           href={context.item.href}
-          className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 truncate transition-colors"
+          className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 truncate rounded-md transition-colors duration-150"
         >
           <Icon className="size-4 shrink-0" />
           {context.item.label}
         </Link>
       ) : (
-        <span aria-current="page" className="flex items-center gap-1.5 truncate font-medium text-foreground">
+        <span aria-current="page" className="text-foreground flex items-center gap-1.5 truncate">
           <Icon className="text-brand-ink size-4 shrink-0" />
           {context.item.label}
         </span>
@@ -107,7 +122,7 @@ function MobilePageTitle() {
   const context = navContextFor(pathname);
   if (!context) return null;
   return (
-    <span className="min-w-0 truncate text-[15px] font-medium text-foreground max-[374px]:hidden md:hidden">
+    <span className="text-foreground min-w-0 truncate text-body-lg max-[374px]:hidden md:hidden">
       {context.item.label}
     </span>
   );
@@ -131,20 +146,20 @@ function JobSearchControl({ status }: { status: JobSearchStatus }) {
         <button
           type="button"
           onClick={search.showOverlay}
-          className="group bg-brand/10 hover:bg-brand/15 ring-brand/25 flex h-9 min-w-0 items-center gap-2.5 rounded-full pr-3.5 pl-3 text-left ring-1 transition-colors"
+          className="group bg-brand-wash hover:bg-brand/15 border-brand/25 flex h-9 min-w-0 items-center gap-2.5 rounded-full border pr-3.5 pl-3 text-left transition-colors duration-150"
           aria-label={`Job search ${percent}% — open progress`}
         >
           <span aria-hidden className="relative flex size-2 shrink-0">
-            <span className="bg-brand absolute inline-flex size-full animate-ping rounded-full opacity-60" />
+            <span className="bg-brand absolute inline-flex size-full animate-ping rounded-full opacity-60 motion-reduce:animate-none" />
             <span className="bg-brand relative inline-flex size-2 rounded-full" />
           </span>
-          <span className="min-w-0 truncate text-[13px]">
-            <span className="font-medium text-foreground">{stage?.label ?? "Searching"}</span>
+          <span className="min-w-0 truncate text-body-sm">
+            <span className="text-foreground">{stage?.label ?? "Searching"}</span>
             {search.live?.detail ? (
               <span className="text-muted-foreground hidden lg:inline"> · {search.live.detail}</span>
             ) : null}
           </span>
-          <span className="tabular text-brand-ink shrink-0 text-[13px] font-medium">{percent}%</span>
+          <span className="tabular text-brand-ink shrink-0 text-body-sm font-medium">{percent}%</span>
         </button>
         <Tooltip>
           <TooltipTrigger
@@ -163,7 +178,7 @@ function JobSearchControl({ status }: { status: JobSearchStatus }) {
   if (!status.hasSearchProfile) {
     return (
       <div className="flex min-w-0 items-center gap-3">
-        <span className="text-muted-foreground hidden truncate text-[13px] sm:inline">
+        <span className="text-muted-foreground hidden truncate text-body-sm sm:inline">
           Approve search criteria to start finding jobs
         </span>
         <Link href="/search-criteria" className={buttonVariants({ size: "sm", variant: "secondary" })}>
@@ -185,7 +200,7 @@ function JobSearchControl({ status }: { status: JobSearchStatus }) {
         <Tooltip>
           <TooltipTrigger
             render={
-              <span className="text-destructive hidden min-w-0 cursor-help items-center gap-1.5 truncate text-[13px] sm:flex" />
+              <span className="text-destructive hidden min-w-0 cursor-help items-center gap-1.5 truncate text-body-sm sm:flex" />
             }
           >
             <AlertTriangle className="size-3.5 shrink-0" />
@@ -196,22 +211,22 @@ function JobSearchControl({ status }: { status: JobSearchStatus }) {
       ) : (
         <Link
           href="/"
-          className="text-muted-foreground hover:text-foreground hidden min-w-0 items-center gap-2 truncate text-[13px] transition-colors sm:flex"
+          className="text-muted-foreground hover:text-foreground hidden min-w-0 items-center gap-2 truncate rounded-md text-body-sm transition-colors duration-150 sm:flex"
         >
           {outcome ? (
             <span className="truncate">
-              <span className="font-medium text-foreground">{outcome.strong} strong</span>
+              <span className="text-foreground">{outcome.strong} strong</span>
               {" · "}
               {outcome.worth} worth a look
             </span>
           ) : status.toReview > 0 ? (
             <span className="truncate">
-              <span className="tabular font-medium text-foreground">{status.toReview}</span> to review
+              <span className="tabular text-foreground">{status.toReview}</span> to review
             </span>
           ) : (
             <span className="truncate">Shortlist reviewed</span>
           )}
-          {ago ? <span className="text-muted-foreground/70 shrink-0">· searched {ago}</span> : null}
+          {ago ? <span className="text-muted-foreground shrink-0">· searched {ago}</span> : null}
         </Link>
       )}
       <Button size="sm" onClick={search.start} className="shrink-0">
@@ -235,10 +250,10 @@ function BudgetPill({ budget }: { budget: BudgetMeter }) {
         render={
           <div
             className={cn(
-              "inline-flex h-8 cursor-help items-center gap-2 rounded-full px-2.5 text-[13px]",
-              tone === "critical" && "bg-destructive/12 text-destructive",
-              tone === "warn" && "bg-[color-mix(in_oklab,var(--warn)_14%,transparent)] text-[var(--warn)]",
-              tone === "ok" && "bg-secondary text-muted-foreground",
+              "inline-flex h-9 cursor-help items-center gap-2 rounded-full border px-3 text-body-sm",
+              tone === "critical" && "bg-destructive-wash border-destructive/20 text-destructive",
+              tone === "warn" && "bg-warn-wash border-warn/20 text-warn",
+              tone === "ok" && "bg-card border-border text-muted-foreground",
             )}
           />
         }
@@ -252,7 +267,7 @@ function BudgetPill({ budget }: { budget: BudgetMeter }) {
             tone === "ok" && "bg-[var(--success)]",
           )}
         />
-        <span className="hidden font-medium tracking-wide uppercase sm:inline">AI</span>
+        <span className="hidden sm:inline">AI</span>
         <span className="tabular text-foreground">
           <span className="font-medium">${budget.spentUsd.toFixed(0)}</span>
           <span className="text-muted-foreground max-sm:hidden"> / ${budget.budgetUsd}</span>
@@ -274,7 +289,7 @@ function AccountMenu({ email }: { email: string }) {
             <button
               type="button"
               aria-label="Account"
-              className="bg-brand/18 text-brand-ink focus-visible:ring-ring/50 grid size-8 place-items-center rounded-full text-[12px] font-medium tracking-wide ring-1 ring-[color-mix(in_oklab,var(--brand)_35%,transparent)] outline-none focus-visible:ring-3"
+              className="bg-brand-wash text-brand-ink hover:border-brand/40 grid size-9 place-items-center rounded-full border border-brand/20 text-caption font-medium transition-colors duration-150"
             />
           }
         >
@@ -296,8 +311,9 @@ function AccountMenu({ email }: { email: string }) {
 }
 
 /**
- * Sticky app chrome. Page H1 lives in PageHeader; the topbar carries page
- * context, the always-available job search, AI budget and account.
+ * Sticky 64px app chrome on the page color. The page H1 lives in PageHeader;
+ * the topbar carries page context, the always-available job search (the one
+ * dark action), AI budget, account and — below lg — the round nav toggle.
  */
 export function AppTopbar({
   budget,
@@ -320,35 +336,15 @@ export function AppTopbar({
   const [navOpen, setNavOpen] = useState(false);
   const { running, live } = useJobSearch();
   const percent = Math.max(0, Math.min(100, live?.percent ?? 0));
+  const scrolled = useScrolledPast(100);
 
   return (
-    <header className="border-border/80 bg-background/80 sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b px-4 backdrop-blur-xl sm:gap-4 sm:px-8">
+    <header
+      data-scrolled={scrolled || undefined}
+      className="bg-background/90 sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-transparent px-4 backdrop-blur-xl transition-[border-color,background-color] duration-250 ease-standard data-scrolled:border-border sm:gap-4 sm:px-5 lg:px-8"
+    >
       <div className="flex min-w-0 shrink items-center gap-2">
-        <Sheet open={navOpen} onOpenChange={setNavOpen}>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="lg:hidden"
-            onClick={() => setNavOpen(true)}
-            aria-label="Open navigation"
-          >
-            <Menu className="size-4" />
-          </Button>
-          <SheetContent side="left" className="p-0 data-[side=left]:w-[280px] data-[side=left]:max-w-[85vw] data-[side=left]:sm:max-w-[280px]">
-            <SheetHeader className="sr-only">
-              <SheetTitle>Navigation</SheetTitle>
-            </SheetHeader>
-            <AppSidebarNav
-              queueCount={queueCount}
-              interestedCount={interestedCount}
-              profileFitCount={profileFitCount}
-              isOwner={isOwner}
-              onNavigate={() => setNavOpen(false)}
-              className="h-full w-full border-0"
-            />
-          </SheetContent>
-        </Sheet>
+        <OptraLogo href="/" width={72} className="lg:hidden" />
         <PageContext />
         <MobilePageTitle />
       </div>
@@ -360,12 +356,36 @@ export function AppTopbar({
       <div className="flex shrink-0 items-center gap-2">
         {budget ? <BudgetPill budget={budget} /> : null}
         {userEmail ? <AccountMenu email={userEmail} /> : null}
+        <Sheet open={navOpen} onOpenChange={setNavOpen}>
+          <button
+            type="button"
+            className="bg-subtle text-foreground hover:bg-border-hover grid size-11 place-items-center rounded-full transition-colors duration-150 ease-standard lg:hidden"
+            onClick={() => setNavOpen(true)}
+            aria-label="Open navigation"
+            aria-expanded={navOpen}
+          >
+            <Menu className="size-5" />
+          </button>
+          <SheetContent side="right" className="bg-sidebar gap-0 p-0 pt-2">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Navigation</SheetTitle>
+            </SheetHeader>
+            <AppSidebarNav
+              queueCount={queueCount}
+              interestedCount={interestedCount}
+              profileFitCount={profileFitCount}
+              isOwner={isOwner}
+              onNavigate={() => setNavOpen(false)}
+              className="h-full w-full"
+            />
+          </SheetContent>
+        </Sheet>
       </div>
 
       {running ? (
         <div
           aria-hidden
-          className="bg-brand/15 absolute inset-x-0 -bottom-px h-[2px] overflow-hidden"
+          className="bg-brand/15 absolute inset-x-0 -bottom-px h-0.5 overflow-hidden"
         >
           <div
             className="search-progress-fill h-full"

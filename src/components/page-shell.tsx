@@ -1,5 +1,10 @@
+import { badgeVariants } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
+/**
+ * Page container: 1290px max, 20px gutter (16px below 640). Only the page
+ * header reveals on first load; content renders settled.
+ */
 export function PageShell({
   children,
   className,
@@ -20,9 +25,9 @@ export function PageShell({
   return (
     <main
       className={cn(
-        "animate-enter mx-auto flex w-full flex-1 flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-8 lg:px-12 lg:py-14",
-        width === "wide" && "max-w-[1320px]",
-        isWorkspace && "max-w-6xl",
+        "mx-auto flex w-full flex-1 flex-col gap-6 px-4 pt-4 pb-12 sm:gap-8 sm:px-5 sm:pt-6 lg:px-8 lg:pt-8",
+        width === "wide" && "max-w-[1290px]",
+        isWorkspace && "max-w-[1152px]",
         width === "form" && "max-w-2xl",
         className,
       )}
@@ -32,6 +37,25 @@ export function PageShell({
   );
 }
 
+/** 12-column grid with a 16px gap for tile layouts (single column on phones). */
+export function PageGrid({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("grid grid-cols-1 gap-4 md:grid-cols-12", className)}>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Split header: title + description left, context chip + actions right.
+ * Stacks on phones. `meta` given as text renders as the context chip.
+ */
 export function PageHeader({
   title,
   description,
@@ -45,30 +69,30 @@ export function PageHeader({
   actions?: React.ReactNode;
   breadcrumb?: React.ReactNode;
 }) {
+  const chip =
+    typeof meta === "string" || typeof meta === "number" ? (
+      <span className={badgeVariants({ variant: "outline", size: "lg" })}>{meta}</span>
+    ) : (
+      meta
+    );
   return (
-    <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-      <div className="flex min-w-0 flex-1 flex-col gap-3 sm:pb-6">
+    <header className="animate-enter flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-8">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
         {breadcrumb ? (
-          <div className="text-muted-foreground text-[13px] font-medium tracking-wide">
-            {breadcrumb}
-          </div>
+          <div className="text-muted-foreground mb-1 text-body-sm">{breadcrumb}</div>
         ) : null}
-        {meta ? (
-          <div className="text-muted-foreground text-[15px] font-medium tracking-wide">
-            {meta}
-          </div>
-        ) : null}
-        <h1 className="text-[28px] leading-[33px] font-medium tracking-[-0.7px] break-words sm:text-[34px] sm:leading-[39px] sm:tracking-[-0.85px] text-balance text-foreground">
+        <h1 className="text-h4 text-foreground font-medium break-words text-balance">
           {title}
         </h1>
         {description ? (
-          <p className="text-muted-foreground text-[15px] leading-[1.6] sm:text-[17px] sm:leading-[1.625]">
+          <p className="text-muted-foreground max-w-2xl text-body-sm sm:text-body">
             {description}
           </p>
         ) : null}
       </div>
-      {actions ? (
-        <div className="flex flex-wrap items-center gap-3 pb-2 sm:shrink-0 sm:gap-4 sm:pt-1 sm:pb-0">
+      {chip || actions ? (
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
+          {chip}
           {actions}
         </div>
       ) : null}
@@ -96,26 +120,25 @@ export function SectionTitle({
         className,
       )}
     >
-      <div className="min-w-0 space-y-2">
-        <h2 className="text-[20px] leading-snug font-medium tracking-tight text-foreground">
-          {title}
-        </h2>
+      <div className="min-w-0 space-y-1">
+        <h2 className="text-h5 text-foreground">{title}</h2>
         {description ? (
-          <p className="text-muted-foreground max-w-2xl text-[15px] leading-relaxed">
+          <p className="text-muted-foreground max-w-2xl text-body-sm">
             {description}
           </p>
         ) : null}
         {meta ? (
-          <div className="text-muted-foreground text-[15px]">{meta}</div>
+          <div className="text-muted-foreground text-body-sm">{meta}</div>
         ) : null}
       </div>
       {actions ? (
-        <div className="flex shrink-0 flex-wrap items-center gap-3">{actions}</div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
       ) : null}
     </div>
   );
 }
 
+/** White 20px card on the page tint. No border, no shadow. */
 export function Surface({
   children,
   className,
@@ -123,13 +146,13 @@ export function Surface({
 }: {
   children: React.ReactNode;
   className?: string;
-  /** Subtle lift on hover — use for standalone cards, not nested list shells */
+  /** Surface change on hover — for standalone clickable cards only */
   interactive?: boolean;
 }) {
   return (
     <div
       className={cn(
-        "bg-card border-border overflow-hidden rounded-[18px] border",
+        "bg-card overflow-hidden rounded-card",
         interactive && "interactive-lift",
         className,
       )}
@@ -149,7 +172,7 @@ export function PanelHeader({
   return (
     <div
       className={cn(
-        "border-border flex flex-wrap items-center gap-4 border-b px-5 py-5 sm:px-8 sm:py-6",
+        "border-border flex flex-wrap items-center gap-4 border-b px-4 py-4 sm:px-6 sm:py-5",
         className,
       )}
     >
@@ -166,6 +189,6 @@ export function PanelBody({
   className?: string;
 }) {
   return (
-    <div className={cn("space-y-6 px-5 py-6 sm:px-8 sm:py-8", className)}>{children}</div>
+    <div className={cn("space-y-6 px-4 py-5 sm:px-6 sm:py-6", className)}>{children}</div>
   );
 }

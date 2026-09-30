@@ -9,6 +9,8 @@ type OptraLogoProps = {
   width?: number;
   className?: string;
   onClick?: () => void;
+  /** `ink` (default) for light surfaces; `light` for dark backgrounds. */
+  tone?: "ink" | "light";
 };
 
 /** Official Optra wordmark artboard (Figma). */
@@ -16,7 +18,7 @@ const VIEW_W = 100.118;
 const VIEW_H = 38.47;
 
 /**
- * Official Optra wordmark (SVG) — white type + teal p-descender.
+ * Official Optra wordmark (SVG) — ink or white type + verdigris p-descender.
  */
 export function OptraLogo({
   href = "/",
@@ -24,6 +26,7 @@ export function OptraLogo({
   width,
   className,
   onClick,
+  tone = "ink",
 }: OptraLogoProps) {
   const w =
     width ?? Math.round(((height ?? 22) * VIEW_W) / VIEW_H);
@@ -32,7 +35,7 @@ export function OptraLogo({
   const mark = (
     // eslint-disable-next-line @next/next/no-img-element -- SVG wordmark; avoid next/image SVG quirks
     <img
-      src="/optra-logo.svg"
+      src={tone === "ink" ? "/optra-logo-ink.svg" : "/optra-logo.svg"}
       alt="Optra"
       width={w}
       height={h}
@@ -48,7 +51,7 @@ export function OptraLogo({
     <Link
       href={href}
       onClick={onClick}
-      className="inline-flex items-center"
+      className="inline-flex items-center rounded-md"
       aria-label="Optra"
     >
       {mark}

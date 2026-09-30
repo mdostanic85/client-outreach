@@ -16,7 +16,7 @@ export function MakerCredit({
   return (
     <p
       className={cn(
-        "text-muted-foreground/70 text-[11px] leading-snug tracking-wide",
+        "text-muted-foreground text-caption",
         align === "center" && "text-center",
         className,
       )}
@@ -26,7 +26,7 @@ export function MakerCredit({
         href={CREATOR_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-muted-foreground/90 underline-offset-2 transition-colors hover:text-foreground hover:underline"
+        className="text-ink-emphasis underline-offset-2 transition-colors duration-150 hover:text-foreground hover:underline"
       >
         {CREATOR_NAME}
       </a>
