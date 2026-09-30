@@ -51,6 +51,8 @@ export default async function AppLayout({
             interestedCount={counts.interestedCount}
             profileFitCount={counts.profileFitCount}
             isOwner={counts.isOwner}
+            userName={user.name}
+            userEmail={user.email}
           />
           <div className="flex min-h-svh min-w-0 flex-1 flex-col">
             <AppTopbar
@@ -65,6 +67,7 @@ export default async function AppLayout({
                   : undefined
               }
               userEmail={user.email}
+              userName={user.name}
               searchStatus={searchStatus}
               isOwner={counts.isOwner}
               queueCount={counts.queueCount}

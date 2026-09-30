@@ -78,9 +78,13 @@ only and not used in the app.
 
 - Container max **1290px**, 20px gutter (16px below 640).
 - **12-column grid, 16px gap** for tile layouts.
-- Sidebar 240px, dark (`.dark` scope), full height. Topbar 64px, white with a
-  hairline bottom border so it reads apart from the tinted content; sticky,
-  never hides, gains `shadow-card` after 100px of scroll.
+- Sidebar 248px: a dark (`.dark` scope) floating panel, 12px from the
+  viewport edges, 20px radius, `shadow-card`. Groups "Daily" (Today, Saved,
+  Queue) and "Setup" (Profile, Search criteria, Improve); Settings and the
+  signed-in account (log out) pinned to the bottom.
+- Topbar 64px: a floating white panel (20px radius, `shadow-card`) beside the
+  sidebar, so it reads apart from the tinted content; sticky, never hides,
+  its shadow deepens slightly after 100px of scroll.
 - A "Skip to content" link is the first focus stop in the app shell.
 - Page header: split pattern — title + description left, context chip +
   actions right. Stacks on phones.
@@ -136,7 +140,11 @@ only and not used in the app.
   width on phones.
 - **Accordion** (`ui/accordion.tsx`): measured-height + opacity, 300ms.
 - **Lists**: rows on one white card with 1px dividers; hover `#F0F2F6` at
-  150ms; no translate, no per-row entrance.
+  150ms; no translate, no per-row entrance. A job row is clickable as a whole
+  (stretched button) and opens the **job detail sheet** from the right: title,
+  score, facts, why it fits, company, the posting text (loaded on open) and
+  the actions (Save / Prepare, Open posting, more) in a sticky footer. On
+  phones the row shows the score number only.
 
 ## Motion
 

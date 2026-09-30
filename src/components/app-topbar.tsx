@@ -52,7 +52,7 @@ type BudgetMeter = {
 
 /**
  * True once the page has scrolled past `threshold` px. The topbar never hides;
- * it only gains a soft shadow (250ms).
+ * its shadow only deepens a little (250ms).
  */
 function useScrolledPast(threshold: number): boolean {
   return useSyncExternalStore(
@@ -311,7 +311,7 @@ function AccountMenu({ email }: { email: string }) {
 }
 
 /**
- * Sticky 64px white app chrome between the dark sidebar and the tinted page.
+ * Floating 64px white bar (20px radius) beside the dark sidebar panel.
  * The page H1 lives in PageHeader;
  * the topbar carries page context, the always-available job search (the one
  * dark action), AI budget, account and — below lg — the round nav toggle.
@@ -319,6 +319,7 @@ function AccountMenu({ email }: { email: string }) {
 export function AppTopbar({
   budget,
   userEmail,
+  userName,
   searchStatus,
   queueCount = 0,
   interestedCount = 0,
@@ -328,6 +329,7 @@ export function AppTopbar({
   /** Owner only — other accounts don't manage the AI bill. */
   budget?: BudgetMeter;
   userEmail?: string;
+  userName?: string | null;
   searchStatus: JobSearchStatus;
   queueCount?: number;
   interestedCount?: number;
@@ -342,7 +344,7 @@ export function AppTopbar({
   return (
     <header
       data-scrolled={scrolled || undefined}
-      className="bg-card/95 sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border px-4 backdrop-blur-xl transition-shadow duration-250 ease-standard data-scrolled:shadow-card sm:gap-4 sm:px-5 lg:px-8"
+      className="bg-card/95 shadow-card sticky top-3 z-30 mx-3 mt-3 flex h-16 shrink-0 items-center gap-3 rounded-card px-3 backdrop-blur-xl transition-shadow duration-250 ease-standard data-scrolled:shadow-[0_8px_24px_rgb(16_24_40/0.10)] sm:gap-4 sm:px-4 lg:px-5"
     >
       <div className="flex min-w-0 shrink items-center gap-2">
         <OptraLogo href="/" width={72} className="lg:hidden" />
@@ -356,7 +358,11 @@ export function AppTopbar({
 
       <div className="flex shrink-0 items-center gap-2">
         {budget ? <BudgetPill budget={budget} /> : null}
-        {userEmail ? <AccountMenu email={userEmail} /> : null}
+        {userEmail ? (
+          <div className="lg:hidden">
+            <AccountMenu email={userEmail} />
+          </div>
+        ) : null}
         <Sheet open={navOpen} onOpenChange={setNavOpen}>
           <button
             type="button"
@@ -376,6 +382,8 @@ export function AppTopbar({
               interestedCount={interestedCount}
               profileFitCount={profileFitCount}
               isOwner={isOwner}
+              userName={userName}
+              userEmail={userEmail}
               onNavigate={() => setNavOpen(false)}
               className="h-full w-full"
             />
@@ -386,7 +394,7 @@ export function AppTopbar({
       {running ? (
         <div
           aria-hidden
-          className="bg-brand/15 absolute inset-x-0 -bottom-px h-0.5 overflow-hidden"
+          className="bg-brand/15 absolute inset-x-6 bottom-0 h-0.5 overflow-hidden rounded-full"
         >
           <div
             className="search-progress-fill h-full"

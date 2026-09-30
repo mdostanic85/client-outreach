@@ -1,11 +1,13 @@
 "use client";
 
 import type { ComponentType } from "react";
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bookmark,
+  ChevronsUpDown,
+  LogOut,
   Inbox,
   LineChart,
   Search,
@@ -16,6 +18,15 @@ import {
   UserRound,
 } from "lucide-react";
 import { MakerCredit } from "@/components/maker-credit";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { signOutAction } from "@/modules/auth/actions";
 import { OptraLogo } from "@/components/optra-logo";
 import { cn } from "@/lib/utils";
 
@@ -115,11 +126,75 @@ export function navContextFor(pathname: string): { group: string; item: NavItem 
  * The owner also gets Queue (client outreach). Everything else lives inside
  * Profile or Settings so the sidebar never grows.
  */
+function initials(name: string | null | undefined, email: string | undefined): string {
+  const source = name?.trim() || email?.split("@")[0] || "";
+  const parts = source.split(/[\s._-]+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0]![0]}${parts[1]![0]}`.toUpperCase();
+  return source.slice(0, 2).toUpperCase() || "?";
+}
+
+/** Account row pinned to the bottom of the sidebar: who is signed in + log out. */
+function SidebarAccount({ name, email }: { name?: string | null; email: string }) {
+  const formRef = useRef<HTMLFormElement>(null);
+  return (
+    <>
+      <form ref={formRef} action={signOutAction} className="hidden" />
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <button
+              type="button"
+              className="hover:bg-sidebar-accent aria-expanded:bg-sidebar-accent flex w-full items-center gap-3 rounded-panel p-2 text-left transition-colors duration-150 ease-standard"
+            />
+          }
+        >
+          <span className="bg-brand text-white grid size-9 shrink-0 place-items-center rounded-full text-caption font-medium">
+            {initials(name, email)}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="text-foreground block truncate text-body-sm">{name?.trim() || "Account"}</span>
+            <span className="text-muted-foreground block truncate text-caption">{email}</span>
+          </span>
+          <ChevronsUpDown className="text-muted-foreground size-4 shrink-0" aria-hidden />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="top" align="start" className="min-w-56">
+          <DropdownMenuLabel className="truncate">{email}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem render={<Link href="/settings" />}>
+            <Settings />
+            Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => formRef.current?.requestSubmit()}>
+            <LogOut />
+            Log out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
+  );
+}
+
+function NavGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-ink-tertiary px-3.5 pt-3 pb-1 text-caption">{label}</p>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Dark navigation panel. Two groups (daily work, setup), settings and the
+ * signed-in account pinned to the bottom. The desktop version floats as a
+ * 20px-radius panel on the page tint; the mobile sheet uses it edge to edge.
+ */
 export function AppSidebarNav({
   queueCount = 0,
   interestedCount = 0,
   profileFitCount = 0,
   isOwner = false,
+  userName,
+  userEmail,
   onNavigate,
   className,
 }: {
@@ -127,62 +202,65 @@ export function AppSidebarNav({
   interestedCount?: number;
   profileFitCount?: number;
   isOwner?: boolean;
+  userName?: string | null;
+  userEmail?: string;
   onNavigate?: () => void;
   className?: string;
 }) {
   const pathname = usePathname();
-  const [pendingHref, setPendingHref] = useState<string | null>(null);
-
-  useEffect(() => {
-    setPendingHref(null);
-  }, [pathname]);
-
-  const activeHref = pendingHref ?? pathname;
+  // Highlight the clicked item right away; it expires once the route changes.
+  const [pending, setPending] = useState<{ href: string; from: string } | null>(null);
+  const activeHref = pending && pending.from === pathname ? pending.href : pathname;
 
   const handleNavigate = (href: string) => {
-    setPendingHref(href);
+    setPending({ href, from: pathname });
     onNavigate?.();
   };
 
-  const main: NavItem[] = [
+  const daily: NavItem[] = [
     { href: "/", label: "Today", icon: Inbox },
     { href: "/interested", label: "Saved", icon: Bookmark, count: interestedCount },
     ...(isOwner
       ? [{ href: "/queue", label: "Queue", icon: Send, count: queueCount }]
       : []),
+  ];
+  const setup: NavItem[] = [
     { href: "/profile", label: "Profile", icon: UserRound, count: profileFitCount },
+    { href: "/search-criteria", label: "Search criteria", icon: Search },
+    { href: "/learning", label: "Improve", icon: Sparkles },
   ];
   const settingsItem: NavItem = { href: "/settings", label: "Settings", icon: Settings };
+
+  const link = (item: NavItem) => (
+    <NavLink
+      key={item.href}
+      item={item}
+      active={isActive(activeHref, item.href)}
+      onNavigate={() => handleNavigate(item.href)}
+    />
+  );
 
   return (
     <aside
       className={cn(
-        "dark bg-sidebar text-sidebar-foreground flex h-full w-[240px] shrink-0 flex-col",
+        "dark bg-sidebar text-sidebar-foreground flex h-full w-[248px] shrink-0 flex-col",
         className,
       )}
     >
-      <div className="flex h-16 items-center px-5">
+      <div className="flex h-16 shrink-0 items-center px-5">
         <OptraLogo href="/" width={84} tone="light" onClick={() => handleNavigate("/")} />
       </div>
 
-      <nav aria-label="Main" className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 pt-2 pb-4">
-        {main.map((item) => (
-          <NavLink
-            key={item.href}
-            item={item}
-            active={isActive(activeHref, item.href)}
-            onNavigate={() => handleNavigate(item.href)}
-          />
-        ))}
-        <div className="mt-auto space-y-4">
-          <NavLink
-            item={settingsItem}
-            active={isActive(activeHref, settingsItem.href)}
-            onNavigate={() => handleNavigate(settingsItem.href)}
-          />
-          <MakerCredit className="px-3.5 pb-2" />
-        </div>
+      <nav aria-label="Main" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 pb-3">
+        <NavGroup label="Daily">{daily.map(link)}</NavGroup>
+        <NavGroup label="Setup">{setup.map(link)}</NavGroup>
+        <div className="mt-auto flex flex-col gap-1 pt-4">{link(settingsItem)}</div>
       </nav>
+
+      <div className="border-border shrink-0 space-y-3 border-t p-3">
+        {userEmail ? <SidebarAccount name={userName} email={userEmail} /> : null}
+        <MakerCredit className="px-2" />
+      </div>
     </aside>
   );
 }
@@ -192,20 +270,26 @@ export function AppSidebar({
   interestedCount = 0,
   profileFitCount = 0,
   isOwner = false,
+  userName,
+  userEmail,
 }: {
   queueCount?: number;
   interestedCount?: number;
   profileFitCount?: number;
   isOwner?: boolean;
+  userName?: string | null;
+  userEmail?: string;
 }) {
   return (
-    <div className="sticky top-0 hidden h-svh lg:block">
+    <div className="sticky top-0 hidden h-svh shrink-0 p-3 pr-0 lg:block">
       <AppSidebarNav
         queueCount={queueCount}
         interestedCount={interestedCount}
         profileFitCount={profileFitCount}
         isOwner={isOwner}
-        className="h-svh"
+        userName={userName}
+        userEmail={userEmail}
+        className="shadow-card rounded-card overflow-hidden"
       />
     </div>
   );
