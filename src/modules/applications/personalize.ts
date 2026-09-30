@@ -11,7 +11,9 @@ import { resolveModel } from "@/lib/ai/routing";
 import type { StructuredProfile } from "@/modules/profile/schemas";
 import { applyCvSlotPatch, type ContactHeader, buildBaseCv } from "./base-cv";
 import { buildPackageWarnings, validateGrounding } from "./grounding";
+import { detectPostingLanguage } from "./language";
 import { marketLabels } from "./market";
+import { resolveFamily } from "@/modules/occupations/search";
 import {
   CoverLetterSchema,
   CvSlotPatchSchema,
@@ -61,8 +63,10 @@ export async function personalizeApplicationPackage(input: {
   companySummary?: string | null;
   marketConfirmed?: boolean;
 }): Promise<PersonalizeResult> {
-  const baseCv = buildBaseCv(input.profile, input.contact);
-  const labels = marketLabels(input.market);
+  // CV and letter follow the posting's language (Serbian posting → Serbian CV).
+  const outputLanguage = detectPostingLanguage(`${input.job.title}\n${input.job.description}`);
+  const baseCv = buildBaseCv(input.profile, input.contact, { outputLanguage });
+  const labels = marketLabels(input.market, outputLanguage, baseCv.template);
 
   const analysis = await runAnalysis({
     profile: input.profile,
@@ -95,8 +99,11 @@ export async function personalizeApplicationPackage(input: {
     includeCertifications: slotPatch.includeCertifications,
   });
 
-  // Ensure recommended projects are included when present.
-  if (analysis.recommendedProjectIds.length) {
+  // Ensure recommended projects are included when the layout has a projects section.
+  if (
+    analysis.recommendedProjectIds.length &&
+    (cv.template === "projects" || cv.template === "europass")
+  ) {
     const want = new Set(analysis.recommendedProjectIds);
     cv = {
       ...cv,
@@ -215,6 +222,8 @@ async function runAnalysis(input: {
         seniority: input.profile.seniority,
         yearsExperience: input.profile.yearsExperience,
         strongestSkills: input.profile.strongestSkills,
+        licenses: input.profile.licenses,
+        certifications: input.profile.certifications,
         industries: input.profile.industries,
         achievements: input.profile.achievements.slice(0, 6),
         projects: input.baseCv.projects.map((p) => ({
@@ -377,6 +386,8 @@ async function runCoverLetter(input: {
     {
       market: input.market,
       spellingHint: input.spellingHint,
+      outputLanguage: input.cv.outputLanguage,
+      occupationFamily: resolveFamily(input.profile),
       fullName: input.fullName,
       job: {
         title: input.job.title,
@@ -425,6 +436,19 @@ async function runCoverLetter(input: {
     });
   } catch {
     const primary = experienceProof[0];
+    if (input.cv.outputLanguage === "sr") {
+      return CoverLetterSchema.parse({
+        greeting: "Poštovani,",
+        opening: `Prijavljujem se za poziciju ${input.job.title} u kompaniji ${input.job.companyName}.`,
+        body:
+          primary && primary.bullets[0]
+            ? `Kao ${primary.role} u ${primary.organization}: ${primary.bullets[0]}`
+            : input.cv.summary.slice(0, 280),
+        closing: "Hvala na razmatranju prijave. Rado ću doći na razgovor.",
+        signOff: "Srdačan pozdrav,",
+        fullName: input.fullName,
+      });
+    }
     const proof =
       primary && primary.bullets[0]
         ? `In my work as ${primary.role} at ${primary.organization}, ${primary.bullets[0].replace(/^[A-Z]/, (c) => c.toLowerCase())}`
@@ -433,7 +457,7 @@ async function runCoverLetter(input: {
           "I would welcome the chance to contribute.";
     return CoverLetterSchema.parse({
       greeting: "Dear Hiring Team,",
-      opening: `I am writing to apply for the ${input.job.title} role at ${input.job.companyName}. My background as ${input.cv.headline || input.profile.currentRole || "a product design professional"} aligns closely with what you are hiring for.`,
+      opening: `I am writing to apply for the ${input.job.title} role at ${input.job.companyName}. My background as ${input.cv.headline || input.profile.currentRole || "an experienced professional"} aligns closely with what you are hiring for.`,
       body: proof,
       closing:
         "Thank you for your consideration. I would welcome a conversation about how I can help.",
@@ -449,7 +473,7 @@ export async function regenerateCvSummary(input: {
   job: { title: string; companyName: string; description: string };
   market: PackageMarket;
 }): Promise<string> {
-  const labels = marketLabels(input.market);
+  const labels = marketLabels(input.market, input.cv.outputLanguage, input.cv.template);
   const patch = await runCvSlotPatch({
     baseCv: input.cv,
     analysis: PackageAnalysisSchema.parse({
@@ -474,7 +498,7 @@ export async function regenerateCoverLetter(input: {
   market: PackageMarket;
   fullName: string;
 }): Promise<CoverLetter> {
-  const labels = marketLabels(input.market);
+  const labels = marketLabels(input.market, input.cv.outputLanguage, input.cv.template);
   return runCoverLetter({
     ...input,
     spellingHint: labels.spellingHint,

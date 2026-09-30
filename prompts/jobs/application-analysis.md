@@ -28,4 +28,6 @@ Return **JSON only**. Do not invent employers, projects, skills, degrees, or met
 - `recommendedProjectIds` may only use provided project ids.
 - Prefer evidence from matchingReasons; put doubts in gaps.
 - Keep arrays short (≤8 items).
+- `mustHaves` includes required licences, certificates and permits (driving categories, ADR, nursing licence, sanitary booklet) when the posting names them; put the ones the profile lacks in `gaps`.
+- Write text fields in the language the posting is written in (Serbian Latin script or English).
 - When recommending experience emphasis, prefer roles whose bullets/orgs match must-haves — do not recommend dropping the candidate's core career history.

@@ -43,7 +43,21 @@ export const CvProjectEntrySchema = z.object({
   included: z.boolean().default(true),
 });
 
+/**
+ * CV layout: chronological (trades, transport, retail, office), projects
+ * (tech and creative), credentials (licences first: healthcare, education)
+ * or Europass-style headings for EU applications.
+ */
+export const CvTemplateSchema = z.enum(["chronological", "projects", "credentials", "europass"]);
+export type CvTemplate = z.infer<typeof CvTemplateSchema>;
+
+/** CV and letter follow the posting's language. */
+export const OutputLanguageSchema = z.enum(["en", "sr"]);
+export type OutputLanguage = z.infer<typeof OutputLanguageSchema>;
+
 export const TailoredCvSchema = z.object({
+  template: CvTemplateSchema.default("projects"),
+  outputLanguage: OutputLanguageSchema.default("en"),
   fullName: z.string(),
   headline: z.string().optional(),
   email: z.string().optional(),
@@ -56,8 +70,11 @@ export const TailoredCvSchema = z.object({
   projects: z.array(CvProjectEntrySchema).default([]),
   education: z.array(z.string()).default([]),
   certifications: z.array(z.string()).default([]),
+  /** Driving licence categories and professional licences. */
+  licenses: z.array(z.string()).default([]),
   languages: z.array(z.string()).default([]),
   includeProjects: z.boolean().default(true),
+  includeLicenses: z.boolean().default(false),
   includeLanguages: z.boolean().default(true),
   includeCertifications: z.boolean().default(true),
 });

@@ -658,9 +658,16 @@ export function ApplicationPackageWorkspace({
             </div>
           </div>
 
+          <HowToApplyPanel pkg={pkg} />
+
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
             <Surface className="xl:max-h-[calc(100vh-11rem)] xl:overflow-y-auto">
               <div className="p-5 sm:p-6">
+                {tab === "letter" && pkg.letterOptional ? (
+                  <p className="text-muted-foreground bg-muted/40 mb-5 rounded-xl px-4 py-3 text-[14px] leading-relaxed">
+                    Employers in your field rarely ask for a cover letter, and this posting doesn&apos;t. You can skip it and apply with your CV.
+                  </p>
+                ) : null}
                 {tab === "cv" && cv ? (
                   <PackageCvSlotEditor
                     cv={cv}
@@ -729,5 +736,43 @@ export function ApplicationPackageWorkspace({
         </>
       )}
     </PageShell>
+  );
+}
+
+/** Email / phone / link from the posting: many local jobs are applied to directly. */
+function HowToApplyPanel({ pkg }: { pkg: ApplicationPackageView }) {
+  const { emails, phones, links } = pkg.howToApply;
+  if (!emails.length && !phones.length && !links.length) return null;
+  return (
+    <Surface>
+      <div className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:gap-5">
+        <p className="font-display text-[15px] font-semibold tracking-tight text-[var(--card-foreground)]">
+          How to apply
+        </p>
+        <ul className="flex flex-wrap gap-x-5 gap-y-1 text-[14px]">
+          {emails.map((email) => (
+            <li key={email}>
+              <a className="text-primary hover:underline" href={`mailto:${email}`}>
+                {email}
+              </a>
+            </li>
+          ))}
+          {phones.map((phone) => (
+            <li key={phone}>
+              <a className="text-primary hover:underline" href={`tel:${phone.replace(/[^\d+]/g, "")}`}>
+                {phone}
+              </a>
+            </li>
+          ))}
+          {links.map((link) => (
+            <li key={link} className="max-w-full truncate">
+              <a className="text-primary hover:underline" href={link} target="_blank" rel="noreferrer">
+                Application form
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </Surface>
   );
 }

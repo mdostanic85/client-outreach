@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type {
-  CoverLetter,
-  PackageMarket,
-  TailoredCv,
+import { CV_TEMPLATE_LABELS } from "@/modules/applications/cv-layout";
+import {
+  CvTemplateSchema,
+  type CoverLetter,
+  type PackageMarket,
+  type TailoredCv,
 } from "@/modules/applications/schemas";
 import { cn } from "@/lib/utils";
 
@@ -68,6 +70,32 @@ export function PackageCvSlotEditor({
           projects you want on the page.
         </p>
       </div>
+
+      <EditorSection
+        title="Layout"
+        description="Chosen for your field. Europass is the format many EU employers know."
+      >
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="CV layout">
+          {CvTemplateSchema.options.map((template) => (
+            <button
+              key={template}
+              type="button"
+              role="radio"
+              aria-checked={cv.template === template}
+              disabled={pending}
+              onClick={() => onChange({ ...cv, template })}
+              className={cn(
+                "h-9 rounded-full border px-3.5 text-[13px] font-medium transition-colors disabled:opacity-50",
+                cv.template === template
+                  ? "border-primary bg-primary/12 text-[var(--card-foreground)]"
+                  : "border-border hover:border-primary/50",
+              )}
+            >
+              {CV_TEMPLATE_LABELS[template]}
+            </button>
+          ))}
+        </div>
+      </EditorSection>
 
       <EditorSection title="Identity">
         <div className="space-y-3">
@@ -396,6 +424,20 @@ export function PackageCvSlotEditor({
             />
             Certifications
           </label>
+          {cv.licenses.length ? (
+            <label className="flex cursor-pointer items-center gap-2 text-[14px]">
+              <input
+                type="checkbox"
+                className="border-input size-4 rounded"
+                checked={cv.includeLicenses}
+                disabled={pending}
+                onChange={(e) =>
+                  onChange({ ...cv, includeLicenses: e.target.checked })
+                }
+              />
+              Licences
+            </label>
+          ) : null}
         </div>
       </EditorSection>
     </div>

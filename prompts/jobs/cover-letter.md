@@ -16,7 +16,8 @@ Write a concise, professional cover letter for one role. Return **JSON only**.
 
 ## Rules
 
-- Total length **150–220 words** across opening + body + closing.
+- Write in the language `spellingHint` names (English or Serbian Latin script). In Serbian use "Poštovani," and "Srdačan pozdrav,".
+- Total length **150–220 words** across opening + body + closing. For hands-on fields (`occupationFamily` trades, transport_logistics, hospitality_retail, healthcare) keep it to **80–140 words** in plain language: availability, licences/certificates, years in the job.
 - Opening must name the company and role, and show a specific reason rooted in the job/company summary — not generic enthusiasm.
 - Body must cite **concrete proof** from the candidate payload (role + organization + what they did). Prefer experience bullets over vague skills lists.
 - No generic AI enthusiasm ("I am thrilled", "passionate about your mission") unless grounded in the payload.
@@ -24,4 +25,4 @@ Write a concise, professional cover letter for one role. Return **JSON only**.
 - Do not dump the whole CV — pick 1–2 strongest proof points and connect them to the role's needs.
 - Adapt tone to market (US vs Europe) and spellingHint.
 - Credible and specific when evidence allows; otherwise be honest and brief.
-- Sign-off: "Best regards," unless market suggests "Kind regards,".
+- Sign-off: "Best regards," unless market suggests "Kind regards," (Serbian: "Srdačan pozdrav,").

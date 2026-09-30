@@ -1,4 +1,4 @@
-import type { PackageMarket } from "./schemas";
+import type { CvTemplate, OutputLanguage, PackageMarket } from "./schemas";
 
 export type MarketLabels = {
   documentName: string;
@@ -9,10 +9,29 @@ export type MarketLabels = {
   projectsHeading: string;
   languagesHeading: string;
   certificationsHeading: string;
+  licensesHeading: string;
   spellingHint: string;
 };
 
-export function marketLabels(market: PackageMarket): MarketLabels {
+const SERBIAN: MarketLabels = {
+  documentName: "CV",
+  summaryHeading: "Profil",
+  experienceHeading: "Radno iskustvo",
+  skillsHeading: "Veštine",
+  educationHeading: "Obrazovanje",
+  projectsHeading: "Izdvojeni radovi",
+  languagesHeading: "Jezici",
+  certificationsHeading: "Sertifikati",
+  licensesHeading: "Dozvole i licence",
+  spellingHint: "Write in Serbian, Latin script (latinica), standard ekavian.",
+};
+
+export function marketLabels(
+  market: PackageMarket,
+  language: OutputLanguage = "en",
+  template?: CvTemplate,
+): MarketLabels {
+  if (language === "sr") return SERBIAN;
   if (market === "us") {
     return {
       documentName: "Resume",
@@ -23,10 +42,11 @@ export function marketLabels(market: PackageMarket): MarketLabels {
       projectsHeading: "Selected work",
       languagesHeading: "Languages",
       certificationsHeading: "Certifications",
+      licensesHeading: "Licences",
       spellingHint: "Use American English spelling (optimize, favor, organization).",
     };
   }
-  return {
+  const europe: MarketLabels = {
     documentName: "CV",
     summaryHeading: "Profile",
     experienceHeading: "Experience",
@@ -35,9 +55,22 @@ export function marketLabels(market: PackageMarket): MarketLabels {
     projectsHeading: "Selected work",
     languagesHeading: "Languages",
     certificationsHeading: "Certifications",
+    licensesHeading: "Licences",
     spellingHint:
       "Use international English spelling (optimise, favour, organisation) unless the role is clearly US-based.",
   };
+  // Europass section names, as EU employers expect them.
+  return template === "europass"
+    ? {
+        ...europe,
+        summaryHeading: "About me",
+        experienceHeading: "Work experience",
+        educationHeading: "Education and training",
+        skillsHeading: "Skills",
+        languagesHeading: "Language skills",
+        licensesHeading: "Driving licence",
+      }
+    : europe;
 }
 
 /** Suggest market from job/company country signals. Default europe. */

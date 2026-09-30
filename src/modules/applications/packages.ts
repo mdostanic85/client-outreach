@@ -20,6 +20,8 @@ import {
 } from "./export-text";
 import { validateGrounding } from "./grounding";
 import { suggestMarket } from "./market";
+import { extractHowToApply, type HowToApply } from "./how-to-apply";
+import { resolveFamily } from "@/modules/occupations/search";
 import {
   personalizeApplicationPackage,
   regenerateCoverLetter,
@@ -61,7 +63,18 @@ export type ApplicationPackageView = ApplicationPackageRow & {
   marketLabel: PackageMarket;
   mailStatusLabel: PackageMailStatus;
   email: ApplicationEmailDraft;
+  /** Email, phone or link from the posting — many local jobs aren't applied to via ATS. */
+  howToApply: HowToApply;
+  /** Hands-on fields rarely want a letter unless the posting asks for one. */
+  letterOptional: boolean;
 };
+
+const LETTER_OPTIONAL_FAMILIES = new Set([
+  "trades",
+  "transport_logistics",
+  "hospitality_retail",
+  "healthcare",
+]);
 
 function packageContentHash(cv: TailoredCv, letter: CoverLetter): string {
   return createHash("sha256")
@@ -189,6 +202,8 @@ async function toView(row: ApplicationPackageRow): Promise<ApplicationPackageVie
   );
   const cv = parseTailoredCv(row.cvJson);
   const jobTitle = job?.title ?? "Role";
+  const howToApply = extractHowToApply(job?.description ?? "", job?.sourceUrl);
+  const family = resolveFamily((await getApprovedProfile())?.profile);
 
   return {
     ...row,
@@ -219,8 +234,11 @@ async function toView(row: ApplicationPackageRow): Promise<ApplicationPackageVie
     mailStatusLabel: PackageMailStatusSchema.catch("none").parse(
       row.mailStatus,
     ),
+    howToApply,
+    letterOptional:
+      !howToApply.asksForLetter && family != null && LETTER_OPTIONAL_FAMILIES.has(family),
     email: {
-      to: row.emailTo?.trim() ?? "",
+      to: row.emailTo?.trim() || howToApply.emails[0] || "",
       subject:
         row.emailSubject?.trim() ||
         `${jobTitle} — ${cv.fullName || letter.fullName}`,

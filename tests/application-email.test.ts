@@ -11,6 +11,8 @@ import type {
 } from "../src/modules/applications/schemas";
 
 const cv: TailoredCv = {
+  template: "projects",
+  outputLanguage: "en",
   fullName: "Milos Dostanic",
   headline: "Senior Product Designer",
   email: "milos@example.com",
@@ -23,8 +25,10 @@ const cv: TailoredCv = {
   projects: [],
   education: [],
   certifications: [],
+  licenses: [],
   languages: [],
   includeProjects: true,
+  includeLicenses: false,
   includeLanguages: true,
   includeCertifications: true,
 };

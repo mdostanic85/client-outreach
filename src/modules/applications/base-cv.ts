@@ -3,10 +3,14 @@ import {
   type RelevantProject,
   type StructuredProfile,
 } from "@/modules/profile/schemas";
+import { resolveFamily } from "@/modules/occupations/search";
+import { cvTemplateFor } from "./cv-layout";
 import {
   TailoredCvSchema,
   type CvExperienceEntry,
   type CvProjectEntry,
+  type CvTemplate,
+  type OutputLanguage,
   type TailoredCv,
 } from "./schemas";
 
@@ -59,7 +63,7 @@ function experienceFromGeneralProject(
     project.role?.trim() ||
     parsed.role ||
     profile.currentRole?.trim() ||
-    "Product / Design";
+    "Role";
 
   const bullets = uniqueStrings([
     ...(project.summary &&
@@ -102,7 +106,9 @@ function looksLikeRoleLine(
 export function buildBaseCv(
   profile: StructuredProfile,
   contact: ContactHeader,
+  options: { template?: CvTemplate; outputLanguage?: OutputLanguage } = {},
 ): TailoredCv {
+  const template = options.template ?? cvTemplateFor(resolveFamily(profile));
   const skills = uniqueStrings([
     ...profile.strongestSkills,
     ...profile.tools,
@@ -137,7 +143,7 @@ export function buildBaseCv(
       experience.push({
         id: "exp-current-0",
         organization: profile.notableClients[0] ?? "Independent / recent work",
-        role: profile.currentRole ?? "Senior Product Designer",
+        role: profile.currentRole ?? "Professional experience",
         bullets,
         sourcePointers: ["profile.achievements", "profile.leadershipExperience"],
         included: true,
@@ -184,6 +190,8 @@ export function buildBaseCv(
   const headline = roleWithLevel(profile.seniority, profile.currentRole);
 
   return TailoredCvSchema.parse({
+    template,
+    outputLanguage: options.outputLanguage ?? "en",
     fullName: contact.fullName.trim() || "Your Name",
     headline: headline || undefined,
     email: contact.email,
@@ -198,8 +206,11 @@ export function buildBaseCv(
     projects,
     education: profile.education.slice(0, 4),
     certifications: profile.certifications.slice(0, 4),
+    licenses: profile.licenses.slice(0, 8),
     languages: profile.languages.slice(0, 6),
-    includeProjects: projects.length > 0,
+    // Project sections only where the field shows work that way.
+    includeProjects: projects.length > 0 && (template === "projects" || template === "europass"),
+    includeLicenses: profile.licenses.length > 0,
     includeLanguages: profile.languages.length > 0,
     includeCertifications: profile.certifications.length > 0,
   });

@@ -35,5 +35,6 @@ Return **JSON only**. Never invent employers, job titles, dates, degrees, tools,
 - Summary: tilt toward this company/role using known skills and proof — max 3 sentences, no invented claims.
 - Skills: reorder from baseCv.skills only; put the most job-relevant first (8–12 visible is enough).
 - Projects: include 1–3 most relevant; set includeProjects false only if none fit.
-- Follow spellingHint for US vs Europe English.
+- Follow spellingHint: it says the output language (English US / international, or Serbian Latin script). When it says Serbian, write summary and bullets in Serbian and keep employer, product and tool names as written.
+- Leave `includeProjects` false unless the CV already shows projects — many fields (trades, transport, healthcare, retail) don't use a projects section.
 - Keep the document suitable for **one page**, but never by erasing the candidate's real career.

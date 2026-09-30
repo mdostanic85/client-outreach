@@ -12,10 +12,10 @@ export const CLASSIFY_OCCUPATION_PROMPT_VERSION = "occupations/classify@v1";
 export const JOB_SEARCH_PROFILE_PROMPT_VERSION = "jobs/search-profile@v3";
 export const JOB_MATCH_PROMPT_VERSION = "jobs/match-and-explain@v5";
 export const APPLICATION_ANALYSIS_PROMPT_VERSION =
-  "jobs/application-analysis@v2";
-export const APPLICATION_CV_SLOTS_PROMPT_VERSION = "jobs/tailored-cv-slots@v2";
+  "jobs/application-analysis@v3";
+export const APPLICATION_CV_SLOTS_PROMPT_VERSION = "jobs/tailored-cv-slots@v3";
 export const APPLICATION_COVER_LETTER_PROMPT_VERSION =
-  "jobs/cover-letter@v2";
+  "jobs/cover-letter@v3";
 
 export function loadPrompt(relativePath: string): string {
   const full = path.join(process.cwd(), "prompts", relativePath);
