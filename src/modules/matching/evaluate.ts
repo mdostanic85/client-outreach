@@ -341,6 +341,8 @@ export async function evaluateJobsBatch(options: {
   /** Defaults from settings when omitted. */
   usePortfolioInMatching?: boolean;
   onProgress?: JobSearchProgressCallback;
+  /** Stop scoring before this time so publish can still run. */
+  deadline?: number;
 }): Promise<{ evaluated: number; recommended: number; evaluatedJobIds: string[]; matchIds: Record<string, string> }> {
   const db = getDb();
   let evaluated = 0;
@@ -369,6 +371,17 @@ export async function evaluateJobsBatch(options: {
   );
 
   for (const jobId of options.jobIds) {
+    if (options.deadline && Date.now() > options.deadline - 20_000) {
+      await options.onProgress?.(
+        progressFor(
+          "evaluate",
+          evaluatePercent(done, Math.max(total, 1)),
+          `Scored ${done} of ${total} — publishing what's ready`,
+          { reviewed: done, toScore: total, promising: recommended },
+        ),
+      );
+      break;
+    }
     const jobRow = (await db.select().from(jobs).where(and(await owned(jobs), eq(jobs.id, jobId))).limit(1))[0];
     if (!jobRow) {
       done++;
@@ -428,6 +441,7 @@ export async function evaluateJobsBatch(options: {
     );
 
     try {
+      const started = Date.now();
       const { result, model, costUsd } = await evaluateOne(
         jobRow,
         options.profileJson,
@@ -476,8 +490,10 @@ export async function evaluateJobsBatch(options: {
           scoreActivity(jobRow.title, await companyName(jobRow.companyId), jobRow.location, result.matchScore),
         ),
       );
-      // Free-tier Gemini is ~15 RPM — pace new matches so a full batch survives.
-      await new Promise((r) => setTimeout(r, 4_500));
+      // Free-tier Gemini is about 15 requests a minute. Pace from the start of
+      // the call, not an extra wait after it, or a full batch outlives the function.
+      const wait = Math.max(0, 4_200 - (Date.now() - started));
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
     } catch (err) {
       done++;
       logger.warn({ err, jobId }, "job evaluate failed");

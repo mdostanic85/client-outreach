@@ -169,49 +169,54 @@ export function JobSearchProvider({ children }: { children: React.ReactNode }) {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-        let finalStats: JobPipelineStats | null = null;
+        const outcome: { stats: JobPipelineStats | null } = { stats: null };
+        const takeLine = (line: string) => {
+          if (!line.trim()) return;
+          let event: SearchStreamEvent;
+          try {
+            event = JSON.parse(line) as SearchStreamEvent;
+          } catch {
+            return;
+          }
+          if (event.type === "progress") {
+            if (event.progress.stats) acc = { ...acc, ...event.progress.stats };
+            if (event.progress.activity) {
+              activity = [{ ...event.progress.activity, id: ++seq }, ...activity].slice(0, ACTIVITY_LIMIT);
+            }
+            setLive({
+              percent: event.progress.percent,
+              stepId: event.progress.stepId,
+              detail: event.progress.detail ?? event.progress.label,
+              stats: acc,
+              activity,
+            });
+          } else if (event.type === "done") {
+            outcome.stats = event.stats;
+            setLive({ percent: 100, stepId: "publish", detail: "Finishing up…", stats: acc, activity });
+          } else {
+            throw new Error(event.error);
+          }
+        };
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
           buffer = lines.pop() ?? "";
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            let event: SearchStreamEvent;
-            try {
-              event = JSON.parse(line) as SearchStreamEvent;
-            } catch {
-              continue;
-            }
-            if (event.type === "progress") {
-              if (event.progress.stats) acc = { ...acc, ...event.progress.stats };
-              if (event.progress.activity) {
-                activity = [{ ...event.progress.activity, id: ++seq }, ...activity].slice(0, ACTIVITY_LIMIT);
-              }
-              setLive({
-                percent: event.progress.percent,
-                stepId: event.progress.stepId,
-                detail: event.progress.detail ?? event.progress.label,
-                stats: acc,
-                activity,
-              });
-            } else if (event.type === "done") {
-              finalStats = event.stats;
-              setLive({ percent: 100, stepId: "publish", detail: "Finishing up…", stats: acc, activity });
-            } else {
-              throw new Error(event.error);
-            }
-          }
+          for (const line of lines) takeLine(line);
         }
+        buffer += decoder.decode();
+        if (buffer.trim()) takeLine(buffer);
 
         if (cancelledRef.current) return;
-        if (!finalStats) {
-          setNotice({ error: "Job search ended without results. Click Find jobs again." });
+        const stats = outcome.stats;
+        if (!stats) {
+          router.refresh();
+          setNotice({
+            error: "Search was cut off before it finished. Anything already saved is on your list — click Find jobs again for the rest.",
+          });
           return;
         }
-
-        const stats = finalStats;
         const strong = stats.publishedStrong ?? 0;
         const worth = stats.publishedWorthALook ?? 0;
         const published = stats.published ?? strong + worth;

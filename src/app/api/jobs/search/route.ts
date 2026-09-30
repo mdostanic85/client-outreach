@@ -32,7 +32,11 @@ export async function POST() {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: StreamEvent) => {
-        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        try {
+          controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        } catch {
+          // The browser already left. Keep collecting and publishing.
+        }
       };
 
       try {

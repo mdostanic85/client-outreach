@@ -19,6 +19,9 @@ import { getActiveSearchParams } from "@/modules/search-profile/queries";
 import { getUserSettings } from "@/modules/settings/user-settings";
 import { owned } from "@/modules/auth/current-user";
 
+/** Stay under the 300s function limit so the run can still publish and close the stream. */
+const PIPELINE_BUDGET_MS = 240_000;
+
 export type JobPipelineStats = {
   skipped?: string;
   raw?: number;
@@ -42,6 +45,7 @@ export async function runJobDiscoveryPipeline(options?: {
   onProgress?: JobSearchProgressCallback;
 }): Promise<JobPipelineStats> {
   const report = options?.onProgress;
+  const deadline = Date.now() + PIPELINE_BUDGET_MS;
 
   const active = await getActiveSearchParams();
   if (!active) {
@@ -157,6 +161,7 @@ export async function runJobDiscoveryPipeline(options?: {
     profileJson: profile.profileJson,
     usePortfolioInMatching: profile.usePortfolioInMatching,
     onProgress: report,
+    deadline,
   });
 
   await report?.(
