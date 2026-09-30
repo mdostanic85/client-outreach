@@ -7,6 +7,7 @@ import {
   runVerticalSliceAction,
   submitManualCompanyAction,
 } from "@/app/actions";
+import { InlineAlert } from "@/components/inline-alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,14 +39,12 @@ export function DiscoverControls() {
   return (
     <div className="space-y-4">
       {error ? (
-        <p className="border-destructive/30 bg-destructive/5 text-destructive rounded-lg border px-3 py-2 text-sm">
-          {error}
-        </p>
+        <InlineAlert variant="error">{error}</InlineAlert>
       ) : null}
 
       <div>
-        <p className="mb-1 text-sm font-medium">Company URL</p>
-        <p className="text-muted-foreground mb-3 text-sm">
+        <p className="text-foreground mb-1 text-body font-medium">Company URL</p>
+        <p className="text-muted-foreground mb-3 text-body-sm">
           Highest-precision source — paste a site and research immediately.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">

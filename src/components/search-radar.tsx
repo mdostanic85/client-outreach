@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { ValueSwap } from "@/components/ui/value-motion";
 import { cn } from "@/lib/utils";
 import type { SearchActivity } from "@/modules/search-experience/stages";
 
@@ -8,7 +9,7 @@ export type RadarActivity = SearchActivity & { id: number };
 
 const TONE_DOT: Record<NonNullable<SearchActivity["tone"]>, string> = {
   strong: "bg-brand",
-  worth: "bg-[var(--warn)]",
+  worth: "bg-warn-fill",
   weak: "bg-muted-foreground/45",
   neutral: "bg-[var(--chart-2)]",
   error: "bg-destructive/70",
@@ -16,7 +17,7 @@ const TONE_DOT: Record<NonNullable<SearchActivity["tone"]>, string> = {
 
 const TONE_TEXT: Record<NonNullable<SearchActivity["tone"]>, string> = {
   strong: "text-brand-ink",
-  worth: "text-[var(--warn)]",
+  worth: "text-warn",
   weak: "text-muted-foreground",
   neutral: "text-foreground",
   error: "text-destructive",
@@ -111,7 +112,7 @@ export function SearchRadar({
       </svg>
       <div className="search-radar-sweep absolute inset-0 rounded-full" aria-hidden />
       <div
-        className="bg-background/85 border-brand/20 absolute rounded-full border backdrop-blur-sm"
+        className="bg-card border-brand/20 absolute rounded-full border"
         style={{ inset: `${50 - CORE * 50}%` }}
         aria-hidden
       />
@@ -123,7 +124,7 @@ export function SearchRadar({
           <button
             key={item.id}
             type="button"
-            className="search-radar-blip absolute -translate-x-1/2 -translate-y-1/2 rounded-full p-1.5 outline-none"
+            className="search-radar-blip absolute -translate-x-1/2 -translate-y-1/2 rounded-full p-1.5"
             style={{ left: `${x}%`, top: `${y}%` }}
             onMouseEnter={() => onActiveChange(item.id)}
             onMouseLeave={() => onActiveChange(null)}
@@ -136,7 +137,7 @@ export function SearchRadar({
                 "search-radar-dot relative block rounded-full transition-transform duration-200",
                 TONE_DOT[tone],
                 isActive && "scale-[1.8] ring-2 ring-foreground/70",
-                tone === "strong" && "search-radar-dot-strong",
+                tone === "strong" && "",
               )}
               style={{ width: size, height: size }}
             >
@@ -147,11 +148,11 @@ export function SearchRadar({
       })}
 
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <p className="tabular text-[clamp(2rem,18cqi,3.25rem)] leading-none font-medium tracking-tight text-foreground">
-          {value}
+        <p className="tabular text-[clamp(2rem,18cqi,3.25rem)] leading-none text-foreground">
+          <ValueSwap value={value} />
         </p>
         {caption ? (
-          <p className="text-muted-foreground mt-2 max-w-[9rem] text-center text-[11px] leading-tight tracking-[0.08em] uppercase">
+          <p className="text-muted-foreground mt-2 max-w-[9rem] text-center text-caption leading-tight">
             {caption}
           </p>
         ) : null}
@@ -160,16 +161,16 @@ export function SearchRadar({
       {/* Clamped so edge blips don't push the card off a phone screen. */}
       {active ? (
         <div
-          className="bg-popover/95 border-border pointer-events-none absolute z-20 w-56 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-xl border px-3 py-2 text-left backdrop-blur"
+          className="bg-popover shadow-overlay pointer-events-none absolute z-20 w-56 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-tile px-3 py-2 text-left"
           style={{ left: `clamp(7rem, ${active.x}%, calc(100% - 7rem))`, top: `calc(${active.y}% + 14px)` }}
           role="status"
         >
-          <p className="truncate text-[13px] font-medium text-foreground">{active.item.label}</p>
+          <p className="truncate text-body-sm font-medium text-foreground">{active.item.label}</p>
           {active.item.meta ? (
-            <p className="text-muted-foreground truncate text-[12px]">{active.item.meta}</p>
+            <p className="text-muted-foreground truncate text-caption">{active.item.meta}</p>
           ) : null}
           {active.item.value ? (
-            <p className={cn("font-mono mt-1 text-[12px]", TONE_TEXT[active.item.tone ?? "neutral"])}>
+            <p className={cn("tabular mt-1 text-caption", TONE_TEXT[active.item.tone ?? "neutral"])}>
               {active.item.kind === "score" && Number.isFinite(Number(active.item.value))
                 ? `Match ${active.item.value}`
                 : active.item.value}

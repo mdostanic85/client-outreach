@@ -364,7 +364,7 @@ export function TriageInbox({
             actionLabel={searching ? "Finding…" : "Find companies"}
             pending={pending || searching}
             icon={
-              <Building2 className="size-6 opacity-70" strokeWidth={1.5} />
+              <Building2 className="size-5" strokeWidth={1.5} />
             }
             onAction={findCompanies}
           />
@@ -419,24 +419,18 @@ export function TriageInbox({
                             <div className="flex flex-wrap items-center gap-2">
                               <Link
                                 href={`/leads/${row.leadId}`}
-                                className="text-[17px] font-medium text-foreground hover:text-brand-ink"
+                                className="text-body-lg font-medium text-foreground hover:text-brand-ink"
                               >
                                 {row.companyName}
                               </Link>
-                              <StatePill
-                                state={row.state}
-                                className="px-2 py-0.5 text-[14px]"
-                              />
+                              <StatePill state={row.state} />
                               {row.policy !== "draft_allowed" &&
                               row.policy !== "unknown" ? (
-                                <PolicyPill
-                                  policy={row.policy}
-                                  className="px-2 py-0.5 text-[14px]"
-                                />
+                                <PolicyPill policy={row.policy} />
                               ) : null}
                             </div>
                             {meta ? (
-                              <p className="text-muted-foreground text-[15px]">
+                              <p className="text-muted-foreground text-body">
                                 {meta}
                               </p>
                             ) : null}
@@ -447,7 +441,7 @@ export function TriageInbox({
                         {summary ? (
                           <p
                             className={cn(
-                              "text-muted-foreground text-[15px] leading-relaxed",
+                              "text-muted-foreground text-body leading-relaxed",
                               !open && "line-clamp-2",
                             )}
                           >
@@ -456,7 +450,7 @@ export function TriageInbox({
                         ) : null}
 
                         {open ? (
-                          <div className="animate-expand border-border/60 space-y-2 border-t pt-3 text-[15px]">
+                          <div className="animate-expand border-border space-y-2 border-t pt-3 text-body">
                             {row.whyFit ? (
                               <p>
                                 <span className="text-foreground font-medium">
@@ -485,7 +479,7 @@ export function TriageInbox({
                             ) : null}
                             <Link
                               href={`/leads/${row.leadId}`}
-                              className="text-brand-ink inline-flex text-[15px] font-medium underline-offset-2 hover:underline"
+                              className="text-brand-ink inline-flex text-body font-medium underline-offset-2 hover:underline"
                             >
                               Open company →
                             </Link>
@@ -572,7 +566,7 @@ export function TriageInbox({
                         </div>
                         <button
                           type="button"
-                          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-[14px] font-medium"
+                          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-body-sm font-medium"
                           onClick={() =>
                             setExpandedId(open ? null : row.leadId)
                           }

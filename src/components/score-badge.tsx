@@ -116,7 +116,7 @@ export function ScoreBadge({
         }
       >
         <span className="tabular font-medium">{display}</span>
-        <span className="font-normal opacity-85">{label}</span>
+        <span className="font-normal">{label}</span>
       </TooltipTrigger>
       <TooltipContent side="left" sideOffset={8} className="max-w-[240px]">
         <ScoreTooltipBody title={tip.title} body={tipBody} />

@@ -184,10 +184,11 @@ export function JobsInbox({
               title="No roles yet"
               description="Search job boards for roles that fit your profile. Takes about a minute."
               icon={
-                <Briefcase className="size-6 opacity-70" strokeWidth={1.5} />
+                <Briefcase className="size-5" strokeWidth={1.5} />
               }
               actionId="today-primary-action"
               actionLabel={pending || searching ? "Finding…" : "Find jobs"}
+              capsule
               pending={pending || searching}
               onAction={findJobs}
             />
@@ -195,7 +196,7 @@ export function JobsInbox({
             <EmptyState
               title="Set what to look for"
               description="Tell Optra which roles to search for, then we'll find them."
-              icon={<Search className="size-6 opacity-70" strokeWidth={1.5} />}
+              icon={<Search className="size-5" strokeWidth={1.5} />}
               actionId="today-primary-action"
               actionLabel="Set search criteria"
               onAction={() => router.push("/search-criteria")}
@@ -225,11 +226,11 @@ export function JobsInbox({
           />
 
           {showFallbackBanner && tab !== "worth_a_look" ? (
-            <div className="rounded-xl border border-sky-500/25 bg-sky-500/8 px-4 py-3 text-[14px] leading-relaxed text-sky-950 dark:text-sky-100">
+            <div className="bg-card text-ink-emphasis rounded-tile px-4 py-3 text-body-sm">
               No strong matches ({STRONG_MATCH_MIN}+) today —{" "}
               <button
                 type="button"
-                className="font-medium underline-offset-4 hover:underline"
+                className="text-brand-ink rounded-md font-medium underline-offset-4 hover:underline"
                 onClick={() => setTab("worth_a_look")}
               >
                 {worthRows.length} worth a look
@@ -240,7 +241,7 @@ export function JobsInbox({
 
           {listed.length === 0 ? (
             <Surface className="px-5 py-8">
-              <p className="text-muted-foreground text-center text-[14px]">
+              <p className="text-muted-foreground text-center text-body-sm">
                 {tab === "strong"
                   ? "No strong matches yet. Check Worth a look."
                   : tab === "worth_a_look"
@@ -249,11 +250,12 @@ export function JobsInbox({
               </p>
             </Surface>
           ) : (
-            <Stagger className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <Stagger as="ul" className="bg-card divide-y divide-border overflow-hidden rounded-card">
               {listed.map((row, index) => (
                 <StaggerItem
                   key={row.jobId}
                   index={index}
+                  as="li"
                   className="min-w-0"
                 >
                   <JobListItem

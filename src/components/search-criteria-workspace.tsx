@@ -215,39 +215,39 @@ export function SearchCriteriaWorkspace({
 
   const essentialsForm = (
     <div className="grid gap-5 md:grid-cols-2 md:gap-6">
-      <label className="space-y-2 text-[14px]">
+      <label className="space-y-2 text-body-sm">
         <span className="font-medium">Target titles</span>
-        <p className="text-muted-foreground text-[14px]">One per line</p>
+        <p className="text-muted-foreground text-body-sm">One per line</p>
         <textarea
-          className="bg-background min-h-32 w-full rounded-lg border px-3.5 py-2.5 text-[14px]"
+          className="bg-card border-input min-h-32 w-full rounded-tile border px-4 py-3 outline-none transition-colors duration-150 focus-visible:border-brand text-body-sm"
           value={titles}
           onChange={(e) => setTitles(e.target.value)}
           disabled={pending}
         />
       </label>
-      <label className="space-y-2 text-[14px]">
+      <label className="space-y-2 text-body-sm">
         <span className="font-medium">Excluded titles</span>
-        <p className="text-muted-foreground text-[14px]">Skip these roles</p>
+        <p className="text-muted-foreground text-body-sm">Skip these roles</p>
         <textarea
-          className="bg-background min-h-32 w-full rounded-lg border px-3.5 py-2.5 text-[14px]"
+          className="bg-card border-input min-h-32 w-full rounded-tile border px-4 py-3 outline-none transition-colors duration-150 focus-visible:border-brand text-body-sm"
           value={excluded}
           onChange={(e) => setExcluded(e.target.value)}
           disabled={pending}
         />
       </label>
-      <label className="space-y-2 text-[14px]">
+      <label className="space-y-2 text-body-sm">
         <span className="font-medium">Locations</span>
         <textarea
-          className="bg-background min-h-28 w-full rounded-lg border px-3.5 py-2.5 text-[14px]"
+          className="bg-card border-input min-h-28 w-full rounded-tile border px-4 py-3 outline-none transition-colors duration-150 focus-visible:border-brand text-body-sm"
           value={locations}
           onChange={(e) => setLocations(e.target.value)}
           disabled={pending}
         />
       </label>
-      <label className="space-y-2 text-[14px]">
+      <label className="space-y-2 text-body-sm">
         <span className="font-medium">Search keywords</span>
         <textarea
-          className="bg-background min-h-28 w-full rounded-lg border px-3.5 py-2.5 text-[14px]"
+          className="bg-card border-input min-h-28 w-full rounded-tile border px-4 py-3 outline-none transition-colors duration-150 focus-visible:border-brand text-body-sm"
           value={keywords}
           onChange={(e) => setKeywords(e.target.value)}
           disabled={pending}
@@ -258,26 +258,26 @@ export function SearchCriteriaWorkspace({
 
   const advancedForm = (
     <div className="grid gap-5 md:grid-cols-2 md:gap-6">
-      <label className="space-y-2 text-[14px] md:col-span-2">
+      <label className="space-y-2 text-body-sm md:col-span-2">
         <span className="font-medium">Excluded keywords</span>
         <textarea
-          className="bg-background min-h-24 w-full rounded-lg border px-3.5 py-2.5 text-[14px]"
+          className="bg-card border-input min-h-24 w-full rounded-tile border px-4 py-3 outline-none transition-colors duration-150 focus-visible:border-brand text-body-sm"
           value={excludedKw}
           onChange={(e) => setExcludedKw(e.target.value)}
           disabled={pending}
         />
       </label>
-      <label className="space-y-2 text-[14px] md:col-span-2">
+      <label className="space-y-2 text-body-sm md:col-span-2">
         <span className="font-medium">Career page URLs</span>
-        <p className="text-muted-foreground text-[14px]">One per line</p>
+        <p className="text-muted-foreground text-body-sm">One per line</p>
         <textarea
-          className="bg-background min-h-28 w-full rounded-lg border px-3.5 py-2.5 font-mono text-[15px]"
+          className="bg-card border-input min-h-28 w-full rounded-tile border px-4 py-3 outline-none transition-colors duration-150 focus-visible:border-brand font-mono text-body"
           value={boards}
           onChange={(e) => setBoards(e.target.value)}
           disabled={pending}
         />
       </label>
-      <label className="space-y-2 text-[14px]">
+      <label className="space-y-2 text-body-sm">
         <span className="font-medium">Posted within (days)</span>
         <Input
           type="number"
@@ -288,7 +288,7 @@ export function SearchCriteriaWorkspace({
           disabled={pending}
         />
       </label>
-      <label className="space-y-2 text-[14px]">
+      <label className="space-y-2 text-body-sm">
         <span className="font-medium">Max jobs / day</span>
         <Input
           value={maxRaw}
@@ -296,7 +296,7 @@ export function SearchCriteriaWorkspace({
           disabled={pending}
         />
       </label>
-      <label className="space-y-2 text-[14px]">
+      <label className="space-y-2 text-body-sm">
         <span className="font-medium">Max board spend / day (USD)</span>
         <Input
           value={maxApify}
@@ -321,19 +321,18 @@ export function SearchCriteriaWorkspace({
           <Surface>
             <PanelBody className="space-y-5 px-6 py-8 sm:px-8">
               <div className="space-y-2">
-                <p className="text-[18px] font-medium tracking-tight sm:text-[20px]">
+                <p className="text-body-lg font-medium sm:text-h5">
                   {pending
                     ? "Drafting search criteria…"
                     : "Generate search criteria"}
                 </p>
-                <p className="text-muted-foreground max-w-xl text-[15px] leading-relaxed">
+                <p className="text-muted-foreground max-w-xl text-body leading-relaxed">
                   We’ll draft titles, locations, and boards from your approved
                   profile. You review before anything runs.
                 </p>
               </div>
               <Button
                 size="lg"
-                className="h-11 px-5 text-[15px]"
                 disabled={pending}
                 onClick={() =>
                   run(
@@ -351,19 +350,19 @@ export function SearchCriteriaWorkspace({
             <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4 sm:px-6">
               <div className="flex flex-wrap items-center gap-2">
                 {approved ? (
-                  <Badge className="h-7 px-2.5 text-[15px]">
+                  <Badge size="lg">
                     <Check className="size-3.5" aria-hidden />
                     Approved
                     {approved.version ? ` v${approved.version}` : ""}
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="h-7 px-2.5 text-[15px]">
+                  <Badge variant="outline" size="lg">
                     Review draft
                     {draft ? ` v${draft.version}` : ""}
                   </Badge>
                 )}
                 {draft && approved ? (
-                  <Badge variant="secondary" className="h-7 px-2.5 text-[15px]">
+                  <Badge variant="secondary" size="lg">
                     Editing new draft
                   </Badge>
                 ) : null}
@@ -371,8 +370,7 @@ export function SearchCriteriaWorkspace({
               <Button
                 type="button"
                 variant="outline"
-                size="lg"
-                className="h-10 gap-2 px-4 text-[14px]"
+                size="sm"
                 disabled={pending}
                 onClick={() =>
                   run(
@@ -388,7 +386,7 @@ export function SearchCriteriaWorkspace({
 
             <PanelBody className="space-y-6 px-5 py-6 sm:px-6 sm:py-7">
               {draft && draft.rationale.length > 0 ? (
-                <ul className="text-muted-foreground list-disc space-y-1 pl-5 text-[14px]">
+                <ul className="text-muted-foreground list-disc space-y-1 pl-5 text-body-sm">
                   {draft.rationale.map((r) => (
                     <li key={r}>{r}</li>
                   ))}
@@ -400,13 +398,14 @@ export function SearchCriteriaWorkspace({
               <div className="space-y-4">
                 <button
                   type="button"
-                  className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-[14px] font-medium underline-offset-2 hover:underline"
+                  className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 rounded-md text-body-sm font-medium transition-colors duration-150"
+                  aria-expanded={showAdvanced}
                   onClick={() => setShowAdvanced((v) => !v)}
                 >
                   {showAdvanced ? "Hide" : "Show"} boards & limits
                   <ChevronDown
                     className={cn(
-                      "size-4 transition-transform",
+                      "size-4 transition-transform duration-300 ease-standard",
                       showAdvanced && "rotate-180",
                     )}
                     aria-hidden
@@ -420,8 +419,7 @@ export function SearchCriteriaWorkspace({
                 <div className="border-border flex flex-wrap items-center gap-3 border-t pt-5">
                   <Button
                     size="lg"
-                    className="h-11 px-5 text-[15px]"
-                    disabled={pending}
+                        disabled={pending}
                     onClick={approveFromForm}
                   >
                     Approve criteria
@@ -430,13 +428,12 @@ export function SearchCriteriaWorkspace({
                     type="button"
                     variant="ghost"
                     size="lg"
-                    className="h-11 px-3 text-[14px]"
                     disabled={pending}
                     onClick={saveDraftFromForm}
                   >
                     Save draft
                   </Button>
-                  <p className="text-muted-foreground text-[15px]">
+                  <p className="text-muted-foreground text-body">
                     {canApprove
                       ? "Then continue below when you’re ready."
                       : "Saves your edits as the new approved criteria."}
@@ -482,19 +479,19 @@ export function SearchCriteriaWorkspace({
           <PanelHeader className="justify-between">
             <div className="flex flex-wrap items-center gap-2">
               {approved ? (
-                <Badge className="h-7 px-2.5 text-[15px]">
+                <Badge size="lg">
                   <Check className="size-3.5" aria-hidden />
                   Approved
                   {approved.version ? ` v${approved.version}` : ""}
                 </Badge>
               ) : (
-                <Badge variant="outline" className="h-7 px-2.5 text-[15px]">
+                <Badge variant="outline" size="lg">
                   Review draft
                   {draft ? ` v${draft.version}` : ""}
                 </Badge>
               )}
               {draft && approved ? (
-                <Badge variant="secondary" className="h-7 px-2.5 text-[15px]">
+                <Badge variant="secondary" size="lg">
                   Editing new draft
                 </Badge>
               ) : null}
@@ -519,14 +516,14 @@ export function SearchCriteriaWorkspace({
 
           <PanelBody className="space-y-6">
             {approved && !draft ? (
-              <p className="text-muted-foreground text-[14px] leading-relaxed">
+              <p className="text-muted-foreground text-body-sm leading-relaxed">
                 Titles: {approved.params.targetTitles.join(", ")} · Locations:{" "}
                 {approved.params.locations.join(", ")}
               </p>
             ) : null}
 
             {draft && draft.rationale.length > 0 ? (
-              <ul className="text-muted-foreground list-disc space-y-1 pl-5 text-[14px]">
+              <ul className="text-muted-foreground list-disc space-y-1 pl-5 text-body-sm">
                 {draft.rationale.map((r) => (
                   <li key={r}>{r}</li>
                 ))}
@@ -538,7 +535,7 @@ export function SearchCriteriaWorkspace({
             <div className="space-y-4">
               <button
                 type="button"
-                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-[14px] font-medium underline-offset-2 hover:underline"
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-body-sm font-medium underline-offset-2 hover:underline"
                 onClick={() => setShowAdvanced((v) => !v)}
               >
                 {showAdvanced ? "Hide" : "Show"} boards & limits

@@ -926,9 +926,9 @@ function PlacePayStep({
           onChange={(event) => setCustom(event.target.value)}
           placeholder={remote ? "Add a country or region" : "Add a city or country"}
           maxLength={60}
-          className="h-12 rounded-xl"
+          className="h-12"
         />
-        <Button type="submit" variant="outline" size="lg" className="h-12 rounded-xl" disabled={!custom.trim()}>
+        <Button type="submit" variant="outline" size="lg" className="h-12" disabled={!custom.trim()}>
           Add
         </Button>
       </form>
@@ -1080,9 +1080,9 @@ function TagInput({
           onChange={(event) => setDraft(event.target.value)}
           placeholder={placeholder}
           maxLength={60}
-          className="h-12 rounded-xl"
+          className="h-12"
         />
-        <Button type="submit" variant="outline" size="lg" className="h-12 rounded-xl" disabled={!draft.trim()}>
+        <Button type="submit" variant="outline" size="lg" className="h-12" disabled={!draft.trim()}>
           Add
         </Button>
       </form>
@@ -1272,9 +1272,9 @@ function FitStep({
               onChange={(event) => setLanguageDraft(event.target.value)}
               placeholder="Another language"
               maxLength={40}
-              className="h-12 rounded-xl"
+              className="h-12"
             />
-            <Button type="submit" variant="outline" size="lg" className="h-12 rounded-xl" disabled={!languageDraft.trim()}>
+            <Button type="submit" variant="outline" size="lg" className="h-12" disabled={!languageDraft.trim()}>
               Add
             </Button>
           </form>

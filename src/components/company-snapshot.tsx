@@ -16,6 +16,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   formatHeadcountBand,
@@ -35,7 +36,7 @@ function FactRow({
   icon?: ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 text-[14px]">
+    <div className="flex items-start justify-between gap-4 text-body-sm">
       <dt className="text-muted-foreground flex shrink-0 items-center gap-1.5">
         {icon}
         {label}
@@ -60,11 +61,11 @@ function ReputationChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[13px] font-medium tabular-nums ring-1",
+        "inline-flex h-6 items-center gap-1 rounded-full px-2.5 text-caption font-medium tabular-nums ring-1",
         tone === "good" &&
           "bg-brand/12 text-brand-ink ring-brand/25",
         tone === "mixed" &&
-          "bg-amber-500/12 text-amber-900 ring-amber-500/25 dark:text-amber-100",
+          "bg-warn-wash text-warn ring-warn/25",
         tone === "poor" &&
           "bg-destructive/12 text-destructive ring-destructive/25",
         tone === "insufficient" &&
@@ -78,7 +79,7 @@ function ReputationChip({
     >
       <Star className="size-3 fill-current opacity-80" />
       {display}
-      <span className="font-normal opacity-70">· {reviewCount}</span>
+      <span className="font-normal">· {reviewCount}</span>
     </span>
   );
 }
@@ -137,7 +138,7 @@ function CompanyFacts({
 
   if (rows.length === 0 && !site && !snapshot.summary) {
     return (
-      <p className="text-muted-foreground text-[14px] leading-snug">
+      <p className="text-muted-foreground text-body-sm leading-snug">
         No public company details yet.
       </p>
     );
@@ -146,7 +147,7 @@ function CompanyFacts({
   return (
     <div className={cn("space-y-3", dense && "space-y-2.5")}>
       {snapshot.summary ? (
-        <p className="text-[14px] leading-relaxed text-pretty">
+        <p className="text-body-sm leading-relaxed text-pretty">
           {snapshot.summary}
         </p>
       ) : null}
@@ -169,7 +170,7 @@ function CompanyFacts({
           href={site}
           target="_blank"
           rel="noreferrer"
-          className="text-brand-ink inline-flex items-center gap-1.5 text-[14px] font-medium hover:underline"
+          className="text-brand-ink inline-flex items-center gap-1.5 text-body-sm font-medium hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
           Visit website
@@ -208,7 +209,7 @@ function CompanyDetailSheet({
         showCloseButton
       >
         <SheetHeader className="border-b">
-          <SheetTitle className="pr-8 text-[18px] leading-snug">
+          <SheetTitle className="pr-8 text-body-lg leading-snug">
             {snapshot.companyName}
           </SheetTitle>
           <SheetDescription>
@@ -225,7 +226,7 @@ function CompanyDetailSheet({
                 reviewCount={snapshot.reputation.reviewCount}
                 source={snapshot.reputation.source}
               />
-              <span className="text-muted-foreground text-[13px]">
+              <span className="text-muted-foreground text-body-sm">
                 via {snapshot.reputation.source}
                 {snapshot.reputation.reviewCount < 10
                   ? " · limited sample"
@@ -236,7 +237,7 @@ function CompanyDetailSheet({
                   href={snapshot.reputation.sourceUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-brand-ink inline-flex items-center gap-1 text-[13px] font-medium hover:underline"
+                  className="text-brand-ink inline-flex items-center gap-1 text-body-sm font-medium hover:underline"
                 >
                   Reviews
                   <ExternalLink className="size-3" />
@@ -251,7 +252,7 @@ function CompanyDetailSheet({
             showWebsite={false}
           />
 
-          <dl className="text-muted-foreground space-y-2 border-t pt-4 text-[14px]">
+          <dl className="text-muted-foreground space-y-2 border-t pt-4 text-body-sm">
             {!snapshot.salaryText ? (
               <FactRow label="Pay" value="Not listed on posting" />
             ) : null}
@@ -266,10 +267,10 @@ function CompanyDetailSheet({
 
           {snapshot.risksAndUnknowns.length > 0 ? (
             <section>
-              <h3 className="text-muted-foreground mb-2 text-[14px] font-medium">
+              <h3 className="text-muted-foreground mb-2 text-body-sm font-medium">
                 Open questions
               </h3>
-              <ul className="text-muted-foreground list-disc space-y-1.5 pl-5 text-[14px] leading-snug">
+              <ul className="text-muted-foreground list-disc space-y-1.5 pl-5 text-body-sm leading-snug">
                 {snapshot.risksAndUnknowns.map((r) => (
                   <li key={r}>{r}</li>
                 ))}
@@ -282,7 +283,7 @@ function CompanyDetailSheet({
               href={site}
               target="_blank"
               rel="noreferrer"
-              className="border-border hover:bg-muted inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border px-3 text-[14px]"
+              className={buttonVariants({ variant: "outline", size: "sm", className: "w-full" })}
             >
               Visit website
               <ExternalLink className="size-3.5" />
@@ -324,7 +325,7 @@ export function CompanySnapshotCard({
 
   if (!hasAnything) {
     return (
-      <p className="text-muted-foreground text-[14px] leading-snug">
+      <p className="text-muted-foreground text-body-sm leading-snug">
         No public company details yet.
       </p>
     );
@@ -347,7 +348,7 @@ export function CompanySnapshotCard({
               reviewCount={snapshot.reputation.reviewCount}
               source={snapshot.reputation.source}
             />
-            <span className="text-muted-foreground text-[13px]">
+            <span className="text-muted-foreground text-body-sm">
               via {snapshot.reputation.source}
               {snapshot.reputation.reviewCount < 10
                 ? " · limited sample"
@@ -358,7 +359,7 @@ export function CompanySnapshotCard({
                 href={snapshot.reputation.sourceUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-brand-ink inline-flex items-center gap-1 text-[13px] font-medium hover:underline"
+                className="text-brand-ink inline-flex items-center gap-1 text-body-sm font-medium hover:underline"
               >
                 Reviews
                 <ExternalLink className="size-3" />
@@ -369,7 +370,7 @@ export function CompanySnapshotCard({
 
         <CompanyFacts snapshot={snapshot} location={location} showWebsite={false} />
 
-        <dl className="text-muted-foreground space-y-2 border-t pt-4 text-[14px]">
+        <dl className="text-muted-foreground space-y-2 border-t pt-4 text-body-sm">
           {!snapshot.salaryText ? (
             <FactRow label="Pay" value="Not listed on posting" />
           ) : null}
@@ -387,10 +388,10 @@ export function CompanySnapshotCard({
 
         {snapshot.risksAndUnknowns.length > 0 ? (
           <section>
-            <h3 className="text-muted-foreground mb-2 text-[14px] font-medium">
+            <h3 className="text-muted-foreground mb-2 text-body-sm font-medium">
               Open questions
             </h3>
-            <ul className="text-muted-foreground list-disc space-y-1.5 pl-5 text-[14px] leading-snug">
+            <ul className="text-muted-foreground list-disc space-y-1.5 pl-5 text-body-sm leading-snug">
               {snapshot.risksAndUnknowns.map((r) => (
                 <li key={r}>{r}</li>
               ))}
@@ -403,7 +404,7 @@ export function CompanySnapshotCard({
             href={site}
             target="_blank"
             rel="noreferrer"
-            className="border-border hover:bg-muted inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-white/10 px-3 text-[14px]"
+            className={buttonVariants({ variant: "outline", size: "sm", className: "w-full" })}
           >
             Visit website
             <ExternalLink className="size-3.5" />
@@ -415,10 +416,10 @@ export function CompanySnapshotCard({
 
   return (
     <>
-      <section className="rounded-xl bg-muted/40 px-3.5 py-3 ring-1 ring-border/60">
+      <section className="bg-subtle rounded-tile px-4 py-3">
         <div className="mb-2.5 flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
-            <p className="text-muted-foreground text-[14px] font-medium">
+            <p className="text-muted-foreground text-body-sm font-medium">
               About {snapshot.companyName}
             </p>
             {snapshot.reputation ? (
@@ -435,7 +436,7 @@ export function CompanySnapshotCard({
               e.stopPropagation();
               setOpen(true);
             }}
-            className="text-brand-ink shrink-0 text-[13px] font-medium hover:underline"
+            className="text-brand-ink shrink-0 text-body-sm font-medium hover:underline"
           >
             More
           </button>

@@ -70,14 +70,14 @@ export function InterestedJobs({
             title="Nothing saved yet"
             description="On Today, open a role and click Save. It shows up here."
             icon={
-              <Bookmark className="size-6 opacity-70" strokeWidth={1.5} />
+              <Bookmark className="size-5" strokeWidth={1.5} />
             }
             actionLabel="Back to Today"
             onAction={() => router.push("/")}
           />
         </Surface>
       ) : (
-        <Stagger as="ul" className="space-y-3">
+        <Stagger as="ul" className="bg-card divide-y divide-border overflow-hidden rounded-card">
           {rows.map((row, index) => (
             <StaggerItem key={row.jobId} as="li" index={index}>
               <JobListItem

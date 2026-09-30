@@ -33,12 +33,12 @@ const PREVIEW_REASON_COUNT = 3;
 
 function statusTone(status: RemoteFit["status"]) {
   if (status === "pass") {
-    return "bg-brand/15 text-brand-ink ring-1 ring-brand/30";
+    return "bg-brand-wash text-brand-ink ring-1 ring-brand/30";
   }
   if (status === "fail") {
-    return "bg-destructive/15 text-destructive ring-1 ring-destructive/30";
+    return "bg-destructive-wash text-destructive ring-1 ring-destructive/25";
   }
-  return "bg-amber-500/12 text-amber-900 ring-1 ring-amber-500/30 dark:text-amber-100";
+  return "bg-warn-wash text-warn ring-1 ring-warn/25";
 }
 
 function StatusIcon({ status }: { status: RemoteFit["status"] }) {
@@ -69,20 +69,20 @@ export function MatchConstraintChips({
   };
 
   const remoteClass = cn(
-    "inline-flex h-full items-center gap-1 rounded-[14px] px-2 py-1 text-[13px] font-medium",
+    "inline-flex h-full items-center gap-1 rounded-panel px-2 py-1 text-body-sm font-medium",
     interactive && "transition-colors hover:brightness-110",
     remoteFit.status === "pass" && "bg-brand/15 text-brand-ink",
     remoteFit.status === "fail" && "bg-destructive/15 text-destructive",
     remoteFit.status === "unclear" &&
-      "bg-amber-500/12 text-amber-900 dark:text-amber-100",
+      "bg-warn-wash text-warn",
   );
 
   const tzClass = cn(
-    "inline-flex h-full items-center gap-1 rounded-[14px] px-2 py-1 text-[13px] font-medium",
+    "inline-flex h-full items-center gap-1 rounded-panel px-2 py-1 text-body-sm font-medium",
     interactive && "transition-colors hover:brightness-110",
     remoteFit.timezoneOverlap === "full" && "bg-brand/10 text-brand-ink",
     remoteFit.timezoneOverlap === "partial" &&
-      "bg-amber-500/10 text-amber-900 dark:text-amber-100",
+      "bg-warn-wash text-warn",
     remoteFit.timezoneOverlap === "poor" &&
       "bg-destructive/10 text-destructive",
   );
@@ -143,8 +143,8 @@ function RemoteDecisionCard({
   const posted = remotePolicy?.trim() || location?.trim() || "Not stated";
   const interactive = Boolean(onOpen);
   const className = cn(
-    "w-full rounded-xl px-3.5 py-3 text-left ring-1",
-    interactive && "transition-colors hover:bg-white/3",
+    "w-full rounded-tile px-4 py-3 text-left ring-1",
+    interactive && "transition-[filter] duration-150 hover:brightness-[0.97]",
     statusTone(remoteFit.status),
   );
 
@@ -153,13 +153,13 @@ function RemoteDecisionCard({
       <div className="flex min-w-0 items-start gap-2">
         <StatusIcon status={remoteFit.status} />
         <div className="min-w-0">
-          <p className="text-[15px] font-medium leading-snug">
+          <p className="text-body font-medium leading-snug">
             {remoteRequired ? "Can you work remote?" : "Remote / location fit"}
           </p>
-          <p className="mt-1 text-[14px] leading-snug opacity-90">
+          <p className="mt-1 text-body-sm leading-snug">
             {remoteFit.summary}
           </p>
-          <p className="mt-1.5 text-[13px] opacity-70">
+          <p className="mt-1.5 text-body-sm">
             Posted: {posted}
             {" · "}
             {policyLabel(remoteFit.policy)}
@@ -201,14 +201,14 @@ function DimensionBreakdown({
       {rows.map((row) => (
         <li key={row.key} className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[15px] font-medium leading-snug">{row.label}</p>
+            <p className="text-body font-medium leading-snug">{row.label}</p>
             {row.evidence ? (
-              <p className="text-muted-foreground mt-0.5 text-[13px] leading-snug">
+              <p className="text-muted-foreground mt-0.5 text-body-sm leading-snug">
                 {row.evidence}
               </p>
             ) : null}
           </div>
-          <span className="font-mono tabular text-[14px] font-medium shrink-0">
+          <span className="font-mono tabular text-body-sm font-medium shrink-0">
             {Number.isInteger(row.score) ? row.score : row.score.toFixed(1)}
           </span>
         </li>
@@ -237,9 +237,9 @@ function HighlightList({
               <Check className="size-3" />
             </span>
             <div className="min-w-0">
-              <p className="text-[15px] font-medium leading-snug">{h.label}</p>
+              <p className="text-body font-medium leading-snug">{h.label}</p>
               {h.detail ? (
-                <p className="text-muted-foreground mt-0.5 text-[14px] leading-snug">
+                <p className="text-muted-foreground mt-0.5 text-body-sm leading-snug">
                   {h.detail}
                 </p>
               ) : null}
@@ -248,7 +248,7 @@ function HighlightList({
         ))}
       </ul>
       {more > 0 ? (
-        <p className="text-muted-foreground mt-2 text-[13px]">+{more} more</p>
+        <p className="text-muted-foreground mt-2 text-body-sm">+{more} more</p>
       ) : null}
     </div>
   );
@@ -260,10 +260,10 @@ function WatchList({ concerns }: { concerns: string[] }) {
     <ul className="space-y-2">
       {concerns.map((c) => (
         <li key={c} className="flex gap-2.5">
-          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-800 dark:text-amber-100">
+          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-warn-wash text-warn">
             <AlertTriangle className="size-3" />
           </span>
-          <p className="text-[14px] leading-snug">{c}</p>
+          <p className="text-body-sm leading-snug">{c}</p>
         </li>
       ))}
     </ul>
@@ -309,7 +309,7 @@ function MatchRationaleSheet({
         showCloseButton
       >
         <SheetHeader className="border-b">
-          <SheetTitle className="pr-8 text-[18px] leading-snug">
+          <SheetTitle className="pr-8 text-body-lg leading-snug">
             {title}
           </SheetTitle>
           <SheetDescription>
@@ -321,18 +321,18 @@ function MatchRationaleSheet({
         <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
           <section
             className={cn(
-              "rounded-xl px-3.5 py-3 ring-1",
+              "rounded-tile px-4 py-3 ring-1",
               statusTone(remoteFit.status),
             )}
           >
-            <div className="flex items-center gap-2 text-[15px] font-medium">
+            <div className="flex items-center gap-2 text-body font-medium">
               <StatusIcon status={remoteFit.status} />
               {remoteRequired ? "Remote verdict" : "Location / remote"}
             </div>
-            <p className="mt-2 text-[14px] leading-snug opacity-90">
+            <p className="mt-2 text-body-sm leading-snug">
               {remoteFit.summary}
             </p>
-            <dl className="mt-3 grid gap-1.5 text-[13px] opacity-80">
+            <dl className="mt-3 grid gap-1.5 text-body-sm">
               <div className="flex justify-between gap-3">
                 <dt>Posted</dt>
                 <dd className="text-right font-medium">{posted}</dd>
@@ -359,7 +359,7 @@ function MatchRationaleSheet({
               </div>
             </dl>
             {remoteFit.evidence.length > 0 ? (
-              <ul className="mt-3 space-y-1 border-t border-current/10 pt-3 text-[13px] opacity-85">
+              <ul className="mt-3 space-y-1 border-t border-current/10 pt-3 text-body-sm">
                 {remoteFit.evidence.map((e) => (
                   <li key={e}>· {e}</li>
                 ))}
@@ -369,7 +369,7 @@ function MatchRationaleSheet({
 
           {matchDimensions ? (
             <section>
-              <h3 className="text-muted-foreground mb-2 text-[14px] font-medium">
+              <h3 className="text-muted-foreground mb-2 text-body-sm font-medium">
                 Score breakdown
               </h3>
               <DimensionBreakdown dimensions={matchDimensions} />
@@ -378,7 +378,7 @@ function MatchRationaleSheet({
 
           {matchingReasons.length > 0 ? (
             <section>
-              <h3 className="text-muted-foreground mb-2 text-[14px] font-medium">
+              <h3 className="text-muted-foreground mb-2 text-body-sm font-medium">
                 Why it matches
               </h3>
               <HighlightList reasons={matchingReasons} />
@@ -387,7 +387,7 @@ function MatchRationaleSheet({
 
           {concerns.length > 0 ? (
             <section>
-              <h3 className="text-muted-foreground mb-2 text-[14px] font-medium">
+              <h3 className="text-muted-foreground mb-2 text-body-sm font-medium">
                 Things to watch
               </h3>
               <WatchList concerns={concerns} />
@@ -395,11 +395,11 @@ function MatchRationaleSheet({
           ) : null}
 
           {mainRisk ? (
-            <section className="rounded-xl bg-amber-500/10 px-3.5 py-3 ring-1 ring-amber-500/25">
-              <h3 className="text-[14px] font-medium text-amber-900 dark:text-amber-100">
+            <section className="bg-warn-wash rounded-tile px-4 py-3">
+              <h3 className="text-body-sm font-medium text-warn">
                 Main risk
               </h3>
-              <p className="mt-1 text-[14px] leading-snug opacity-90">
+              <p className="mt-1 text-body-sm leading-snug">
                 {mainRisk}
               </p>
             </section>
@@ -407,10 +407,10 @@ function MatchRationaleSheet({
 
           {missingRequirements.length > 0 ? (
             <section>
-              <h3 className="text-muted-foreground mb-2 text-[14px] font-medium">
+              <h3 className="text-muted-foreground mb-2 text-body-sm font-medium">
                 Missing / unclear
               </h3>
-              <ul className="text-muted-foreground list-disc space-y-1 pl-5 text-[14px]">
+              <ul className="text-muted-foreground list-disc space-y-1 pl-5 text-body-sm">
                 {missingRequirements.map((m) => (
                   <li key={m}>{m}</li>
                 ))}
@@ -488,14 +488,14 @@ export function JobMatchInsights({
           {hasDims && matchDimensions ? (
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <p className="text-muted-foreground text-[14px] font-medium">
+                <p className="text-muted-foreground text-body-sm font-medium">
                   Score breakdown
                 </p>
                 {canOpenSheet ? (
                   <button
                     type="button"
                     onClick={() => setOpen(true)}
-                    className="text-brand-ink text-[13px] font-medium hover:underline"
+                    className="text-brand-ink text-body-sm font-medium hover:underline"
                   >
                     Full rationale
                   </button>
@@ -511,14 +511,14 @@ export function JobMatchInsights({
           {hasReasons ? (
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <p className="text-muted-foreground text-[14px] font-medium">
+                <p className="text-muted-foreground text-body-sm font-medium">
                   Why it matches
                 </p>
                 {canOpenSheet && !hasDims ? (
                   <button
                     type="button"
                     onClick={() => setOpen(true)}
-                    className="text-brand-ink text-[13px] font-medium hover:underline"
+                    className="text-brand-ink text-body-sm font-medium hover:underline"
                   >
                     Full rationale
                   </button>
@@ -533,7 +533,7 @@ export function JobMatchInsights({
 
           {hasWatch ? (
             <div>
-              <p className="text-muted-foreground mb-2 text-[14px] font-medium">
+              <p className="text-muted-foreground mb-2 text-body-sm font-medium">
                 Things to watch
               </p>
               <WatchList
@@ -543,11 +543,11 @@ export function JobMatchInsights({
           ) : null}
 
           {!canOpenSheet && mainRisk ? (
-            <div className="rounded-xl bg-amber-500/10 px-3.5 py-3 ring-1 ring-amber-500/25">
-              <h3 className="text-[14px] font-medium text-amber-900 dark:text-amber-100">
+            <div className="bg-warn-wash rounded-tile px-4 py-3">
+              <h3 className="text-body-sm font-medium text-warn">
                 Main risk
               </h3>
-              <p className="mt-1 text-[14px] leading-snug opacity-90">
+              <p className="mt-1 text-body-sm leading-snug">
                 {mainRisk}
               </p>
             </div>
@@ -555,10 +555,10 @@ export function JobMatchInsights({
 
           {!canOpenSheet && missingRequirements.length > 0 ? (
             <div>
-              <p className="text-muted-foreground mb-2 text-[14px] font-medium">
+              <p className="text-muted-foreground mb-2 text-body-sm font-medium">
                 Missing / unclear
               </p>
-              <ul className="text-muted-foreground list-disc space-y-1 pl-5 text-[14px]">
+              <ul className="text-muted-foreground list-disc space-y-1 pl-5 text-body-sm">
                 {missingRequirements.map((m) => (
                   <li key={m}>{m}</li>
                 ))}

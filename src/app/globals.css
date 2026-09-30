@@ -50,6 +50,7 @@
   --color-inverse: var(--inverse);
   --color-warn: var(--warn);
   --color-warn-wash: var(--warn-wash);
+  --color-warn-fill: var(--warn-fill);
   --color-success: var(--success);
   --color-success-wash: var(--success-wash);
   /* Verdigris: the brand accent for state, data and the action capsule. */
@@ -159,6 +160,8 @@
   --ring: var(--brand);
   --warn: #8f5f0a;
   --warn-wash: #fbf1de;
+  /* Amber for dots and bars (not text). */
+  --warn-fill: #e0a53a;
   --success: #2e7d4f;
   --success-wash: #e5f3ea;
   --chart-1: var(--brand);

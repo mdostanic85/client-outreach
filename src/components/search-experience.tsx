@@ -187,8 +187,8 @@ function SearchExperienceInner({
       role="presentation"
     >
       <div className="bg-background absolute inset-0" aria-hidden />
-      <div className="stage-spotlight-wash pointer-events-none absolute inset-0" aria-hidden />
-      <div className="stage-spotlight-grid pointer-events-none absolute inset-0" aria-hidden />
+      <div className="pointer-events-none absolute inset-0" aria-hidden />
+      <div className="pointer-events-none absolute inset-0" aria-hidden />
 
       {!resolving ? (
         <div className="absolute top-0 right-0 z-20 flex items-center gap-2 p-5 sm:p-8">
@@ -253,7 +253,7 @@ function SearchExperienceInner({
                   </span>
                   <span
                     className={cn(
-                      "flex max-w-full items-center gap-1.5 text-[13px] sm:text-[15px]",
+                      "flex max-w-full items-center gap-1.5 text-body-sm sm:text-body",
                       current && "text-foreground font-medium",
                       done && "text-muted-foreground",
                       !done && !current && "text-muted-foreground/45",
@@ -262,7 +262,7 @@ function SearchExperienceInner({
                     {done ? (
                       <Check className="text-brand-ink size-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
                     ) : (
-                      <span className="tabular shrink-0 text-[12px] opacity-70 max-sm:hidden">{index + 1}</span>
+                      <span className="tabular shrink-0 text-caption opacity-70 max-sm:hidden">{index + 1}</span>
                     )}
                     <span className="truncate">{STEP_SHORT[stage.id]}</span>
                   </span>
@@ -292,20 +292,20 @@ function SearchExperienceInner({
             {shown && !resolving ? (
               <p
                 key={shown.id}
-                className="search-activity-line flex max-w-full items-baseline justify-center gap-2 text-center text-[16px] sm:text-[17px]"
+                className="search-activity-line flex max-w-full items-baseline justify-center gap-2 text-center text-body sm:text-body-lg"
               >
                 <span className="truncate text-foreground">{shown.label}</span>
                 {shown.meta ? (
                   <span className="text-muted-foreground truncate">{shown.meta}</span>
                 ) : null}
                 {shown.value ? (
-                  <span className="font-mono tabular text-brand-ink shrink-0 text-[14px]">
+                  <span className="tabular text-brand-ink shrink-0 text-body-sm">
                     {shown.value}
                   </span>
                 ) : null}
               </p>
             ) : (
-              <p className="text-muted-foreground max-w-md text-center text-[16px] leading-relaxed sm:text-[17px]">
+              <p className="text-muted-foreground max-w-md text-center text-body leading-relaxed sm:text-body-lg">
                 {slow && !resolving ? "Taking longer than usual" : statusLine}
               </p>
             )}

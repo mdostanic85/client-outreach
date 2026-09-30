@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { CapsuleLabel } from "@/components/ui/capsule-label";
 import { cn } from "@/lib/utils";
 
 export function EmptyState({
@@ -13,6 +14,7 @@ export function EmptyState({
   pending,
   actionId,
   icon,
+  capsule = false,
   className,
 }: {
   title: string;
@@ -23,6 +25,8 @@ export function EmptyState({
   pending?: boolean;
   actionId?: string;
   icon?: ReactNode;
+  /** Icon-capsule CTA — only for the main search action. */
+  capsule?: boolean;
   className?: string;
 }) {
   const showAction = Boolean(actionLabel && (onAction || actionHref));
@@ -54,21 +58,22 @@ export function EmptyState({
             id={actionId}
             href={actionHref}
             className={cn(
-              buttonVariants({ size: "lg" }),
+              buttonVariants({ size: "lg", variant: capsule ? "capsule" : "primary" }),
               "min-w-[12rem]",
             )}
           >
-            {actionLabel}
+            {capsule ? <CapsuleLabel>{actionLabel}</CapsuleLabel> : actionLabel}
           </Link>
         ) : (
           <Button
             id={actionId}
             size="lg"
+            variant={capsule ? "capsule" : "primary"}
             disabled={pending}
             onClick={onAction}
             className="min-w-[12rem]"
           >
-            {actionLabel}
+            {capsule ? <CapsuleLabel>{actionLabel}</CapsuleLabel> : actionLabel}
           </Button>
         )
       ) : null}

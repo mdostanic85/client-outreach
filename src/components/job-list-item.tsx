@@ -9,9 +9,8 @@ import {
   MatchConstraintChips,
 } from "@/components/match-insights";
 import { ScoreBadge } from "@/components/score-badge";
-import { Surface } from "@/components/page-shell";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import type { PackageListMeta } from "@/modules/applications/packages";
 import type { JobTriageRow } from "@/modules/jobs/triage-row";
+import { cn } from "@/lib/utils";
 
 const REJECT_REASONS = [
   "Wrong title",
@@ -134,11 +134,13 @@ export function JobListItem({
   } as const;
 
   return (
-    <Surface className="interactive-lift overflow-hidden">
-      <div className="px-5 py-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <div className="flex min-w-0 flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-2">
+    <div className={cn(!expanded && "interactive-row")}>
+      <div className="px-4 py-4 sm:px-6">
+        <div className="flex items-start gap-3 sm:items-center sm:gap-4">
+          <CompanyTile name={row.companyName} />
+          <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="flex min-w-0 flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2 empty:hidden">
               {/* Remote verdicts only mean something when the person asked for remote. */}
               {row.remoteRequired ? (
                 <MatchConstraintChips
@@ -148,22 +150,17 @@ export function JobListItem({
                 />
               ) : null}
               {variant === "interested" && packageBadgeLabel ? (
-                <Badge variant="secondary" className="text-[13px]">
-                  {packageBadgeLabel}
-                </Badge>
+                <Badge variant="secondary">{packageBadgeLabel}</Badge>
               ) : null}
             </div>
             <button
               type="button"
-              className="w-full min-w-0 text-left transition-colors duration-150 ease-standard hover:bg-transparent"
+              className="w-full min-w-0 rounded-md text-left"
               onClick={onToggle}
+              aria-expanded={expanded}
             >
-              <p className="text-foreground text-[17px] font-medium leading-snug">
-                {row.companyName}
-              </p>
-              <p className="text-muted-foreground pt-1 text-[15px] leading-snug">
-                {roleLine}
-              </p>
+              <p className="text-foreground text-body-lg">{row.companyName}</p>
+              <p className="text-muted-foreground text-body-sm sm:text-body">{roleLine}</p>
             </button>
           </div>
           <ScoreBadge
@@ -173,10 +170,11 @@ export function JobListItem({
             className="self-start sm:self-center"
             onClick={onToggle}
           />
+          </div>
         </div>
 
         {expanded ? (
-          <div className="animate-expand mt-3 space-y-3 border-t pt-3">
+          <div className="animate-expand mt-4 space-y-3 border-t border-border pt-4">
             <CompanySnapshotCard
               snapshot={row.companySnapshot}
               location={row.location}
@@ -190,7 +188,7 @@ export function JobListItem({
       </div>
 
       {expanded ? (
-        <div className="animate-expand space-y-3 border-t px-5 py-3">
+        <div className="animate-expand space-y-3 border-t border-border px-4 py-3 sm:px-6">
           <div className="flex flex-wrap items-center gap-2">
             {variant === "today" ? (
               <>
@@ -201,7 +199,7 @@ export function JobListItem({
                   href={row.sourceUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="border-border hover:bg-muted inline-flex h-[34px] items-center gap-1.5 rounded-lg border px-3 text-[14px]"
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
                 >
                   Open posting
                   <ExternalLink className="size-3.5" />
@@ -209,7 +207,7 @@ export function JobListItem({
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
-                      <Button size="sm" variant="ghost" disabled={pending} />
+                      <Button size="icon-sm" variant="ghost" disabled={pending} />
                     }
                   >
                     <MoreHorizontal className="size-4" />
@@ -244,7 +242,7 @@ export function JobListItem({
               <>
                 <Link
                   href={packageCta.href}
-                  className="bg-primary text-primary-foreground hover:bg-primary/85 inline-flex h-[34px] items-center rounded-lg px-3 text-[14px] font-medium"
+                  className={buttonVariants({ size: "sm" })}
                 >
                   {packageCta.label}
                 </Link>
@@ -252,7 +250,7 @@ export function JobListItem({
                   href={row.sourceUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="border-border hover:bg-muted inline-flex h-[34px] items-center gap-1.5 rounded-lg border px-3 text-[14px]"
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
                 >
                   Open posting
                   <ExternalLink className="size-3.5" />
@@ -260,7 +258,7 @@ export function JobListItem({
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
-                      <Button size="sm" variant="ghost" disabled={pending} />
+                      <Button size="icon-sm" variant="ghost" disabled={pending} />
                     }
                   >
                     <MoreHorizontal className="size-4" />
@@ -293,7 +291,7 @@ export function JobListItem({
                   <Button
                     key={reason}
                     size="sm"
-                    variant={rejectReason === reason ? "secondary" : "outline"}
+                    variant={rejectReason === reason ? "primary" : "outline"}
                     disabled={pending}
                     onClick={() => onRejectReason(reason)}
                   >
@@ -301,7 +299,7 @@ export function JobListItem({
                   </Button>
                 ))}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <Input
                   placeholder="Or type a reason"
                   value={rejectReason ?? ""}
@@ -324,6 +322,19 @@ export function JobListItem({
           ) : null}
         </div>
       ) : null}
-    </Surface>
+    </div>
+  );
+}
+
+/** 40px monogram tile in the logo slot (12px radius, subtle tint). */
+function CompanyTile({ name }: { name: string }) {
+  const letter = name.trim().charAt(0).toUpperCase() || "?";
+  return (
+    <span
+      aria-hidden
+      className="bg-subtle text-ink-emphasis grid size-10 shrink-0 place-items-center rounded-tile text-body"
+    >
+      {letter}
+    </span>
   );
 }

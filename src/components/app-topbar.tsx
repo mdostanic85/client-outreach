@@ -263,8 +263,8 @@ function BudgetPill({ budget }: { budget: BudgetMeter }) {
           className={cn(
             "size-1.5 shrink-0 rounded-full",
             tone === "critical" && "bg-destructive",
-            tone === "warn" && "bg-[var(--warn)]",
-            tone === "ok" && "bg-[var(--success)]",
+            tone === "warn" && "bg-warn-fill",
+            tone === "ok" && "bg-brand",
           )}
         />
         <span className="hidden sm:inline">AI</span>
