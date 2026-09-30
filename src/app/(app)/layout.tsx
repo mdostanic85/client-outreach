@@ -39,6 +39,12 @@ export default async function AppLayout({
   return (
     <TooltipProvider delay={200}>
       <JobSearchProvider>
+        <a
+          href="#main-content"
+          className="bg-primary text-primary-foreground fixed top-3 left-3 z-50 -translate-y-20 rounded-full px-4 py-2 text-body-sm transition-transform duration-150 focus-visible:translate-y-0"
+        >
+          Skip to content
+        </a>
         <div className="flex min-h-svh">
           <AppSidebar
             queueCount={counts.queueCount}
@@ -65,7 +71,11 @@ export default async function AppLayout({
               interestedCount={counts.interestedCount}
               profileFitCount={counts.profileFitCount}
             />
-            <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
+            <div
+              id="main-content"
+              tabIndex={-1}
+              className="flex min-w-0 flex-1 flex-col overflow-x-hidden outline-none"
+            >
               {children}
             </div>
           </div>

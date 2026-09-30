@@ -77,7 +77,7 @@ export function QueueBoard({
         </div>
       )}
 
-      <div className="bg-card flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card px-5 py-3.5 text-body-sm">
+      <div className="bg-card flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card px-5 py-3.5 text-body-sm shadow-card">
         <span
           className={cn(
             "size-2 rounded-full",

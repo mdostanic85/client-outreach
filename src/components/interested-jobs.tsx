@@ -77,7 +77,7 @@ export function InterestedJobs({
           />
         </Surface>
       ) : (
-        <Stagger as="ul" className="bg-card divide-y divide-border overflow-hidden rounded-card">
+        <Stagger as="ul" className="bg-card divide-y divide-border overflow-hidden rounded-card shadow-card">
           {rows.map((row, index) => (
             <StaggerItem key={row.jobId} as="li" index={index}>
               <JobListItem

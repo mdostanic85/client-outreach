@@ -85,7 +85,7 @@ export function CvScore({
         </h2>
         <ol className="flex flex-col gap-3">
           {review.fixes.map((fix, i) => (
-            <li key={fix.title} className="bg-card flex gap-3 rounded-panel px-4 py-4">
+            <li key={fix.title} className="bg-card flex gap-3 rounded-panel px-4 py-4 shadow-card">
               <span className="bg-brand-wash text-brand-ink grid size-7 shrink-0 place-items-center rounded-full text-body-sm font-medium tabular-nums">
                 {i + 1}
               </span>

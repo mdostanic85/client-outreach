@@ -52,7 +52,7 @@ type BudgetMeter = {
 
 /**
  * True once the page has scrolled past `threshold` px. The topbar never hides;
- * it only gains a hairline divider (250ms).
+ * it only gains a soft shadow (250ms).
  */
 function useScrolledPast(threshold: number): boolean {
   return useSyncExternalStore(
@@ -311,7 +311,8 @@ function AccountMenu({ email }: { email: string }) {
 }
 
 /**
- * Sticky 64px app chrome on the page color. The page H1 lives in PageHeader;
+ * Sticky 64px white app chrome between the dark sidebar and the tinted page.
+ * The page H1 lives in PageHeader;
  * the topbar carries page context, the always-available job search (the one
  * dark action), AI budget, account and — below lg — the round nav toggle.
  */
@@ -341,7 +342,7 @@ export function AppTopbar({
   return (
     <header
       data-scrolled={scrolled || undefined}
-      className="bg-background/90 sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-transparent px-4 backdrop-blur-xl transition-[border-color,background-color] duration-250 ease-standard data-scrolled:border-border sm:gap-4 sm:px-5 lg:px-8"
+      className="bg-card/95 sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border px-4 backdrop-blur-xl transition-shadow duration-250 ease-standard data-scrolled:shadow-card sm:gap-4 sm:px-5 lg:px-8"
     >
       <div className="flex min-w-0 shrink items-center gap-2">
         <OptraLogo href="/" width={72} className="lg:hidden" />
@@ -359,14 +360,14 @@ export function AppTopbar({
         <Sheet open={navOpen} onOpenChange={setNavOpen}>
           <button
             type="button"
-            className="bg-subtle text-foreground hover:bg-border-hover grid size-11 place-items-center rounded-full transition-colors duration-150 ease-standard lg:hidden"
+            className="bg-subtle text-foreground hover:bg-primary hover:text-primary-foreground grid size-11 place-items-center rounded-full transition-colors duration-150 ease-standard lg:hidden"
             onClick={() => setNavOpen(true)}
             aria-label="Open navigation"
             aria-expanded={navOpen}
           >
             <Menu className="size-5" />
           </button>
-          <SheetContent side="right" className="bg-sidebar gap-0 p-0 pt-2">
+          <SheetContent side="right" className="dark bg-sidebar gap-0 p-0 pt-2">
             <SheetHeader className="sr-only">
               <SheetTitle>Navigation</SheetTitle>
             </SheetHeader>

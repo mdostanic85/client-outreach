@@ -30,7 +30,7 @@ export function AuthShell({
       <main className="flex flex-1 items-center justify-center px-4 py-6 sm:px-6">
         <div
           className={cn(
-            "animate-enter bg-card w-full max-w-md rounded-card p-6 sm:p-8",
+            "animate-enter bg-card w-full max-w-md rounded-card p-6 sm:p-8 shadow-card",
             className,
           )}
         >

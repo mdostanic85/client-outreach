@@ -28,8 +28,9 @@ export type NavItem = {
 };
 
 /**
- * 40px pill. Inactive at secondary ink with a hairline pill outline on hover;
- * active sits on a white surface with a small verdigris indicator.
+ * 40px pill on the dark sidebar. Inactive at secondary ink with a hairline
+ * pill outline on hover; active sits on a raised surface with a small
+ * verdigris indicator.
  */
 function NavLink({
   item,
@@ -156,12 +157,12 @@ export function AppSidebarNav({
   return (
     <aside
       className={cn(
-        "bg-sidebar text-sidebar-foreground flex h-full w-[240px] shrink-0 flex-col",
+        "dark bg-sidebar text-sidebar-foreground flex h-full w-[240px] shrink-0 flex-col",
         className,
       )}
     >
       <div className="flex h-16 items-center px-5">
-        <OptraLogo href="/" width={84} onClick={() => handleNavigate("/")} />
+        <OptraLogo href="/" width={84} tone="light" onClick={() => handleNavigate("/")} />
       </div>
 
       <nav aria-label="Main" className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 pt-2 pb-4">

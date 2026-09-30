@@ -674,7 +674,7 @@ function RoleStep({
           className="h-16 rounded-2xl text-center text-h5"
         />
         {matches.length > 0 ? (
-          <ul className="bg-card divide-y divide-border overflow-hidden rounded-card" role="listbox">
+          <ul className="bg-card divide-y divide-border overflow-hidden rounded-card shadow-card" role="listbox">
             {matches.map((occupation) => (
               <li key={occupation.id}>
                 <button
@@ -1279,7 +1279,7 @@ function FitStep({
             </Button>
           </form>
           {rows.length ? (
-            <ul className="bg-card mt-4 divide-y divide-border rounded-card">
+            <ul className="bg-card mt-4 divide-y divide-border rounded-card shadow-card">
               {rows.map((row) => (
                 <li key={row.language} className="flex items-center justify-between gap-3 px-4 py-3">
                   <span className="text-body font-medium">{row.language}</span>
@@ -1426,7 +1426,7 @@ function DropZone({
       }}
       disabled={pending}
       className={cn(
-        "bg-card flex w-full flex-col items-center justify-center gap-2 rounded-card border border-dashed text-center transition-colors duration-150 ease-standard",
+        "bg-card flex w-full flex-col items-center justify-center gap-2 rounded-card border border-dashed text-center transition-colors duration-150 ease-standard shadow-card",
         compact ? "px-6 py-10" : "min-h-64 px-6 py-16 sm:min-h-72 sm:py-20",
         dragging ? "border-brand bg-brand-wash" : "border-ink-tertiary hover:border-brand",
         doneLabel && "border-brand border-solid",
@@ -1695,7 +1695,7 @@ function ReviewStep({
       {review ? (
         <CvScore review={review} />
       ) : (
-        <div className="bg-card rounded-card px-5 py-6 text-center">
+        <div className="bg-card rounded-card px-5 py-6 text-center shadow-card">
           <p className="text-body">We couldn&apos;t score your CV this time.</p>
           {retryError ? <p className="text-destructive mt-2 text-body-sm">{retryError}</p> : null}
           <Button

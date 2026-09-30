@@ -56,7 +56,7 @@ export default function WelcomePage() {
           </div>
         </AnimateIn>
 
-        <ol className="bg-card min-w-0 divide-y divide-border rounded-card lg:col-span-5">
+        <ol className="bg-card min-w-0 divide-y divide-border rounded-card lg:col-span-5 shadow-card">
           {FACTS.map((fact) => (
             <li key={fact.n} className="flex items-center gap-4 px-5 py-4 text-left sm:px-6 sm:py-5">
               <span className="bg-brand-wash text-brand-ink flex size-10 shrink-0 items-center justify-center rounded-full text-body tabular">

@@ -152,7 +152,7 @@ export function Surface({
   return (
     <div
       className={cn(
-        "bg-card overflow-hidden rounded-card",
+        "bg-card overflow-hidden rounded-card shadow-card",
         interactive && "interactive-lift",
         className,
       )}

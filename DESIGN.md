@@ -11,8 +11,9 @@ Tokens are defined once in `src/app/globals.css` (`@theme inline` + `:root`).
 
 ## Mode
 
-**Light only.** The `.dark` token block still resolves, but light is the only
-designed and tested mode. Nothing sets the `dark` class.
+**Light page, dark sidebar.** The app is light. The sidebar (and the mobile
+nav sheet) opt into the `.dark` token block with `class="dark"`, so every
+token inside it flips; there is no global dark mode.
 
 ## Color
 
@@ -77,7 +78,10 @@ only and not used in the app.
 
 - Container max **1290px**, 20px gutter (16px below 640).
 - **12-column grid, 16px gap** for tile layouts.
-- Sidebar 240px on the page color, no border. Topbar 64px, sticky, never hides.
+- Sidebar 240px, dark (`.dark` scope), full height. Topbar 64px, white with a
+  hairline bottom border so it reads apart from the tinted content; sticky,
+  never hides, gains `shadow-card` after 100px of scroll.
+- A "Skip to content" link is the first focus stop in the app shell.
 - Page header: split pattern — title + description left, context chip +
   actions right. Stacks on phones.
 - Phones (< 640px): 16px gutter, stacked page headers, full-width sheets,
@@ -97,11 +101,13 @@ only and not used in the app.
 
 ## Depth
 
-- **No shadows on cards.** Surfaces separate by tint: page → white card →
-  subtle tile.
+- Surfaces separate by tint first: page → white card → subtle tile.
+- White containers resting on the page tint carry a subtle `shadow-card`
+  (`0 1px 2px / 4%, 0 2px 8px / 4%`). Nested white-on-white never does.
+- White pills (secondary, outline) and the active segment carry `shadow-xs`.
 - 1px borders only on small controls, inputs and table dividers.
 - `shadow-overlay` (`0 8px 30px rgb(0 0 0 / .15)`) only on dialogs,
-  dropdowns, popovers, sheets and toasts.
+  dropdowns, popovers, sheets, toasts and the sticky save bar.
 
 ## Components
 
@@ -114,7 +120,8 @@ only and not used in the app.
   onboarding and the main search action.
 - **Badge** (`ui/badge.tsx`): 12px pills with a 1px border; tinted `brand`,
   `warn`, `danger`, `success` variants. `StatusPill` and `ScoreBadge` build on it.
-- **Card**: white, 20px radius, 24px padding (16 on phones), no border.
+- **Card**: white, 20px radius, 24px padding (16 on phones), no border,
+  `shadow-card`.
 - **Stat tile**: 12px radius, 16px padding, 12px label at 64% over a number.
 - **Inputs**: 44–48px, 12px radius, 1px border, white fill. Search is a pill.
 - **Segmented control / tabs**: pill track in `#F0F2F6`, white active

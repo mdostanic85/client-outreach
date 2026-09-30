@@ -5,8 +5,9 @@ import { cn } from "@/lib/utils"
 
 /**
  * Pill buttons. Hover is a 150ms color/surface change; focus uses the global
- * 2px verdigris ring. `secondary` turns to the subtle tint when it sits on a
- * white surface so it never disappears into a card.
+ * 2px verdigris ring. White pills carry a hairline shadow on the page tint;
+ * `secondary` turns to the subtle tint when it sits on a white surface so it
+ * never disappears into a card.
  */
 const buttonVariants = cva(
   "group/button pressable inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-transparent bg-clip-padding font-medium whitespace-nowrap outline-none select-none transition-[background-color,color,border-color,opacity] duration-150 ease-standard disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
@@ -18,9 +19,9 @@ const buttonVariants = cva(
         default:
           "bg-primary text-primary-foreground hover:bg-primary/85 aria-expanded:bg-primary/85",
         secondary:
-          "bg-card text-foreground hover:bg-subtle aria-expanded:bg-subtle in-[.bg-card]:bg-subtle in-[.bg-popover]:bg-subtle in-[.bg-card]:hover:bg-border-hover in-[.bg-popover]:hover:bg-border-hover",
+          "bg-card text-foreground shadow-xs hover:bg-subtle aria-expanded:bg-subtle in-[.bg-card]:bg-subtle in-[.bg-card]:shadow-none in-[.bg-popover]:shadow-none in-[.bg-popover]:bg-subtle in-[.bg-card]:hover:bg-border-hover in-[.bg-popover]:hover:bg-border-hover",
         outline:
-          "border-border bg-card text-foreground hover:border-border-strong hover:bg-subtle aria-expanded:bg-subtle",
+          "border-border bg-card text-foreground shadow-xs hover:border-border-strong hover:bg-subtle aria-expanded:bg-subtle",
         ghost:
           "text-muted-foreground hover:border-border-hover hover:text-foreground aria-expanded:border-border-hover aria-expanded:text-foreground",
         icon: "border-input bg-transparent text-foreground hover:border-primary hover:bg-primary hover:text-primary-foreground aria-expanded:border-primary aria-expanded:bg-primary aria-expanded:text-primary-foreground",

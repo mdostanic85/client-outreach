@@ -27,7 +27,7 @@ export function StatTile({
       data-slot="stat-tile"
       className={cn(
         "flex min-w-0 flex-col gap-1 rounded-tile p-4",
-        surface === "subtle" ? "bg-subtle" : "bg-card",
+        surface === "subtle" ? "bg-subtle" : "bg-card shadow-card",
         className,
       )}
     >

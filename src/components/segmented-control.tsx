@@ -25,7 +25,7 @@ function ActiveIndicator({ className }: { className?: string }) {
       aria-hidden
       layoutId="segment-indicator"
       transition={reduce ? { duration: 0 } : INDICATOR_TRANSITION}
-      className={cn("bg-card absolute inset-0 -z-10", className)}
+      className={cn("bg-card shadow-xs absolute inset-0 -z-10", className)}
     />
   );
 }

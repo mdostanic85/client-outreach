@@ -105,7 +105,7 @@
 
   /* Depth comes from surface tint. Shadow is for true overlays only. */
   --shadow-2xs: 0 0 #0000;
-  --shadow-xs: 0 0 #0000;
+  --shadow-xs: 0 1px 2px rgb(16 24 40 / 0.06);
   --shadow-sm: 0 0 #0000;
   --shadow: 0 0 #0000;
   --shadow-md: 0 0 #0000;
@@ -113,6 +113,9 @@
   --shadow-xl: 0 0 #0000;
   --shadow-2xl: 0 0 #0000;
   --shadow-overlay: 0 8px 30px rgb(0 0 0 / 0.15);
+  /* Subtle lift for cards and raised controls on the page tint. */
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 2px 8px rgb(16 24 40 / 0.04);
+  --shadow-raised: 0 1px 2px rgb(16 24 40 / 0.06);
 }
 
 :root {
@@ -137,6 +140,17 @@
   --brand-ink: #23785f;
   --brand-wash: #e4f2ee;
 
+  --duration-instant: 100ms;
+  --duration-fast: 150ms;
+  --duration-default: 250ms;
+  --duration-moderate: 300ms;
+  --duration-slow: 600ms;
+}
+
+/* Semantic tokens, derived from the primitives above. Declared for `.dark`
+   too so a dark subtree re-derives them from its own primitives. */
+:root,
+.dark {
   --background: var(--page);
   --foreground: var(--ink);
   --card: var(--surface);
@@ -181,15 +195,12 @@
   --sidebar-ring: var(--brand);
 
   --scrim: rgb(26 26 28 / 0.35);
-
-  --duration-instant: 100ms;
-  --duration-fast: 150ms;
-  --duration-default: 250ms;
-  --duration-moderate: 300ms;
-  --duration-slow: 600ms;
 }
 
-/* Light is the only designed mode. This block keeps `.dark` usable. */
+/*
+ * Dark token set. The page itself is light; the sidebar (and the mobile nav
+ * sheet) opt into this block with `class="dark"` so every token inside flips.
+ */
 .dark {
   color-scheme: dark;
   --page: #111214;
@@ -213,6 +224,11 @@
   --warn-wash: #33260d;
   --success: #46b36f;
   --success-wash: #173222;
+  --sidebar: #161719;
+  --sidebar-foreground: rgb(242 243 245 / 0.66);
+  --sidebar-accent: #26282c;
+  --sidebar-accent-foreground: #ffffff;
+  --muted-foreground: var(--ink-secondary);
 }
 
 @layer base {
