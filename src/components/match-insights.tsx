@@ -33,7 +33,7 @@ const PREVIEW_REASON_COUNT = 3;
 
 function statusTone(status: RemoteFit["status"]) {
   if (status === "pass") {
-    return "bg-primary/15 text-primary ring-1 ring-primary/30";
+    return "bg-brand/15 text-brand-ink ring-1 ring-brand/30";
   }
   if (status === "fail") {
     return "bg-destructive/15 text-destructive ring-1 ring-destructive/30";
@@ -71,7 +71,7 @@ export function MatchConstraintChips({
   const remoteClass = cn(
     "inline-flex h-full items-center gap-1 rounded-[14px] px-2 py-1 text-[13px] font-medium",
     interactive && "transition-colors hover:brightness-110",
-    remoteFit.status === "pass" && "bg-primary/15 text-primary",
+    remoteFit.status === "pass" && "bg-brand/15 text-brand-ink",
     remoteFit.status === "fail" && "bg-destructive/15 text-destructive",
     remoteFit.status === "unclear" &&
       "bg-amber-500/12 text-amber-900 dark:text-amber-100",
@@ -80,7 +80,7 @@ export function MatchConstraintChips({
   const tzClass = cn(
     "inline-flex h-full items-center gap-1 rounded-[14px] px-2 py-1 text-[13px] font-medium",
     interactive && "transition-colors hover:brightness-110",
-    remoteFit.timezoneOverlap === "full" && "bg-primary/10 text-primary",
+    remoteFit.timezoneOverlap === "full" && "bg-brand/10 text-brand-ink",
     remoteFit.timezoneOverlap === "partial" &&
       "bg-amber-500/10 text-amber-900 dark:text-amber-100",
     remoteFit.timezoneOverlap === "poor" &&
@@ -208,7 +208,7 @@ function DimensionBreakdown({
               </p>
             ) : null}
           </div>
-          <span className="font-mono tabular text-[14px] font-semibold shrink-0">
+          <span className="font-mono tabular text-[14px] font-medium shrink-0">
             {Number.isInteger(row.score) ? row.score : row.score.toFixed(1)}
           </span>
         </li>
@@ -233,7 +233,7 @@ function HighlightList({
       <ul className="space-y-2">
         {shown.map((h) => (
           <li key={`${h.label}:${h.detail}`} className="flex gap-2.5">
-            <span className="bg-primary/15 text-primary mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full">
+            <span className="bg-brand/15 text-brand-ink mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full">
               <Check className="size-3" />
             </span>
             <div className="min-w-0">
@@ -495,7 +495,7 @@ export function JobMatchInsights({
                   <button
                     type="button"
                     onClick={() => setOpen(true)}
-                    className="text-primary text-[13px] font-medium hover:underline"
+                    className="text-brand-ink text-[13px] font-medium hover:underline"
                   >
                     Full rationale
                   </button>
@@ -518,7 +518,7 @@ export function JobMatchInsights({
                   <button
                     type="button"
                     onClick={() => setOpen(true)}
-                    className="text-primary text-[13px] font-medium hover:underline"
+                    className="text-brand-ink text-[13px] font-medium hover:underline"
                   >
                     Full rationale
                   </button>

@@ -273,7 +273,7 @@ export function SettingsForm({ initial }: { initial: FormInitial }) {
 
       <Surface>
         <PanelHeader className="flex-col items-start gap-1">
-          <p className="font-display text-[16px] font-semibold tracking-tight">
+          <p className="text-[16px] font-medium tracking-tight">
             How you introduce yourself
           </p>
         </PanelHeader>
@@ -304,7 +304,7 @@ export function SettingsForm({ initial }: { initial: FormInitial }) {
 
       <Surface>
         <PanelHeader className="flex-col items-start gap-1">
-          <p className="font-display text-[16px] font-semibold tracking-tight">
+          <p className="text-[16px] font-medium tracking-tight">
             Email writing style
           </p>
           <p className="text-muted-foreground text-[15px]">
@@ -373,7 +373,7 @@ export function SettingsForm({ initial }: { initial: FormInitial }) {
 
       <Surface>
         <PanelHeader className="flex-col items-start gap-1">
-          <p className="font-display text-[16px] font-semibold tracking-tight">
+          <p className="text-[16px] font-medium tracking-tight">
             Send volume
           </p>
           <p className="text-muted-foreground text-[15px]">
@@ -441,7 +441,7 @@ export function SettingsForm({ initial }: { initial: FormInitial }) {
         <details className="group">
           <summary className="border-border flex cursor-pointer list-none items-center justify-between gap-3 border-b px-5 py-5 font-medium sm:px-8 sm:py-6 select-none [&::-webkit-details-marker]:hidden">
             <div className="space-y-1">
-              <p className="font-display text-[16px] font-semibold tracking-tight">
+              <p className="text-[16px] font-medium tracking-tight">
                 Advanced
               </p>
               <p className="text-muted-foreground text-[15px] font-normal">

@@ -28,7 +28,7 @@ export function WorthImproving({ report }: { report: MarketFitReport }) {
                 className="hover:bg-muted/30 -mx-2 flex items-center gap-3 rounded-xl px-2 py-2 transition-colors"
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] font-medium text-[var(--card-foreground)]">
+                  <span className="block text-[15px] font-medium text-foreground">
                     {action.label}
                   </span>
                   {action.detail ? (

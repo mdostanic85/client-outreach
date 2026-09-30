@@ -32,7 +32,7 @@ export default async function OnboardingLayout({
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 80% 45% at 50% -5%, color-mix(in oklch, var(--primary) 14%, transparent), transparent), linear-gradient(180deg, color-mix(in oklch, var(--background) 92%, #0c1218) 0%, var(--background) 40%)",
+            "radial-gradient(ellipse 80% 45% at 50% -5%, color-mix(in oklch, var(--brand) 14%, transparent), transparent), linear-gradient(180deg, color-mix(in oklch, var(--background) 92%, #0c1218) 0%, var(--background) 40%)",
         }}
       />
       <header className="relative z-10 flex items-center justify-between px-6 py-6 sm:px-10 sm:py-7 lg:px-12">

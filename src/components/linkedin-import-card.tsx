@@ -59,7 +59,7 @@ export function LinkedInImportCard({
   return (
     <Surface>
       <PanelHeader className="flex-col items-start gap-1">
-        <p className="font-display text-[16px] font-semibold tracking-tight">
+        <p className="text-[16px] font-medium tracking-tight">
           Add LinkedIn profile
         </p>
         <p className="text-muted-foreground text-[14px] leading-relaxed">

@@ -12,7 +12,9 @@ type AnimateInProps = {
 };
 
 /**
- * Single-element entrance. Corporate ease — Mobbin (Vercel / Basedash).
+ * First-load reveal for page headers and empty states: opacity, 8px rise and
+ * 8px blur resolving to sharp over ~360ms (`ease/enter`). Reduced motion
+ * turns it off in globals.css. Do not wrap list rows in this.
  */
 export function AnimateIn({
   children,
@@ -48,7 +50,7 @@ type StaggerProps = {
   as?: ElementType;
 };
 
-/** Parent for staggered list/grid entrances. */
+/** Parent for list/grid children. */
 export function Stagger({
   children,
   className,
@@ -60,30 +62,20 @@ export function Stagger({
 type StaggerItemProps = {
   children: ReactNode;
   className?: string;
-  index: number;
+  /** Kept for call-site compatibility; rows no longer animate in. */
+  index?: number;
   as?: ElementType;
-  /** Cap delay so long lists don't feel slow (default 10 → 400ms) */
   maxIndex?: number;
 };
 
 /**
- * Child entrance with 40ms cascade (motion skill micro-cascade).
- * Caps at maxIndex so 50-item lists don't wait seconds.
+ * List/grid child. Rows and tiles render settled: the design system allows
+ * entrance motion on page headers and empty states only, never per row.
  */
 export function StaggerItem({
   children,
   className,
-  index,
   as: Tag = "div",
-  maxIndex = 10,
 }: StaggerItemProps) {
-  const capped = Math.min(Math.max(index, 0), maxIndex);
-  return (
-    <Tag
-      className={cn("stagger-item", className)}
-      style={{ "--stagger-index": capped } as CSSProperties}
-    >
-      {children}
-    </Tag>
-  );
+  return <Tag className={className}>{children}</Tag>;
 }

@@ -40,13 +40,13 @@ export function LoginExperience({
       <header className="relative z-10 flex shrink-0 items-center justify-between px-6 py-4 sm:px-10">
         <Link
           href="/welcome"
-          className="text-muted-foreground hover:text-[var(--card-foreground)] text-[13px] font-medium transition-colors"
+          className="text-muted-foreground hover:text-foreground text-[13px] font-medium transition-colors"
         >
           ← Back
         </Link>
         <Link
           href="/signup"
-          className="text-muted-foreground hover:text-[var(--card-foreground)] text-[13px] font-medium transition-colors"
+          className="text-muted-foreground hover:text-foreground text-[13px] font-medium transition-colors"
         >
           Create account
         </Link>
@@ -55,7 +55,7 @@ export function LoginExperience({
       <main className="relative z-10 grid min-h-0 w-full min-w-0 flex-1 items-center gap-8 px-4 sm:px-6 lg:grid-cols-2 lg:px-12">
         <div className="mx-auto hidden w-full max-w-md lg:block">
           <OptraLogo href="/welcome" width={120} />
-          <h1 className="font-display mt-8 text-[2.4rem] leading-[1.08] font-semibold tracking-tight text-[var(--card-foreground)]">
+          <h1 className="mt-8 text-[2.4rem] leading-[1.08] font-medium tracking-tight text-foreground">
             A few jobs that fit you.
           </h1>
           <p className="text-muted-foreground mt-4 text-[16px] leading-snug">
@@ -70,9 +70,9 @@ export function LoginExperience({
               ["You decide", "Mark, save, or skip. Nothing sends itself."],
             ].map(([title, body]) => (
               <li key={title} className="flex gap-3">
-                <span className="bg-primary mt-1.5 size-2 shrink-0 rounded-full" aria-hidden />
+                <span className="bg-brand mt-1.5 size-2 shrink-0 rounded-full" aria-hidden />
                 <span>
-                  <span className="block text-[15px] font-medium text-[var(--card-foreground)]">{title}</span>
+                  <span className="block text-[15px] font-medium text-foreground">{title}</span>
                   <span className="text-muted-foreground text-[14px]">{body}</span>
                 </span>
               </li>
@@ -123,7 +123,7 @@ function LoginAtmosphere({ reducedMotion }: { reducedMotion: boolean }) {
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 55% 40% at 80% 85%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 70%)",
+            "radial-gradient(ellipse 55% 40% at 80% 85%, color-mix(in oklch, var(--brand) 14%, transparent), transparent 70%)",
         }}
       />
 
@@ -134,7 +134,7 @@ function LoginAtmosphere({ reducedMotion }: { reducedMotion: boolean }) {
           style={{
             width: `min(${size}vw, ${size * 7}px)`,
             aspectRatio: "1",
-            borderColor: `color-mix(in oklch, var(--primary) ${10 - i * 2}%, transparent)`,
+            borderColor: `color-mix(in oklch, var(--brand) ${10 - i * 2}%, transparent)`,
             opacity: 0.5 - i * 0.1,
           }}
         />
@@ -154,7 +154,7 @@ function LoginAtmosphere({ reducedMotion }: { reducedMotion: boolean }) {
         }
         style={{
           background:
-            "radial-gradient(circle, color-mix(in oklch, var(--primary) 55%, transparent), transparent 70%)",
+            "radial-gradient(circle, color-mix(in oklch, var(--brand) 55%, transparent), transparent 70%)",
         }}
       />
 
@@ -198,7 +198,7 @@ function EmailFirstSignIn({
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="font-display text-[1.35rem] font-semibold tracking-tight text-[var(--card-foreground)]">
+        <h1 className="text-[1.35rem] font-medium tracking-tight text-foreground">
           {step === "email" ? "Sign in" : "Enter your password"}
         </h1>
         <p className="text-muted-foreground mt-1.5 text-[15px] leading-snug">
@@ -208,7 +208,7 @@ function EmailFirstSignIn({
 
       {step === "email" && error ? <FieldError message={error} /> : null}
       {step === "email" && notice ? (
-        <p className="bg-primary/10 text-accent-foreground rounded-xl px-3.5 py-2.5 text-[14px]">
+        <p className="bg-brand/10 text-brand-ink rounded-xl px-3.5 py-2.5 text-[14px]">
           {notice}
         </p>
       ) : null}
@@ -276,7 +276,7 @@ function EmailFirstSignIn({
                 <Label htmlFor="password">Password</Label>
                 <Link
                   href="/forgot-password"
-                  className="text-primary text-[13px] font-medium hover:underline"
+                  className="text-brand-ink text-[13px] font-medium hover:underline"
                 >
                   Forgot?
                 </Link>
@@ -305,7 +305,7 @@ function EmailFirstSignIn({
               type="button"
               onClick={() => setStep("email")}
               className={cn(
-                "text-muted-foreground hover:text-[var(--card-foreground)] text-center text-[13px] font-medium transition-colors",
+                "text-muted-foreground hover:text-foreground text-center text-[13px] font-medium transition-colors",
               )}
             >
               Use a different email
@@ -317,7 +317,7 @@ function EmailFirstSignIn({
       {step === "email" ? (
         <p className="text-muted-foreground text-center text-[13px]">
           New here?{" "}
-          <Link href="/signup" className="text-primary font-medium hover:underline">
+          <Link href="/signup" className="text-brand-ink font-medium hover:underline">
             Create an account
           </Link>
         </p>

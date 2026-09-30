@@ -142,7 +142,7 @@ function ProfileSection({
   return (
     <section className="border-border bg-muted/20 space-y-4 rounded-2xl border px-4 py-4 sm:px-5 sm:py-5">
       <header className="space-y-1">
-        <h3 className="font-display text-[16px] font-semibold tracking-tight text-[var(--card-foreground)]">
+        <h3 className="text-[16px] font-medium tracking-tight text-foreground">
           {title}
         </h3>
         {description ? (
@@ -287,7 +287,7 @@ function CompensationField({
                     aria-pressed={active}
                     onClick={() => onChange({ ...value, currency: code })}
                     className={cn(
-                      "h-9 min-w-[2.75rem] rounded-lg px-2.5 text-[15px] font-semibold tabular-nums transition-colors",
+                      "h-9 min-w-[2.75rem] rounded-lg px-2.5 text-[15px] font-medium tabular-nums transition-colors",
                       active
                         ? "bg-background text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground",
@@ -402,8 +402,8 @@ function EmploymentTypeField({
               className={cn(
                 "rounded-xl border px-4 py-2.5 text-[14px] font-medium transition-colors",
                 active
-                  ? "border-primary bg-primary/15 text-foreground"
-                  : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                  ? "border-brand bg-brand/15 text-foreground"
+                  : "border-border bg-background text-muted-foreground hover:border-brand/40 hover:text-foreground",
                 disabled && "pointer-events-none opacity-50",
               )}
             >
@@ -1333,7 +1333,7 @@ export function ProfileWorkspace({
       {!active ? (
         <Surface>
           <div className="flex flex-col items-center justify-center gap-5 px-6 py-12 text-center sm:px-8 sm:py-14">
-            <p className="font-display text-[20px] font-semibold">No profile yet</p>
+            <p className="text-[20px] font-medium">No profile yet</p>
             <p className="text-muted-foreground mx-auto max-w-sm text-[15px] leading-relaxed">
               {sources.length === 0
                 ? "Add your CV below. Optra reads it and builds your profile."
@@ -1369,7 +1369,7 @@ export function ProfileWorkspace({
           aria-expanded={pageSourcesOpen}
         >
           <div>
-            <p className="font-display text-[16px] font-semibold tracking-tight text-[var(--card-foreground)]">
+            <p className="text-[16px] font-medium tracking-tight text-foreground">
               Sources
             </p>
             <p className="text-muted-foreground mt-0.5 text-[14px]">
@@ -1442,7 +1442,7 @@ function SummaryRow({ label, children }: { label: string; children: React.ReactN
   return (
     <div className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:gap-6 sm:px-6">
       <dt className="text-muted-foreground w-36 shrink-0 text-[14px]">{label}</dt>
-      <dd className="min-w-0 flex-1 text-[15px] leading-relaxed text-[var(--card-foreground)]">
+      <dd className="min-w-0 flex-1 text-[15px] leading-relaxed text-foreground">
         {children}
       </dd>
     </div>
@@ -1486,7 +1486,7 @@ function ProfileSummaryCard({
     <Surface>
       <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-5 sm:px-6">
         <div className="min-w-0">
-          <p className="font-display text-[20px] font-semibold tracking-tight text-[var(--card-foreground)]">
+          <p className="text-[20px] font-medium tracking-tight text-foreground">
             {headline || "Your profile"}
           </p>
           {profile.yearsExperience ? (

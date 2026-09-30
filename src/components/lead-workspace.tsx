@@ -310,7 +310,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
             <span> / {detail.company.name}</span>
           </nav>
           <div className="flex flex-wrap items-center gap-4">
-            <h1 className="font-display text-[34px] leading-[1.15] font-semibold tracking-tight text-balance text-[var(--card-foreground)]">
+            <h1 className="text-[34px] leading-[1.15] font-medium tracking-tight text-balance text-foreground">
               {detail.company.name}
             </h1>
             <StatePill state={detail.lead.state} />
@@ -357,7 +357,7 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
                   />
                 }
               >
-                <span className="text-[var(--card-foreground)]/70">
+                <span className="text-foreground/70">
                   {SCORE_DIMENSION_LABELS[k]}
                 </span>{" "}
                 {breakdown[k] ?? "—"}
@@ -387,9 +387,9 @@ export function LeadWorkspace({ detail }: { detail: Detail }) {
               className={cn(
                 "flex-1 rounded-xl px-4 py-3 text-left text-[15px] transition-colors duration-150 sm:min-w-28",
                 active
-                  ? "bg-accent-wash text-primary font-semibold"
+                  ? "bg-accent-wash text-brand-ink font-medium"
                   : unlocked
-                    ? "text-[var(--card-foreground)] hover:bg-white/5"
+                    ? "text-foreground hover:bg-white/5"
                     : "text-muted-foreground/40",
               )}
             >

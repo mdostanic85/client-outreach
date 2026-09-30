@@ -25,7 +25,7 @@ function Section({ title, rows }: { title: string; rows: Row[] }) {
               className="hover:bg-card/60 flex items-center justify-between gap-4 px-5 py-4 transition-colors first:rounded-t-2xl last:rounded-b-2xl"
             >
               <span>
-                <span className="block text-[15px] font-medium text-[var(--card-foreground)]">
+                <span className="block text-[15px] font-medium text-foreground">
                   {row.label}
                 </span>
                 <span className="text-muted-foreground mt-0.5 block text-[14px]">

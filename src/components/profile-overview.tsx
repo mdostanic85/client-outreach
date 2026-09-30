@@ -43,7 +43,7 @@ export function ProfileOverview({
             {review ? (
               <>
                 <p className="mt-2 flex items-baseline gap-2">
-                  <span className="font-display text-[2rem] leading-none font-semibold tabular-nums text-[var(--card-foreground)]">
+                  <span className="text-[2rem] leading-none font-medium tabular-nums text-foreground">
                     {review.overall}
                   </span>
                   <span className="text-[14px] font-medium" style={{ color: scoreTone(review.overall).color }}>

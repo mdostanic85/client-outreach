@@ -321,7 +321,7 @@ export function SearchCriteriaWorkspace({
           <Surface>
             <PanelBody className="space-y-5 px-6 py-8 sm:px-8">
               <div className="space-y-2">
-                <p className="font-display text-[18px] font-semibold tracking-tight sm:text-[20px]">
+                <p className="text-[18px] font-medium tracking-tight sm:text-[20px]">
                   {pending
                     ? "Drafting search criteria…"
                     : "Generate search criteria"}

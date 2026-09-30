@@ -41,7 +41,7 @@ export function EmptyState({
         {icon ?? <Search className="size-6 opacity-70" strokeWidth={1.5} />}
       </div>
       <div className="animate-enter space-y-2" style={{ animationDelay: "60ms" }}>
-        <p className="font-display text-[18px] font-semibold text-[var(--card-foreground)] sm:text-[20px]">
+        <p className="text-[18px] font-medium text-foreground sm:text-[20px]">
           {title}
         </p>
         <p className="text-muted-foreground mx-auto max-w-sm text-[14px] leading-relaxed sm:text-[15px]">

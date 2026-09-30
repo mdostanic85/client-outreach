@@ -495,7 +495,7 @@ export function ApplicationPackageWorkspace({
         <Surface className="p-6 sm:p-8">
           <div className="mx-auto max-w-lg space-y-6">
             <div className="space-y-2">
-              <h2 className="font-display text-[20px] font-semibold tracking-tight">
+              <h2 className="text-[20px] font-medium tracking-tight">
                 Prepare this application
               </h2>
               <p className="text-muted-foreground text-[15px] leading-relaxed">
@@ -746,27 +746,27 @@ function HowToApplyPanel({ pkg }: { pkg: ApplicationPackageView }) {
   return (
     <Surface>
       <div className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:gap-5">
-        <p className="font-display text-[15px] font-semibold tracking-tight text-[var(--card-foreground)]">
+        <p className="text-[15px] font-medium tracking-tight text-foreground">
           How to apply
         </p>
         <ul className="flex flex-wrap gap-x-5 gap-y-1 text-[14px]">
           {emails.map((email) => (
             <li key={email}>
-              <a className="text-primary hover:underline" href={`mailto:${email}`}>
+              <a className="text-brand-ink hover:underline" href={`mailto:${email}`}>
                 {email}
               </a>
             </li>
           ))}
           {phones.map((phone) => (
             <li key={phone}>
-              <a className="text-primary hover:underline" href={`tel:${phone.replace(/[^\d+]/g, "")}`}>
+              <a className="text-brand-ink hover:underline" href={`tel:${phone.replace(/[^\d+]/g, "")}`}>
                 {phone}
               </a>
             </li>
           ))}
           {links.map((link) => (
             <li key={link} className="max-w-full truncate">
-              <a className="text-primary hover:underline" href={link} target="_blank" rel="noreferrer">
+              <a className="text-brand-ink hover:underline" href={link} target="_blank" rel="noreferrer">
                 Application form
               </a>
             </li>

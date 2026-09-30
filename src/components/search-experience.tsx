@@ -246,7 +246,7 @@ function SearchExperienceInner({
                     aria-hidden
                     className={cn(
                       "h-1 w-full overflow-hidden rounded-full",
-                      done ? "bg-primary/45" : "bg-muted-foreground/20",
+                      done ? "bg-brand/45" : "bg-muted-foreground/20",
                     )}
                   >
                     {current ? <span className="search-progress-fill block h-full w-full" /> : null}
@@ -260,7 +260,7 @@ function SearchExperienceInner({
                     )}
                   >
                     {done ? (
-                      <Check className="text-primary size-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
+                      <Check className="text-brand-ink size-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
                     ) : (
                       <span className="tabular shrink-0 text-[12px] opacity-70 max-sm:hidden">{index + 1}</span>
                     )}
@@ -274,7 +274,7 @@ function SearchExperienceInner({
           <StageProgressRing percent={resolving ? 100 : percent} resolving={resolving}>
             {resolving ? (
               <Check
-                className="text-primary stage-spotlight-check size-16 sm:size-20"
+                className="text-brand-ink stage-spotlight-check size-16 sm:size-20"
                 strokeWidth={2}
                 aria-hidden
               />
@@ -294,12 +294,12 @@ function SearchExperienceInner({
                 key={shown.id}
                 className="search-activity-line flex max-w-full items-baseline justify-center gap-2 text-center text-[16px] sm:text-[17px]"
               >
-                <span className="truncate text-[var(--card-foreground)]">{shown.label}</span>
+                <span className="truncate text-foreground">{shown.label}</span>
                 {shown.meta ? (
                   <span className="text-muted-foreground truncate">{shown.meta}</span>
                 ) : null}
                 {shown.value ? (
-                  <span className="font-mono tabular text-primary shrink-0 text-[14px]">
+                  <span className="font-mono tabular text-brand-ink shrink-0 text-[14px]">
                     {shown.value}
                   </span>
                 ) : null}
@@ -394,13 +394,13 @@ function StageProgressRing({
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={dashOffset}
-            className="stage-progress-arc stroke-primary"
+            className="stage-progress-arc stroke-brand"
             style={{
               transform: "rotate(-90deg)",
               transformOrigin: `${size / 2}px ${size / 2}px`,
               transition: indeterminate
                 ? undefined
-                : "stroke-dashoffset 500ms var(--ease-out-soft)",
+                : "stroke-dashoffset 500ms var(--ease-standard)",
             }}
           />
         </g>

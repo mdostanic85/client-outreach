@@ -84,7 +84,7 @@ export function ProductPanel() {
             style={{
               width: `${size}%`,
               aspectRatio: "1",
-              borderColor: `color-mix(in oklch, var(--primary) ${8 - i * 2}%, transparent)`,
+              borderColor: `color-mix(in oklch, var(--brand) ${8 - i * 2}%, transparent)`,
               opacity: 0.55 - i * 0.12,
             }}
           />
@@ -103,7 +103,7 @@ export function ProductPanel() {
           }
           style={{
             background:
-              "radial-gradient(circle, color-mix(in oklch, var(--primary) 50%, transparent), transparent 70%)",
+              "radial-gradient(circle, color-mix(in oklch, var(--brand) 50%, transparent), transparent 70%)",
           }}
         />
         <div
@@ -122,10 +122,10 @@ export function ProductPanel() {
 
       <div className="relative z-10 flex h-full min-h-0 flex-col justify-between px-6 py-8 sm:px-10 sm:py-10 xl:px-14 xl:py-12">
         <div className="shrink-0">
-          <p className="text-primary text-[12px] font-medium tracking-[0.14em] uppercase">
+          <p className="text-brand-ink text-[12px] font-medium tracking-[0.14em] uppercase">
             Private shortlist
           </p>
-          <h2 className="font-display text-[var(--card-foreground)] mt-3 max-w-lg text-[1.75rem] leading-[1.12] font-semibold tracking-tight sm:text-[2.05rem]">
+          <h2 className="text-foreground mt-3 max-w-lg text-[1.75rem] leading-[1.12] font-medium tracking-tight sm:text-[2.05rem]">
             {noWidow("A short daily list — with reasons, not noise.")}
           </h2>
         </div>
@@ -160,10 +160,10 @@ export function ProductPanel() {
                 transition={{ duration: 0.4, ease: EASE }}
                 aria-hidden
               >
-                <p className="text-primary text-[10px] font-medium tracking-[0.12em] uppercase">
+                <p className="text-brand-ink text-[10px] font-medium tracking-[0.12em] uppercase">
                   Why it fits
                 </p>
-                <p className="text-[var(--card-foreground)] mt-1.5 text-[13px] leading-snug">
+                <p className="text-foreground mt-1.5 text-[13px] leading-snug">
                   {current.why}
                 </p>
               </motion.aside>
@@ -177,14 +177,14 @@ export function ProductPanel() {
             >
               <div className="border-border/50 flex items-center justify-between border-b px-4 py-3.5 sm:px-5">
                 <div>
-                  <p className="text-[var(--card-foreground)] text-[14px] font-medium">
+                  <p className="text-foreground text-[14px] font-medium">
                     Today
                   </p>
                   <p className="text-muted-foreground mt-0.5 text-[12px]">
                     3 matches · reviewed by you
                   </p>
                 </div>
-                <span className="bg-primary/15 text-primary rounded-full px-2.5 py-1 text-[11px] font-medium">
+                <span className="bg-brand/15 text-brand-ink rounded-full px-2.5 py-1 text-[11px] font-medium">
                   Live preview
                 </span>
               </div>
@@ -200,7 +200,7 @@ export function ProductPanel() {
                       className={cn(
                         "w-full px-4 py-3.5 text-left transition-colors duration-300 sm:px-5 sm:py-4",
                         isActive
-                          ? "bg-primary/[0.07]"
+                          ? "bg-brand/[0.07]"
                           : "hover:bg-white/[0.02]",
                       )}
                       onClick={() => setActive(i)}
@@ -212,14 +212,14 @@ export function ProductPanel() {
                               className={cn(
                                 "truncate text-[14px] font-medium sm:text-[15px]",
                                 isActive
-                                  ? "text-[var(--card-foreground)]"
+                                  ? "text-foreground"
                                   : "text-muted-foreground",
                               )}
                             >
                               {match.role}
                             </p>
                             {isActive ? (
-                              <span className="bg-primary/20 text-primary shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase">
+                              <span className="bg-brand/20 text-brand-ink shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase">
                                 {match.tag}
                               </span>
                             ) : null}
@@ -231,7 +231,7 @@ export function ProductPanel() {
                         <span
                           className={cn(
                             "font-mono shrink-0 text-[13px] tabular-nums",
-                            isActive ? "text-primary" : "text-muted-foreground/70",
+                            isActive ? "text-brand-ink" : "text-muted-foreground/70",
                           )}
                         >
                           {match.score}
@@ -261,7 +261,7 @@ export function ProductPanel() {
                             className="overflow-hidden"
                           >
                             <p className="text-muted-foreground mt-3 text-[13px] leading-relaxed">
-                              <span className="text-[var(--card-foreground)]/80 font-medium">
+                              <span className="text-foreground/80 font-medium">
                                 Watch:{" "}
                               </span>
                               {match.watch}
@@ -273,7 +273,7 @@ export function ProductPanel() {
                                   className={cn(
                                     "rounded-lg border px-2.5 py-1 text-[11px] font-medium",
                                     label === "Interested"
-                                      ? "border-primary/40 bg-primary/15 text-primary"
+                                      ? "border-brand/40 bg-brand/15 text-brand-ink"
                                       : "border-border/60 text-muted-foreground",
                                   )}
                                 >
@@ -285,7 +285,7 @@ export function ProductPanel() {
                               <span className="bg-border/50 relative mt-4 block h-[2px] w-full overflow-hidden rounded-full">
                                 <motion.span
                                   key={`bar-${active}`}
-                                  className="absolute inset-y-0 left-0 rounded-full bg-primary"
+                                  className="absolute inset-y-0 left-0 rounded-full bg-brand"
                                   initial={{ width: "0%" }}
                                   animate={{ width: "100%" }}
                                   transition={{

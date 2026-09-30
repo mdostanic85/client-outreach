@@ -62,7 +62,7 @@ function ReputationChip({
       className={cn(
         "inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[13px] font-medium tabular-nums ring-1",
         tone === "good" &&
-          "bg-primary/12 text-primary ring-primary/25",
+          "bg-brand/12 text-brand-ink ring-brand/25",
         tone === "mixed" &&
           "bg-amber-500/12 text-amber-900 ring-amber-500/25 dark:text-amber-100",
         tone === "poor" &&
@@ -169,7 +169,7 @@ function CompanyFacts({
           href={site}
           target="_blank"
           rel="noreferrer"
-          className="text-primary inline-flex items-center gap-1.5 text-[14px] font-medium hover:underline"
+          className="text-brand-ink inline-flex items-center gap-1.5 text-[14px] font-medium hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
           Visit website
@@ -236,7 +236,7 @@ function CompanyDetailSheet({
                   href={snapshot.reputation.sourceUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-primary inline-flex items-center gap-1 text-[13px] font-medium hover:underline"
+                  className="text-brand-ink inline-flex items-center gap-1 text-[13px] font-medium hover:underline"
                 >
                   Reviews
                   <ExternalLink className="size-3" />
@@ -358,7 +358,7 @@ export function CompanySnapshotCard({
                 href={snapshot.reputation.sourceUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-primary inline-flex items-center gap-1 text-[13px] font-medium hover:underline"
+                className="text-brand-ink inline-flex items-center gap-1 text-[13px] font-medium hover:underline"
               >
                 Reviews
                 <ExternalLink className="size-3" />
@@ -435,7 +435,7 @@ export function CompanySnapshotCard({
               e.stopPropagation();
               setOpen(true);
             }}
-            className="text-primary shrink-0 text-[13px] font-medium hover:underline"
+            className="text-brand-ink shrink-0 text-[13px] font-medium hover:underline"
           >
             More
           </button>

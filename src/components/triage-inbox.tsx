@@ -419,7 +419,7 @@ export function TriageInbox({
                             <div className="flex flex-wrap items-center gap-2">
                               <Link
                                 href={`/leads/${row.leadId}`}
-                                className="text-[17px] font-semibold text-[var(--card-foreground)] hover:text-primary"
+                                className="text-[17px] font-medium text-foreground hover:text-brand-ink"
                               >
                                 {row.companyName}
                               </Link>
@@ -485,7 +485,7 @@ export function TriageInbox({
                             ) : null}
                             <Link
                               href={`/leads/${row.leadId}`}
-                              className="text-primary inline-flex text-[15px] font-medium underline-offset-2 hover:underline"
+                              className="text-brand-ink inline-flex text-[15px] font-medium underline-offset-2 hover:underline"
                             >
                               Open company →
                             </Link>
@@ -580,7 +580,7 @@ export function TriageInbox({
                           {open ? "Less" : "Details"}
                           <ChevronDown
                             className={cn(
-                              "size-3.5 transition-transform duration-200 ease-[var(--ease-out-soft)]",
+                              "size-3.5 transition-transform duration-200 ease-standard",
                               open && "rotate-180",
                             )}
                             aria-hidden

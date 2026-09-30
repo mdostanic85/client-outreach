@@ -54,7 +54,7 @@ export function AnalyticsKpiGrid({
                 {k.label}
               </p>
             )}
-            <p className="font-display tabular mt-2 text-[28px] font-semibold tracking-tight text-[var(--card-foreground)]">
+            <p className="tabular mt-2 text-[28px] font-medium tracking-tight text-foreground">
               {k.value}
             </p>
           </Surface>

@@ -20,7 +20,7 @@ const CATEGORY_META: Record<
 > = {
   new: {
     label: "New",
-    className: "bg-primary/15 text-primary ring-1 ring-primary/25",
+    className: "bg-brand/15 text-brand-ink ring-1 ring-brand/25",
   },
   updated: {
     label: "Updated",
@@ -122,7 +122,7 @@ export function ProfileImportReview({
   return (
     <Surface>
       <PanelHeader className="flex-col items-start gap-2">
-        <p className="font-display text-[16px] font-semibold tracking-tight">
+        <p className="text-[16px] font-medium tracking-tight">
           Review before saving
         </p>
         <p className="text-muted-foreground text-[14px] leading-relaxed">

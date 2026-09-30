@@ -79,7 +79,7 @@ export function ApplicationSendModal({
         className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-lg"
       >
         <SheetHeader className="border-border border-b px-5 py-4">
-          <SheetTitle className="font-display text-[20px] font-semibold tracking-tight">
+          <SheetTitle className="text-[20px] font-medium tracking-tight">
             Send application
           </SheetTitle>
           <SheetDescription>

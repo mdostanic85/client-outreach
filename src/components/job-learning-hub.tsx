@@ -212,7 +212,7 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
                   <p className="text-muted-foreground text-[14px] font-medium tracking-wide uppercase">
                     {card.label}
                   </p>
-                  <p className="font-display tabular mt-1 text-[22px] font-semibold tracking-tight">
+                  <p className="tabular mt-1 text-[22px] font-medium tracking-tight">
                     {card.value}
                   </p>
                   {card.hint ? (
@@ -228,7 +228,7 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
           <div className="grid gap-4 lg:grid-cols-5">
             <Surface className="lg:col-span-2">
               <div className="border-border flex items-center justify-between border-b px-4 py-3">
-                <p className="font-display text-[14px] font-semibold tracking-tight">
+                <p className="text-[14px] font-medium tracking-tight">
                   What worked
                 </p>
                 <span className="text-muted-foreground text-[14px]">
@@ -278,7 +278,7 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
 
             <Surface className="lg:col-span-3">
               <div className="border-border flex items-center justify-between border-b px-4 py-3">
-                <p className="font-display text-[14px] font-semibold tracking-tight">
+                <p className="text-[14px] font-medium tracking-tight">
                   After you applied
                 </p>
                 <span className="text-muted-foreground tabular text-[14px]">
@@ -374,7 +374,7 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
                   <div key={p.id} className="space-y-3 px-4 py-4 sm:px-5">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline">{p.kind}</Badge>
-                      <span className="font-display text-[14px] font-semibold">
+                      <span className="text-[14px] font-medium">
                         {p.title}
                       </span>
                     </div>

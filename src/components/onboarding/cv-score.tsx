@@ -14,8 +14,8 @@ const DIMENSIONS: Array<{ id: keyof CvReview["dimensions"]; label: string }> = [
 ];
 
 export function scoreTone(score: number) {
-  if (score >= 85) return { label: "Interview-ready", color: "var(--primary)" };
-  if (score >= 70) return { label: "Solid, a few fixes", color: "var(--primary)" };
+  if (score >= 85) return { label: "Interview-ready", color: "var(--brand)" };
+  if (score >= 70) return { label: "Solid, a few fixes", color: "var(--brand)" };
   if (score >= 50) return { label: "Needs work", color: "#e0a53a" };
   return { label: "Needs a rewrite", color: "#e26a5b" };
 }
@@ -42,7 +42,7 @@ function ScoreRing({ score }: { score: number }) {
         />
       </svg>
       <div className="text-center">
-        <p className="font-display text-[2.6rem] leading-none font-semibold tabular-nums text-[var(--card-foreground)]">
+        <p className="text-[2.6rem] leading-none font-medium tabular-nums text-foreground">
           {score}
         </p>
         <p className="text-muted-foreground mt-1 text-[12px]">out of 100</p>
@@ -73,7 +73,7 @@ export function CvScore({
           <p className="text-[13px] font-medium tracking-[0.12em] uppercase" style={{ color: tone.color }}>
             {tone.label}
           </p>
-          <p className="max-w-md text-[17px] leading-relaxed text-[var(--card-foreground)]">
+          <p className="max-w-md text-[17px] leading-relaxed text-foreground">
             {review.headline}
           </p>
         </div>
@@ -86,11 +86,11 @@ export function CvScore({
         <ol className="flex flex-col gap-3">
           {review.fixes.map((fix, i) => (
             <li key={fix.title} className="border-border bg-card/50 flex gap-3 rounded-2xl border px-4 py-3.5">
-              <span className="bg-primary/12 text-primary grid size-7 shrink-0 place-items-center rounded-full text-[13px] font-semibold tabular-nums">
+              <span className="bg-brand/12 text-brand-ink grid size-7 shrink-0 place-items-center rounded-full text-[13px] font-medium tabular-nums">
                 {i + 1}
               </span>
               <div>
-                <p className="text-[15px] font-medium text-[var(--card-foreground)]">{fix.title}</p>
+                <p className="text-[15px] font-medium text-foreground">{fix.title}</p>
                 <p className="text-muted-foreground mt-1 text-[14px] leading-relaxed">{fix.detail}</p>
               </div>
             </li>
@@ -105,7 +105,7 @@ export function CvScore({
         <ul className="flex flex-col gap-2.5">
           {review.strengths.map((strength) => (
             <li key={strength} className="flex gap-2.5 text-[15px] leading-relaxed">
-              <Check className="text-primary mt-1 size-4 shrink-0" aria-hidden />
+              <Check className="text-brand-ink mt-1 size-4 shrink-0" aria-hidden />
               <span>{strength}</span>
             </li>
           ))}

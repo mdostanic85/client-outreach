@@ -60,7 +60,7 @@ export default async function AnalyticsPage() {
         <>
           <Surface>
             <PanelHeader>
-              <p className="font-display text-[16px] font-semibold tracking-tight">
+              <p className="text-[16px] font-medium tracking-tight">
                 Pipeline states
               </p>
             </PanelHeader>
@@ -73,7 +73,7 @@ export default async function AnalyticsPage() {
                     className="border-border flex justify-between gap-4 border-b px-6 py-3.5 last:border-0 sm:px-8 sm:odd:border-r"
                   >
                     <span>{labelLeadState(state)}</span>
-                    <span className="tabular font-semibold">{count}</span>
+                    <span className="tabular font-medium">{count}</span>
                   </li>
                 ))}
             </ul>
@@ -81,7 +81,7 @@ export default async function AnalyticsPage() {
 
           <Surface>
             <PanelHeader>
-              <p className="font-display text-[16px] font-semibold tracking-tight">
+              <p className="text-[16px] font-medium tracking-tight">
                 Draft quality
               </p>
             </PanelHeader>
@@ -98,7 +98,7 @@ export default async function AnalyticsPage() {
 
           <Surface>
             <PanelHeader>
-              <p className="font-display text-[16px] font-semibold tracking-tight">
+              <p className="text-[16px] font-medium tracking-tight">
                 By source
               </p>
             </PanelHeader>

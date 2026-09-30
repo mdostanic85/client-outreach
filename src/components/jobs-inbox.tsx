@@ -165,7 +165,7 @@ export function JobsInbox({
               Moved to{" "}
               <Link
                 href="/interested"
-                className="text-primary font-medium underline-offset-4 hover:underline"
+                className="text-brand-ink font-medium underline-offset-4 hover:underline"
               >
                 Saved
               </Link>

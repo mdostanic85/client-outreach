@@ -186,7 +186,7 @@ export function ClientsLearningHub({
                 <div key={p.id} className="space-y-3 px-4 py-4 sm:px-5">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="outline">{p.kind}</Badge>
-                    <span className="font-display text-[14px] font-semibold">
+                    <span className="text-[14px] font-medium">
                       {p.title}
                     </span>
                   </div>
@@ -215,7 +215,7 @@ export function ClientsLearningHub({
                 <div key={r.id} className="space-y-2 px-4 py-4 sm:px-5">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="secondary">{r.kind}</Badge>
-                    <span className="font-display text-[14px] font-semibold">
+                    <span className="text-[14px] font-medium">
                       {r.title}
                     </span>
                   </div>

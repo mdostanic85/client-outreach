@@ -52,7 +52,7 @@ export function SegmentedControl<T extends string>({
                 ? "px-3 py-1.5 text-[14px]"
                 : "px-3.5 py-2 text-[15px]",
               selected
-                ? "bg-primary text-primary-foreground shadow-sm"
+                ? "bg-brand text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
               disabled && "opacity-50",
             )}
@@ -110,7 +110,7 @@ export function ModeSwitch<T extends string>({
             className={cn(
               "segment-option flex flex-col items-start justify-center rounded-[14px] px-3.5 py-2.5 text-left transition-colors",
               selected
-                ? "bg-primary text-primary-foreground shadow-[0_1px_1.5px_rgba(0,0,0,0.1),0_1px_1px_rgba(0,0,0,0.1)]"
+                ? "bg-brand text-primary-foreground shadow-[0_1px_1.5px_rgba(0,0,0,0.1),0_1px_1px_rgba(0,0,0,0.1)]"
                 : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
               disabled && !selected && "opacity-50",
             )}

@@ -37,7 +37,7 @@ function ToggleRow({
         onChange={(e) => onChange(e.target.checked)}
       />
       <span className="min-w-0">
-        <span className="block text-[15px] font-medium text-[var(--card-foreground)]">
+        <span className="block text-[15px] font-medium text-foreground">
           {label}
         </span>
         <span className="text-muted-foreground mt-0.5 block text-[13px] leading-snug">
@@ -77,7 +77,7 @@ export function MatchingSourcesPanel({
   return (
     <div className="space-y-1">
       <div>
-        <p className="font-display text-[16px] font-semibold tracking-tight">
+        <p className="text-[16px] font-medium tracking-tight">
           Also used in scoring
         </p>
         <p className="text-muted-foreground mt-0.5 text-[14px] leading-relaxed">

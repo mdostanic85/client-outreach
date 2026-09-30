@@ -17,7 +17,7 @@ export function PackageEvidencePanel({
   return (
     <div className="space-y-7">
       <div className="space-y-1">
-        <p className="font-display text-[16px] font-semibold tracking-tight text-[var(--card-foreground)]">
+        <p className="text-[16px] font-medium tracking-tight text-foreground">
           Evidence
         </p>
         <p className="text-muted-foreground text-[14px] leading-relaxed">
@@ -40,7 +40,7 @@ export function PackageEvidencePanel({
       ) : null}
 
       <section className="border-border space-y-3 rounded-2xl border p-4">
-        <h3 className="text-[14px] font-semibold text-[var(--card-foreground)]">
+        <h3 className="text-[14px] font-medium text-foreground">
           Role analysis
         </h3>
         {analysis.roleSummary ? (
@@ -54,7 +54,7 @@ export function PackageEvidencePanel({
         )}
         {analysis.fitStrengths.length ? (
           <div>
-            <p className="text-[13px] font-medium text-[var(--card-foreground)]">
+            <p className="text-[13px] font-medium text-foreground">
               Fit strengths
             </p>
             <ul className="text-muted-foreground mt-1.5 list-disc space-y-1 pl-5 text-[14px]">
@@ -66,7 +66,7 @@ export function PackageEvidencePanel({
         ) : null}
         {analysis.gaps.length ? (
           <div>
-            <p className="text-[13px] font-medium text-[var(--card-foreground)]">
+            <p className="text-[13px] font-medium text-foreground">
               Gaps
             </p>
             <ul className="text-muted-foreground mt-1.5 list-disc space-y-1 pl-5 text-[14px]">
@@ -78,7 +78,7 @@ export function PackageEvidencePanel({
         ) : null}
         {analysis.mustHaves.length ? (
           <div>
-            <p className="text-[13px] font-medium text-[var(--card-foreground)]">
+            <p className="text-[13px] font-medium text-foreground">
               Must-haves
             </p>
             <p className="text-muted-foreground mt-1 text-[14px]">
@@ -90,7 +90,7 @@ export function PackageEvidencePanel({
 
       <section className="border-border space-y-3 rounded-2xl border p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-[14px] font-semibold text-[var(--card-foreground)]">
+          <h3 className="text-[14px] font-medium text-foreground">
             Grounding
           </h3>
           <span
@@ -105,7 +105,7 @@ export function PackageEvidencePanel({
         </div>
         {grounding.usedFields.length ? (
           <div>
-            <p className="text-[13px] font-medium text-[var(--card-foreground)]">
+            <p className="text-[13px] font-medium text-foreground">
               Profile fields used
             </p>
             <p className="text-muted-foreground mt-1 text-[14px]">
@@ -115,7 +115,7 @@ export function PackageEvidencePanel({
         ) : null}
         {grounding.usedProjectIds.length ? (
           <div>
-            <p className="text-[13px] font-medium text-[var(--card-foreground)]">
+            <p className="text-[13px] font-medium text-foreground">
               Projects used
             </p>
             <p className="text-muted-foreground mt-1 text-[14px]">
@@ -125,7 +125,7 @@ export function PackageEvidencePanel({
         ) : null}
         {grounding.usedCompanyFacts.length ? (
           <div>
-            <p className="text-[13px] font-medium text-[var(--card-foreground)]">
+            <p className="text-[13px] font-medium text-foreground">
               Company / role facts
             </p>
             <p className="text-muted-foreground mt-1 text-[14px]">

@@ -3,15 +3,15 @@ import { labelLeadState, labelPolicy } from "@/lib/ui-labels";
 
 const STATE_TONE: Record<string, string> = {
   suggested: "bg-white/6 text-muted-foreground",
-  researched: "bg-white/8 text-[var(--card-foreground)]",
+  researched: "bg-white/8 text-foreground",
   saved_for_later: "bg-secondary text-secondary-foreground",
-  accepted: "bg-accent-wash text-primary",
-  draft_ready: "bg-accent-wash text-primary",
-  sent: "bg-secondary text-[var(--card-foreground)]",
+  accepted: "bg-accent-wash text-brand-ink",
+  draft_ready: "bg-accent-wash text-brand-ink",
+  sent: "bg-secondary text-foreground",
   follow_up_due: "bg-[#2a1f0a] text-warn",
-  replied: "bg-accent-wash text-primary",
-  in_conversation: "bg-accent-wash text-primary",
-  closed_won: "bg-accent-wash text-primary",
+  replied: "bg-accent-wash text-brand-ink",
+  in_conversation: "bg-accent-wash text-brand-ink",
+  closed_won: "bg-accent-wash text-brand-ink",
   closed_lost: "bg-white/6 text-muted-foreground",
   rejected: "bg-white/6 text-muted-foreground",
   suppressed: "bg-white/6 text-muted-foreground",
@@ -27,7 +27,7 @@ export function StatePill({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-lg px-2.5 py-1.5 text-[15px] font-medium transition-colors duration-150 ease-[var(--ease-out-soft)]",
+        "inline-flex items-center rounded-lg px-2.5 py-1.5 text-[15px] font-medium transition-colors duration-150 ease-standard",
         STATE_TONE[state] ?? "bg-white/6 text-muted-foreground",
         className,
       )}
@@ -77,7 +77,7 @@ export function ScoreMark({
   return (
     <span
       className={cn(
-        "font-display tabular text-[var(--card-foreground)] text-[24px] font-semibold tracking-tight",
+        "tabular text-foreground text-[24px] font-medium tracking-tight",
         className,
       )}
       aria-label={`Score ${score}`}

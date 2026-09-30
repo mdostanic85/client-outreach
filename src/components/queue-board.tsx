@@ -84,7 +84,7 @@ export function QueueBoard({
             paused
               ? "bg-destructive status-pulse"
               : status.credentialsConfigured
-                ? "bg-primary status-pulse"
+                ? "bg-brand status-pulse"
                 : "bg-warn status-pulse",
           )}
         />
@@ -92,7 +92,7 @@ export function QueueBoard({
           <Tooltip>
             <TooltipTrigger
               render={
-                <span className="cursor-help font-medium text-[var(--card-foreground)]">
+                <span className="cursor-help font-medium text-foreground">
                   Paused — {status.health.pauseReason ?? "deliverability"}
                 </span>
               }
@@ -102,7 +102,7 @@ export function QueueBoard({
             </TooltipContent>
           </Tooltip>
         ) : (
-          <span className="font-medium text-[var(--card-foreground)]">
+          <span className="font-medium text-foreground">
             {status.credentialsConfigured
               ? "Mailbox connected"
               : "Mailbox not connected — add credentials in Admin."}
@@ -111,7 +111,7 @@ export function QueueBoard({
         <span className="text-muted-foreground hidden sm:inline" aria-hidden>
           ·
         </span>
-        <span className="text-[var(--card-foreground)]">
+        <span className="text-foreground">
           Sent today:{" "}
           <span className="tabular font-medium">{status.sentToday}</span>
         </span>
@@ -121,7 +121,7 @@ export function QueueBoard({
         <Tooltip>
           <TooltipTrigger
             render={
-              <span className="cursor-help text-[var(--card-foreground)]">
+              <span className="cursor-help text-foreground">
                 Remaining today:{" "}
                 <span className="tabular font-medium">
                   {status.remainingToday}
@@ -250,7 +250,7 @@ export function QueueBoard({
                       {item.lead ? (
                         <Link
                           href={`/leads/${item.lead.id}`}
-                          className="font-medium hover:text-primary"
+                          className="font-medium hover:text-brand-ink"
                         >
                           {item.company?.name ?? "Lead"}
                         </Link>
@@ -351,7 +351,7 @@ function QueueRow({
         <div className="min-w-0">
           <Link
             href={href}
-            className="text-[16px] font-semibold text-[var(--card-foreground)] hover:text-primary"
+            className="text-[16px] font-medium text-foreground hover:text-brand-ink"
           >
             {title}
           </Link>

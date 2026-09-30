@@ -154,7 +154,7 @@ export function MailboxConnect({
               {status.googleOauthReady ? (
                 <a
                   href="/api/mail/oauth/google/start"
-                  className="bg-primary text-primary-foreground hover:bg-primary/80 pressable inline-flex h-9 items-center justify-center rounded-lg px-3.5 text-[14px] font-medium"
+                  className="bg-primary text-primary-foreground hover:bg-primary/85 pressable inline-flex h-9 items-center justify-center rounded-lg px-3.5 text-[14px] font-medium"
                 >
                   Connect
                 </a>

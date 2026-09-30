@@ -108,7 +108,7 @@ export function MaterialReader({ hasWebsite }: { hasWebsite: boolean }) {
                 aria-hidden
                 className={cn(
                   "h-1 w-full overflow-hidden rounded-full",
-                  done ? "bg-primary/45" : "bg-muted-foreground/20",
+                  done ? "bg-brand/45" : "bg-muted-foreground/20",
                 )}
               >
                 {current ? (
@@ -127,7 +127,7 @@ export function MaterialReader({ hasWebsite }: { hasWebsite: boolean }) {
                 )}
               >
                 {done ? (
-                  <Check className="text-primary size-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
+                  <Check className="text-brand-ink size-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
                 ) : (
                   <span className="tabular shrink-0 text-[12px] opacity-70 max-sm:hidden">{index + 1}</span>
                 )}
@@ -166,13 +166,13 @@ export function MaterialReader({ hasWebsite }: { hasWebsite: boolean }) {
           ))}
         </div>
         <div className="relative mt-6 flex items-end justify-between gap-4 border-t border-white/10 pt-4">
-          <p className="font-display tabular text-[2.6rem] leading-none font-semibold tracking-tight text-[var(--card-foreground)]">
+          <p className="tabular text-[2.6rem] leading-none font-medium tracking-tight text-foreground">
             {Math.round(percent)}
             <span className="text-muted-foreground text-[1.2rem] font-medium">%</span>
           </p>
           <p
             key={beat.chip}
-            className="search-activity-line text-primary pb-1 text-[12px] font-medium tracking-[0.14em] uppercase"
+            className="search-activity-line text-brand-ink pb-1 text-[12px] font-medium tracking-[0.14em] uppercase"
           >
             {beat.chip}
           </p>

@@ -30,7 +30,7 @@ function EditorSection({
     <section className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 space-y-1">
-          <h3 className="font-display text-[15px] font-semibold tracking-tight text-[var(--card-foreground)]">
+          <h3 className="text-[15px] font-medium tracking-tight text-foreground">
             {title}
           </h3>
           {description ? (
@@ -62,7 +62,7 @@ export function PackageCvSlotEditor({
   return (
     <div className="space-y-7">
       <div className="space-y-1">
-        <p className="font-display text-[16px] font-semibold tracking-tight text-[var(--card-foreground)]">
+        <p className="text-[16px] font-medium tracking-tight text-foreground">
           {market === "us" ? "Resume" : "CV"} content
         </p>
         <p className="text-muted-foreground text-[14px] leading-relaxed">
@@ -87,8 +87,8 @@ export function PackageCvSlotEditor({
               className={cn(
                 "h-9 rounded-full border px-3.5 text-[13px] font-medium transition-colors disabled:opacity-50",
                 cv.template === template
-                  ? "border-primary bg-primary/12 text-[var(--card-foreground)]"
-                  : "border-border hover:border-primary/50",
+                  ? "border-brand bg-brand/12 text-foreground"
+                  : "border-border hover:border-brand/50",
               )}
             >
               {CV_TEMPLATE_LABELS[template]}
@@ -223,7 +223,7 @@ export function PackageCvSlotEditor({
                     onChange({ ...cv, experience });
                   }}
                 />
-                <span className="font-medium text-[var(--card-foreground)]">
+                <span className="font-medium text-foreground">
                   Include on page
                 </span>
               </label>
@@ -360,7 +360,7 @@ export function PackageCvSlotEditor({
                       onChange({ ...cv, projects });
                     }}
                   />
-                  <span className="font-medium text-[var(--card-foreground)]">
+                  <span className="font-medium text-foreground">
                     {p.title}
                   </span>
                 </label>
@@ -459,7 +459,7 @@ export function PackageLetterSlotEditor({
     <div className="space-y-7">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <p className="font-display text-[16px] font-semibold tracking-tight text-[var(--card-foreground)]">
+          <p className="text-[16px] font-medium tracking-tight text-foreground">
             Cover letter
           </p>
           <p className="text-muted-foreground max-w-md text-[14px] leading-relaxed">

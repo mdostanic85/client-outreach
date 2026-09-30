@@ -26,7 +26,7 @@ export function MakerCredit({
         href={CREATOR_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-muted-foreground/90 underline-offset-2 transition-colors hover:text-[var(--card-foreground)] hover:underline"
+        className="text-muted-foreground/90 underline-offset-2 transition-colors hover:text-foreground hover:underline"
       >
         {CREATOR_NAME}
       </a>

@@ -48,7 +48,7 @@ function ScoreTooltipBody({
 }) {
   return (
     <div className="space-y-1 text-left">
-      <p className="font-medium text-[var(--card-foreground)]">{title}</p>
+      <p className="font-medium text-foreground">{title}</p>
       <p className="text-muted-foreground">{body}</p>
     </div>
   );
@@ -90,10 +90,10 @@ export function ScoreBadge({
             <button
               type="button"
               className={cn(
-                "inline-flex min-w-[3.75rem] cursor-help flex-col items-end justify-center gap-0.5 rounded-2xl px-3 py-2 transition-[transform,background-color] duration-150 ease-[var(--ease-out-soft)] hover:scale-[1.02] sm:items-center",
+                "inline-flex min-w-[3.75rem] cursor-help flex-col items-end justify-center gap-0.5 rounded-2xl px-3 py-2 transition-[transform,background-color] duration-150 ease-standard hover:scale-[1.02] sm:items-center",
                 size === "sm" && "min-w-[3.25rem] px-2.5 py-1.5",
                 strong
-                  ? "bg-primary/15 text-primary"
+                  ? "bg-brand/15 text-brand-ink"
                   : "bg-muted text-muted-foreground",
                 className,
               )}
@@ -104,7 +104,7 @@ export function ScoreBadge({
         >
           <span
             className={cn(
-              "font-mono tabular leading-none font-semibold tracking-tight",
+              "font-mono tabular leading-none font-medium tracking-tight",
               size === "sm" ? "text-[18px]" : "text-[22px]",
             )}
           >
@@ -131,9 +131,9 @@ export function ScoreBadge({
           <button
             type="button"
             className={cn(
-              "inline-flex min-w-[4.5rem] cursor-help flex-col items-end justify-center gap-1 rounded-2xl px-3 py-2 text-right transition-[transform,background-color] duration-150 ease-[var(--ease-out-soft)] hover:scale-[1.02] sm:items-center sm:text-center",
+              "inline-flex min-w-[4.5rem] cursor-help flex-col items-end justify-center gap-1 rounded-2xl px-3 py-2 text-right transition-[transform,background-color] duration-150 ease-standard hover:scale-[1.02] sm:items-center sm:text-center",
               size === "sm" && "min-w-[4rem] gap-0.5 px-2.5 py-1.5",
-              tier === "strong" && "bg-primary/15 text-primary",
+              tier === "strong" && "bg-brand/15 text-brand-ink",
               tier === "worth_a_look" &&
                 "bg-amber-500/12 text-amber-100",
               !tier && "bg-muted text-muted-foreground",
@@ -146,7 +146,7 @@ export function ScoreBadge({
       >
         <span
           className={cn(
-            "font-mono tabular leading-none font-semibold tracking-tight",
+            "font-mono tabular leading-none font-medium tracking-tight",
             size === "sm" ? "text-[20px]" : "text-[24px]",
           )}
         >
@@ -156,7 +156,7 @@ export function ScoreBadge({
           className={cn(
             "max-w-[6.5rem] font-medium leading-tight tracking-wide",
             size === "sm" ? "text-[11px]" : "text-[12px]",
-            tier === "strong" && "text-primary/85",
+            tier === "strong" && "text-brand-ink/85",
             tier === "worth_a_look" && "text-amber-100/85",
             !tier && "text-muted-foreground",
           )}

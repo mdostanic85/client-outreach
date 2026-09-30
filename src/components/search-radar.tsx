@@ -7,7 +7,7 @@ import type { SearchActivity } from "@/modules/search-experience/stages";
 export type RadarActivity = SearchActivity & { id: number };
 
 const TONE_DOT: Record<NonNullable<SearchActivity["tone"]>, string> = {
-  strong: "bg-primary",
+  strong: "bg-brand",
   worth: "bg-[var(--warn)]",
   weak: "bg-muted-foreground/45",
   neutral: "bg-[var(--chart-2)]",
@@ -15,7 +15,7 @@ const TONE_DOT: Record<NonNullable<SearchActivity["tone"]>, string> = {
 };
 
 const TONE_TEXT: Record<NonNullable<SearchActivity["tone"]>, string> = {
-  strong: "text-primary",
+  strong: "text-brand-ink",
   worth: "text-[var(--warn)]",
   weak: "text-muted-foreground",
   neutral: "text-foreground",
@@ -99,19 +99,19 @@ export function SearchRadar({
             cy="50"
             r={r}
             fill="none"
-            className="stroke-primary/25"
+            className="stroke-brand/25"
             strokeWidth="0.35"
             strokeDasharray={r === 49.5 ? undefined : "0.8 1.4"}
           />
         ))}
-        <line x1="50" y1="1" x2="50" y2="28" className="stroke-primary/15" strokeWidth="0.3" />
-        <line x1="50" y1="72" x2="50" y2="99" className="stroke-primary/15" strokeWidth="0.3" />
-        <line x1="1" y1="50" x2="28" y2="50" className="stroke-primary/15" strokeWidth="0.3" />
-        <line x1="72" y1="50" x2="99" y2="50" className="stroke-primary/15" strokeWidth="0.3" />
+        <line x1="50" y1="1" x2="50" y2="28" className="stroke-brand/15" strokeWidth="0.3" />
+        <line x1="50" y1="72" x2="50" y2="99" className="stroke-brand/15" strokeWidth="0.3" />
+        <line x1="1" y1="50" x2="28" y2="50" className="stroke-brand/15" strokeWidth="0.3" />
+        <line x1="72" y1="50" x2="99" y2="50" className="stroke-brand/15" strokeWidth="0.3" />
       </svg>
       <div className="search-radar-sweep absolute inset-0 rounded-full" aria-hidden />
       <div
-        className="bg-background/85 border-primary/20 absolute rounded-full border backdrop-blur-sm"
+        className="bg-background/85 border-brand/20 absolute rounded-full border backdrop-blur-sm"
         style={{ inset: `${50 - CORE * 50}%` }}
         aria-hidden
       />
@@ -147,7 +147,7 @@ export function SearchRadar({
       })}
 
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <p className="font-display tabular text-[clamp(2rem,18cqi,3.25rem)] leading-none font-semibold tracking-tight text-[var(--card-foreground)]">
+        <p className="tabular text-[clamp(2rem,18cqi,3.25rem)] leading-none font-medium tracking-tight text-foreground">
           {value}
         </p>
         {caption ? (
@@ -164,7 +164,7 @@ export function SearchRadar({
           style={{ left: `clamp(7rem, ${active.x}%, calc(100% - 7rem))`, top: `calc(${active.y}% + 14px)` }}
           role="status"
         >
-          <p className="truncate text-[13px] font-medium text-[var(--card-foreground)]">{active.item.label}</p>
+          <p className="truncate text-[13px] font-medium text-foreground">{active.item.label}</p>
           {active.item.meta ? (
             <p className="text-muted-foreground truncate text-[12px]">{active.item.meta}</p>
           ) : null}

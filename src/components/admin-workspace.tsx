@@ -79,7 +79,7 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
       {tab === "mail" ? (
         <section className="space-y-3">
           <header className="space-y-1">
-            <h2 className="font-display text-[22px] font-semibold tracking-tight">
+            <h2 className="text-[22px] font-medium tracking-tight">
               Mailbox
             </h2>
             <p className="text-muted-foreground max-w-xl text-[15px] leading-relaxed">
@@ -93,7 +93,7 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
       {tab === "keys" ? (
         <section className="space-y-3">
           <header className="space-y-1">
-            <h2 className="font-display text-[22px] font-semibold tracking-tight">
+            <h2 className="text-[22px] font-medium tracking-tight">
               API keys
             </h2>
             <p className="text-muted-foreground max-w-xl text-[15px] leading-relaxed">
@@ -112,7 +112,7 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
       {tab === "status" ? (
         <section className="space-y-8">
           <header className="space-y-1">
-            <h2 className="font-display text-[22px] font-semibold tracking-tight">
+            <h2 className="text-[22px] font-medium tracking-tight">
               Status
             </h2>
             <p className="text-muted-foreground max-w-xl text-[15px] leading-relaxed">
@@ -253,7 +253,7 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
                           className="flex justify-between gap-4 px-4 py-2.5"
                         >
                           <span>{s.state}</span>
-                          <span className="tabular font-semibold">
+                          <span className="tabular font-medium">
                             {s.count}
                           </span>
                         </li>
@@ -273,7 +273,7 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
                           className="flex justify-between gap-4 px-4 py-2.5"
                         >
                           <span>{r.reason ?? "(empty)"}</span>
-                          <span className="tabular font-semibold">
+                          <span className="tabular font-medium">
                             {r.count}
                           </span>
                         </li>
@@ -301,7 +301,7 @@ export function AdminWorkspace(props: AdminWorkspaceProps) {
       {tab === "privacy" ? (
         <section className="space-y-3">
           <header className="space-y-1">
-            <h2 className="font-display text-[22px] font-semibold tracking-tight">
+            <h2 className="text-[22px] font-medium tracking-tight">
               Privacy
             </h2>
             <p className="text-muted-foreground max-w-xl text-[15px] leading-relaxed">
@@ -330,7 +330,7 @@ function StatusRow({
         <span
           className={
             ok
-              ? "bg-primary size-2 rounded-full"
+              ? "bg-brand size-2 rounded-full"
               : "bg-warn size-2 rounded-full"
           }
           aria-hidden

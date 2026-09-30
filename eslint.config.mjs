@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local-only build dirs, worktrees and the pnpm store are not app code.
+    ".next-*/**",
+    ".claude/**",
+    ".pnpm-store/**",
   ]),
 ]);
 

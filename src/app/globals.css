@@ -4,13 +4,16 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Optra design tokens. Light, near-monochrome surfaces with a verdigris
+ * accent. Reasoning and measured values: docs/design/reference-ui-audit.md.
+ */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-mono);
-  --font-display: var(--font-display);
-  --font-heading: var(--font-display);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -27,7 +30,10 @@
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-border-hover: var(--border-hover);
   --color-destructive: var(--destructive);
+  --color-destructive-wash: var(--destructive-wash);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -40,25 +46,63 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-subtle: var(--subtle);
+  --color-inverse: var(--inverse);
   --color-warn: var(--warn);
+  --color-warn-wash: var(--warn-wash);
   --color-success: var(--success);
-  --color-pine-soft: var(--accent-wash);
-  --color-accent-wash: var(--accent-wash);
-  --radius-sm: calc(var(--radius) * 0.7);
-  --radius-md: calc(var(--radius) * 0.85);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.3);
-  --radius-2xl: calc(var(--radius) * 1.7);
-  --radius-3xl: calc(var(--radius) * 2.1);
-  --radius-4xl: calc(var(--radius) * 2.5);
-  --ease-out-soft: cubic-bezier(0.2, 0, 0, 1);
-  --ease-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
-  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
-  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.1);
-  --duration-quick: 120ms;
-  --duration-standard: 220ms;
-  --duration-slow: 380ms;
-  /* Flat UI: no drop shadows. Transparent layers keep focus rings valid. */
+  --color-success-wash: var(--success-wash);
+  /* Verdigris: the brand accent for state, data and the action capsule. */
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-wash: var(--brand-wash);
+  --color-accent-wash: var(--brand-wash);
+  /* Text opacity ladder (one ink, no gray hues). */
+  --color-ink: var(--ink);
+  --color-ink-emphasis: var(--ink-emphasis);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-tertiary: var(--ink-tertiary);
+
+  /* Radius: pills for controls; 20 → 16 → 12 → 8 for nested containers. */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+  --radius-4xl: 32px;
+  --radius-card: 20px;
+  --radius-panel: 16px;
+  --radius-tile: 12px;
+  --radius-box: 8px;
+
+  /* Type scale (product-sized, audit §16). */
+  --text-h1: 3.25rem;
+  --text-h1--line-height: 1.1;
+  --text-h2: 2.5rem;
+  --text-h2--line-height: 1.15;
+  --text-h3: 2rem;
+  --text-h3--line-height: 1.2;
+  --text-h4: 1.5rem;
+  --text-h4--line-height: 1.25;
+  --text-h5: 1.25rem;
+  --text-h5--line-height: 1.35;
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.5;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5;
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.5;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.5;
+
+  /* Motion (audit §8.3). Enter slow, exit fast. */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-exit: cubic-bezier(0.32, 0, 0.67, 0);
+
+  /* Depth comes from surface tint. Shadow is for true overlays only. */
   --shadow-2xs: 0 0 #0000;
   --shadow-xs: 0 0 #0000;
   --shadow-sm: 0 0 #0000;
@@ -67,71 +111,181 @@
   --shadow-lg: 0 0 #0000;
   --shadow-xl: 0 0 #0000;
   --shadow-2xl: 0 0 #0000;
+  --shadow-overlay: 0 8px 30px rgb(0 0 0 / 0.15);
 }
 
-/* Vireo dark + verdigris — default (forced dark) */
-:root,
+:root {
+  color-scheme: light;
+
+  /* Surfaces: page → card → tile, plus the dark inverse. */
+  --page: #f2f5fa;
+  --surface: #ffffff;
+  --subtle: #f0f2f6;
+  --inverse: #1a1a1c;
+
+  /* Ink at 100 / 80 / 60 / 40. Secondary is 64% so 14px text keeps AA on
+     the page tint and on subtle tiles, not just on white. */
+  --ink: #1a1a1c;
+  --ink-emphasis: rgb(26 26 28 / 0.8);
+  --ink-secondary: rgb(26 26 28 / 0.64);
+  --ink-tertiary: rgb(26 26 28 / 0.4);
+
+  --brand: #39a185;
+  --brand-hover: #63b8a3;
+  /* Verdigris dark enough for text on white and on the page tint (AA). */
+  --brand-ink: #23785f;
+  --brand-wash: #e4f2ee;
+
+  --background: var(--page);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--inverse);
+  --primary-foreground: #ffffff;
+  --secondary: var(--subtle);
+  --secondary-foreground: var(--ink);
+  --muted: var(--subtle);
+  --muted-foreground: var(--ink-secondary);
+  --accent: var(--subtle);
+  --accent-foreground: var(--ink);
+  --destructive: #be3f31;
+  --destructive-wash: #fbecea;
+  --border: #dfe4eb;
+  --border-strong: #d7dde5;
+  --border-hover: #e3e7ed;
+  --input: #d7dde5;
+  --ring: var(--brand);
+  --warn: #8f5f0a;
+  --warn-wash: #fbf1de;
+  --success: #2e7d4f;
+  --success-wash: #e5f3ea;
+  --chart-1: var(--brand);
+  --chart-2: #8fcab9;
+  --chart-3: #c6ccd6;
+  --chart-4: #8a919c;
+  --chart-5: var(--ink);
+  --radius: 0.75rem;
+
+  --sidebar: var(--page);
+  --sidebar-foreground: var(--ink-secondary);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--surface);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: transparent;
+  --sidebar-ring: var(--brand);
+
+  --scrim: rgb(26 26 28 / 0.35);
+
+  --duration-instant: 100ms;
+  --duration-fast: 150ms;
+  --duration-default: 250ms;
+  --duration-moderate: 300ms;
+  --duration-slow: 600ms;
+}
+
+/* Light is the only designed mode. This block keeps `.dark` usable. */
 .dark {
   color-scheme: dark;
-
-  --background: #0a0c11;
-  --foreground: #d4dae4;
-  --card: #0f121a;
-  --card-foreground: #eaedf3;
-  --popover: #0f121a;
-  --popover-foreground: #eaedf3;
-  --primary: #39a185;
-  --primary-foreground: #0b1f1a;
-  --secondary: #1c212c;
-  --secondary-foreground: #eaedf3;
-  --muted: #1c212c;
-  /* Slightly brighter for AA contrast on card/background at 14–16px */
-  --muted-foreground: #a4aec0;
-  --accent: #16302a;
-  --accent-foreground: #63b8a3;
+  --page: #111214;
+  --surface: #1a1b1e;
+  --subtle: #232428;
+  --inverse: #f2f5fa;
+  --ink: #f2f3f5;
+  --ink-emphasis: rgb(242 243 245 / 0.8);
+  --ink-secondary: rgb(242 243 245 / 0.66);
+  --ink-tertiary: rgb(242 243 245 / 0.4);
+  --brand-ink: #63b8a3;
+  --brand-wash: #16302a;
+  --primary-foreground: #1a1a1c;
+  --border: #2c2e33;
+  --border-strong: #34363c;
+  --border-hover: #3a3d43;
+  --input: #34363c;
   --destructive: #e26a5b;
-  --border: transparent;
-  --input: #ffffff1a;
-  --ring: #63b8a3;
+  --destructive-wash: #3a1c18;
   --warn: #e0a53a;
+  --warn-wash: #33260d;
   --success: #46b36f;
-  --accent-wash: #16302a;
-  --chart-1: #39a185;
-  --chart-2: #5883dd;
-  --chart-3: #e0a53a;
-  --chart-4: #98a2b3;
-  --chart-5: #eaedf3;
-  --radius: 0.875rem; /* 14px — Vireo md */
-  --sidebar: #0f121a;
-  --sidebar-foreground: #98a2b3;
-  --sidebar-primary: #39a185;
-  --sidebar-primary-foreground: #0b1f1a;
-  --sidebar-accent: #16302a;
-  --sidebar-accent-foreground: #eaedf3;
-  --sidebar-border: transparent;
-  --sidebar-ring: #63b8a3;
+  --success-wash: #173222;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground font-sans antialiased;
-    /* 16px base — WCAG-friendly body; avoid sub-14px UI text in components */
-    font-size: 16px;
-    line-height: 1.55;
+    @apply border-border;
   }
   html {
     @apply font-sans;
   }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-size: var(--text-body);
+    line-height: 1.5;
+    font-weight: 400;
+    letter-spacing: normal;
+  }
+
+  /* Headings: size and opacity carry hierarchy, not weight. */
   h1,
   h2,
   h3,
-  .font-display {
-    font-family: var(--font-display), var(--font-sans), ui-sans-serif, system-ui,
-      sans-serif;
-    letter-spacing: -0.02em;
+  h4,
+  h5,
+  h6 {
+    color: var(--ink);
+    font-weight: 400;
+    letter-spacing: normal;
+  }
+  h1 {
+    font-size: 2rem;
+    line-height: 1.2;
+    font-weight: 500;
+  }
+  h2 {
+    font-size: 1.5rem;
+    line-height: 1.25;
+  }
+  h3 {
+    font-size: var(--text-h5);
+    line-height: 1.35;
+  }
+  h4 {
+    font-size: var(--text-h5);
+    line-height: 1.35;
+  }
+  h5,
+  h6 {
+    font-size: var(--text-body-lg);
+    line-height: 1.4;
+  }
+  @media (min-width: 640px) {
+    h1 {
+      font-size: var(--text-h2);
+      line-height: 1.15;
+    }
+    h2 {
+      font-size: var(--text-h3);
+      line-height: 1.2;
+    }
+    h3 {
+      font-size: var(--text-h4);
+      line-height: 1.25;
+    }
+  }
+  @media (min-width: 768px) {
+    h1 {
+      font-size: var(--text-h1);
+      line-height: 1.1;
+    }
+    h2 {
+      font-size: var(--text-h2);
+      line-height: 1.15;
+    }
+  }
+  p {
+    line-height: 1.5;
   }
 
   /* Avoid a single word alone on the last line of a sentence. */
@@ -147,29 +301,56 @@
   h4 {
     text-wrap: balance;
   }
-}
 
-@keyframes job-search-ring {
-  0%,
-  100% {
-    transform: scale(0.92);
-    opacity: 0.35;
-  }
-  50% {
-    transform: scale(1.06);
-    opacity: 0.85;
+  ::selection {
+    background: color-mix(in srgb, var(--brand) 22%, transparent);
   }
 }
 
-/* Optra motion system — Corporate / calm SaaS (Mobbin: Twenty, Vercel, Basedash) */
-@keyframes optra-fade-up {
+/*
+ * Focus: a visible 2px verdigris ring, 2px offset, on every interactive
+ * element. Unlayered on purpose so a stray `outline-none` utility cannot
+ * remove it. Menu items and options show focus as a highlighted row instead.
+ */
+:where(
+    a[href],
+    button,
+    input,
+    select,
+    textarea,
+    summary,
+    [tabindex]:not([tabindex="-1"]),
+    [role="button"],
+    [role="tab"],
+    [role="switch"],
+    [role="checkbox"],
+    [role="radio"],
+    [role="combobox"],
+    [contenteditable="true"]
+  ):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+:where(
+    [role="menuitem"],
+    [role="menuitemcheckbox"],
+    [role="menuitemradio"],
+    [role="option"]
+  ):focus-visible {
+  outline: none;
+}
+
+/* Entrance: things come into focus (opacity, 8px rise, 8px blur → sharp). */
+@keyframes optra-enter {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
+    filter: blur(8px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+    filter: blur(0);
   }
 }
 
@@ -185,11 +366,13 @@
 @keyframes optra-scale-in {
   from {
     opacity: 0;
-    transform: scale(0.96);
+    transform: scale(0.98);
+    filter: blur(4px);
   }
   to {
     opacity: 1;
     transform: scale(1);
+    filter: blur(0);
   }
 }
 
@@ -204,222 +387,107 @@
   }
 }
 
-@keyframes optra-pulse-soft {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.55;
-    transform: scale(0.92);
-  }
-}
-
-@keyframes optra-breathe {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.45;
-  }
-}
-
-@keyframes optra-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-3px);
-  }
-}
-
-@keyframes optra-badge-pop {
-  0% {
-    transform: scale(0.85);
+/* Step swap: 12px travel with a 3px blur crossfade. */
+@keyframes optra-step-in-forward {
+  from {
     opacity: 0;
+    transform: translateY(14px);
+    filter: blur(3px);
   }
-  70% {
-    transform: scale(1.06);
-  }
-  100% {
-    transform: scale(1);
+  to {
     opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes optra-step-in-back {
+  from {
+    opacity: 0;
+    transform: translateY(-14px);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
   }
 }
 
 @layer utilities {
+  /* Numbers line up; Inter Tight with tabular figures. */
   .tabular {
     font-variant-numeric: tabular-nums;
-    font-family: var(--font-mono), ui-monospace, monospace;
   }
 
-  .row-accent {
-    position: relative;
-  }
-  .row-accent::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 0.75rem;
-    bottom: 0.75rem;
-    width: 3px;
-    border-radius: 2px;
-    background: transparent;
-    transition: background var(--duration-standard) var(--ease-out-soft);
-  }
-  .row-accent:hover::before,
-  .row-accent:focus-within::before {
-    background: var(--primary);
-  }
-
-  .job-search-ring {
-    animation: job-search-ring 2.4s var(--ease-out-soft) infinite;
-  }
-
-  /* Page / region entrance */
+  /* Page header / empty-state first-load reveal. */
   .animate-enter {
-    animation: optra-fade-up var(--duration-slow) var(--ease-emphasized) both;
+    animation: optra-enter 360ms var(--ease-enter) both;
   }
 
   .animate-enter-fade {
-    animation: optra-fade-in var(--duration-standard) var(--ease-out-soft) both;
+    animation: optra-fade-in var(--duration-default) var(--ease-standard) both;
   }
 
   .animate-enter-scale {
-    animation: optra-scale-in var(--duration-slow) var(--ease-emphasized) both;
+    animation: optra-scale-in 360ms var(--ease-enter) both;
   }
 
   .animate-expand {
-    animation: optra-expand-in var(--duration-standard) var(--ease-emphasized)
-      both;
+    animation: optra-expand-in var(--duration-default) var(--ease-enter) both;
   }
 
-  /* Stagger: set --stagger-index on children (0-based) */
-  .stagger-item {
-    --stagger-index: 0;
-    animation: optra-fade-up var(--duration-slow) var(--ease-emphasized) both;
-    animation-delay: calc(var(--stagger-index) * 40ms);
+  .animate-step-forward {
+    animation: optra-step-in-forward 360ms var(--ease-enter) both;
   }
 
-  /* Interactive surfaces — lift without a drop shadow */
-  .interactive-lift {
-    transition:
-      transform var(--duration-standard) var(--ease-out-soft),
-      border-color var(--duration-standard) var(--ease-out-soft),
-      background-color var(--duration-quick) var(--ease-out-soft);
-  }
-  .interactive-lift:hover {
-    transform: translateY(-2px);
-  }
-  .interactive-lift:active {
-    transform: translateY(0);
-    transition-duration: var(--duration-quick);
+  .animate-step-back {
+    animation: optra-step-in-back 360ms var(--ease-enter) both;
   }
 
+  /* Rows: a 150ms surface change on hover, no translate. */
   .interactive-row {
-    transition:
-      background-color var(--duration-quick) var(--ease-out-soft),
-      transform var(--duration-quick) var(--ease-out-soft);
+    transition: background-color var(--duration-fast) var(--ease-standard);
   }
   .interactive-row:hover {
-    background-color: color-mix(in oklch, var(--accent-wash) 40%, transparent);
+    background-color: var(--subtle);
+  }
+
+  /* Clickable standalone cards: surface change only. */
+  .interactive-lift {
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      box-shadow var(--duration-fast) var(--ease-standard);
+  }
+  .interactive-lift:hover {
+    box-shadow: inset 0 0 0 1px var(--border-strong);
   }
 
   .pressable {
     transition:
-      transform var(--duration-quick) var(--ease-out-soft),
-      opacity var(--duration-quick) var(--ease-out-soft),
-      background-color var(--duration-quick) var(--ease-out-soft);
-  }
-  .pressable:active:not(:disabled):not([aria-disabled="true"]) {
-    transform: scale(0.97);
+      background-color var(--duration-fast) var(--ease-standard),
+      color var(--duration-fast) var(--ease-standard),
+      border-color var(--duration-fast) var(--ease-standard),
+      opacity var(--duration-fast) var(--ease-standard);
   }
 
-  .nav-icon-motion {
-    transition:
-      transform var(--duration-quick) var(--ease-out-soft),
-      color var(--duration-quick) var(--ease-out-soft);
-  }
-  .group:hover .nav-icon-motion {
-    transform: scale(1.06);
-  }
-
+  /* Live status dot (a running job), not ambient decoration. */
   .status-pulse {
-    animation: optra-pulse-soft 2s ease-in-out infinite;
+    animation: optra-status-pulse 2s ease-in-out infinite;
+  }
+  @keyframes optra-status-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
   }
 
-  .brand-breathe {
-    animation: optra-breathe 3.2s ease-in-out infinite;
-  }
-
-  .empty-float {
-    animation: optra-float 3.6s ease-in-out infinite;
-  }
-
-  .badge-pop {
-    animation: optra-badge-pop var(--duration-standard) var(--ease-spring) both;
-  }
-
-  .segment-option {
-    transition:
-      background-color var(--duration-standard) var(--ease-out-soft),
-      color var(--duration-quick) var(--ease-out-soft),
-      transform var(--duration-quick) var(--ease-out-soft);
-  }
-  .segment-option:active:not(:disabled) {
-    transform: scale(0.98);
-  }
-
-  /* —— Stage Spotlight search experience —— */
-  .stage-spotlight-wash {
-    background:
-      radial-gradient(
-        ellipse 60% 45% at 58% 40%,
-        color-mix(in oklch, var(--primary) 16%, transparent),
-        transparent 72%
-      ),
-      radial-gradient(
-        ellipse 35% 28% at 12% 78%,
-        color-mix(in oklch, var(--accent) 40%, transparent),
-        transparent 65%
-      );
-    animation: stage-wash-drift 12s var(--ease-out-soft) infinite alternate;
-  }
-
-  .stage-spotlight-grid {
-    background-image:
-      linear-gradient(
-        to right,
-        color-mix(in oklch, var(--foreground) 4%, transparent) 1px,
-        transparent 1px
-      ),
-      linear-gradient(
-        to bottom,
-        color-mix(in oklch, var(--foreground) 4%, transparent) 1px,
-        transparent 1px
-      );
-    background-size: 64px 64px;
-    mask-image: radial-gradient(ellipse 70% 60% at 55% 45%, black, transparent);
-    opacity: 0.5;
-  }
-
-  .stage-spotlight-enter {
-    animation: stage-spotlight-enter 520ms var(--ease-emphasized) both;
-  }
-
-  .stage-spotlight-exit {
-    animation: stage-spotlight-exit 300ms var(--ease-exit) both;
-  }
-
-  .stage-spotlight-idle .stage-spotlight-num {
-    animation: stage-num-breathe 3.6s var(--ease-out-soft) infinite;
-  }
-
+  /* —— Search progress —— */
   .stage-spotlight-check {
-    animation: stage-check-pop 0.55s var(--ease-emphasized) both;
+    animation: optra-scale-in var(--duration-moderate) var(--ease-enter) both;
   }
 
   .stage-progress-spin {
@@ -434,14 +502,13 @@
 
   /* —— Search radar: sweep + blips per source / scored role —— */
   .search-radar-disc {
-    background:
-      radial-gradient(
-        circle at center,
-        color-mix(in oklch, var(--primary) 10%, transparent) 0%,
-        color-mix(in oklch, var(--primary) 4%, transparent) 55%,
-        transparent 72%
-      );
-    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--primary) 14%, transparent);
+    background: radial-gradient(
+      circle at center,
+      color-mix(in srgb, var(--brand) 12%, var(--surface)) 0%,
+      color-mix(in srgb, var(--brand) 5%, var(--surface)) 55%,
+      var(--surface) 72%
+    );
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 22%, transparent);
   }
 
   .search-radar-sweep {
@@ -449,8 +516,8 @@
       from 0deg,
       transparent 0deg,
       transparent 290deg,
-      color-mix(in oklch, var(--primary) 8%, transparent) 320deg,
-      color-mix(in oklch, var(--primary) 34%, transparent) 359deg,
+      color-mix(in srgb, var(--brand) 10%, transparent) 320deg,
+      color-mix(in srgb, var(--brand) 38%, transparent) 359deg,
       transparent 360deg
     );
     mask-image: radial-gradient(circle, black 69%, transparent 71%);
@@ -458,19 +525,15 @@
   }
 
   .search-radar-blip {
-    animation: search-radar-blip-in 460ms var(--ease-emphasized) both;
+    animation: search-radar-blip-in 360ms var(--ease-enter) both;
   }
 
   .search-radar-ping {
-    animation: search-radar-ping 1.4s var(--ease-out-soft) 1 both;
-  }
-
-  .search-radar-dot-strong {
-    animation: search-radar-strong 2.8s ease-in-out 600ms infinite;
+    animation: search-radar-ping 1.4s var(--ease-standard) 1 both;
   }
 
   .search-activity-line {
-    animation: search-activity-line 420ms var(--ease-emphasized) both;
+    animation: optra-enter var(--duration-moderate) var(--ease-enter) both;
   }
 
   @keyframes search-radar-sweep {
@@ -480,15 +543,11 @@
   }
 
   @keyframes search-radar-blip-in {
-    0% {
+    from {
       opacity: 0;
-      scale: 0.2;
+      scale: 0.4;
     }
-    60% {
-      opacity: 1;
-      scale: 1.25;
-    }
-    100% {
+    to {
       opacity: 1;
       scale: 1;
     }
@@ -505,78 +564,25 @@
     }
   }
 
-  @keyframes search-radar-strong {
-    0%,
-    100% {
-      box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 55%, transparent);
-    }
-    50% {
-      box-shadow: 0 0 0 6px color-mix(in oklch, var(--primary) 0%, transparent);
-    }
-  }
-
-  @keyframes search-activity-line {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .search-radar-sweep,
-    .search-radar-ping,
-    .search-radar-dot-strong {
-      animation: none;
-    }
-    .search-radar-sweep {
-      opacity: 0.35;
-    }
-    .search-radar-blip,
-    .search-activity-line {
-      animation-duration: 1ms;
-    }
-    .material-scan,
-    .material-row-live {
-      animation: none;
-    }
-    .material-scan {
-      top: 36%;
-      opacity: 0.55;
-    }
-  }
-
-  /* —— Onboarding material reader: a page being read, not a radar —— */
+  /* —— Onboarding material reader: a page being read —— */
   .material-sheet {
-    background:
-      radial-gradient(
-        ellipse 80% 50% at 50% 0%,
-        color-mix(in oklch, var(--primary) 10%, transparent),
-        transparent 70%
-      ),
-      var(--card);
-    box-shadow:
-      inset 0 0 0 1px color-mix(in oklch, var(--primary) 16%, transparent),
-      0 28px 70px color-mix(in oklch, var(--primary) 8%, transparent);
+    background: var(--surface);
   }
 
   .material-scan {
     background: linear-gradient(
       180deg,
       transparent 0%,
-      color-mix(in oklch, var(--primary) 0%, transparent) 20%,
-      color-mix(in oklch, var(--primary) 28%, transparent) 48%,
-      color-mix(in oklch, var(--primary) 8%, transparent) 72%,
+      color-mix(in srgb, var(--brand) 0%, transparent) 20%,
+      color-mix(in srgb, var(--brand) 22%, transparent) 48%,
+      color-mix(in srgb, var(--brand) 6%, transparent) 72%,
       transparent 100%
     );
     animation: material-scan 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
   }
 
   .material-row-live {
-    background: color-mix(in oklch, var(--foreground) 14%, transparent);
+    background: var(--subtle);
     animation: material-row-live 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   }
 
@@ -592,418 +598,64 @@
   @keyframes material-row-live {
     0%,
     18% {
-      background: color-mix(in oklch, var(--foreground) 14%, transparent);
+      background: var(--subtle);
     }
     42%,
     58% {
-      background: color-mix(in oklch, var(--primary) 75%, var(--foreground));
+      background: color-mix(in srgb, var(--brand) 55%, var(--surface));
     }
     82%,
     100% {
-      background: color-mix(in oklch, var(--foreground) 14%, transparent);
-    }
-  }
-
-  @keyframes stage-wash-drift {
-    from {
-      transform: translate3d(0, 0, 0) scale(1);
-    }
-    to {
-      transform: translate3d(-1.5%, 1%, 0) scale(1.04);
-    }
-  }
-
-  @keyframes stage-spotlight-enter {
-    from {
-      opacity: 0;
-      transform: translateY(36px) scale(0.96);
-      filter: blur(6px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      filter: blur(0);
-    }
-  }
-
-  @keyframes stage-spotlight-exit {
-    from {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      filter: blur(0);
-    }
-    to {
-      opacity: 0;
-      transform: translateY(-22px) scale(0.98);
-      filter: blur(4px);
-    }
-  }
-
-  @keyframes stage-num-breathe {
-    0%,
-    100% {
-      opacity: 0.85;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 1;
-      transform: scale(1.02);
-    }
-  }
-
-  @keyframes stage-check-pop {
-    from {
-      opacity: 0;
-      transform: scale(0.7);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
+      background: var(--subtle);
     }
   }
 
   .search-progress-fill {
-    position: relative;
-    overflow: hidden;
-    background: linear-gradient(
-      90deg,
-      var(--primary),
-      color-mix(in oklch, var(--accent-foreground) 80%, var(--primary))
-    );
-    transition: width 0.5s var(--ease-out-soft);
+    background: var(--brand);
+    transition: width 500ms var(--ease-standard);
   }
 
-  /* Canva — soft shimmer traveling across the filled progress */
-  .search-progress-fill::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      105deg,
-      transparent 30%,
-      color-mix(in oklch, white 28%, transparent) 50%,
-      transparent 70%
-    );
-    background-size: 200% 100%;
-    animation: search-progress-shimmer 1.8s ease-in-out infinite;
-  }
-
-  @keyframes search-progress-shimmer {
-    0% {
-      background-position: 120% 0;
-    }
-    100% {
-      background-position: -80% 0;
-    }
-  }
-
-  .signal-core-wash {
-    background:
-      radial-gradient(
-        ellipse 70% 50% at 50% 38%,
-        color-mix(in oklch, var(--primary) 18%, transparent),
-        transparent 70%
-      ),
-      radial-gradient(
-        ellipse 50% 40% at 80% 80%,
-        color-mix(in oklch, var(--accent) 40%, transparent),
-        transparent 65%
-      );
-  }
-
-  .signal-core {
-    width: min(280px, 58vw);
-    height: min(280px, 58vw);
-  }
-
-  .signal-core-ring {
-    position: absolute;
-    inset: 12%;
-    border-radius: 9999px;
-    border: 1px solid color-mix(in oklch, var(--primary) 28%, transparent);
-    animation: signal-core-pulse 3.2s var(--ease-out-soft) infinite;
-  }
-  .signal-core-ring-a {
-    inset: 8%;
-    opacity: 0.9;
-  }
-  .signal-core-ring-b {
-    inset: 0%;
-    animation-delay: 0.45s;
-    border-color: color-mix(in oklch, var(--primary) 18%, transparent);
-  }
-  .signal-core-ring-c {
-    inset: -10%;
-    animation-delay: 0.9s;
-    border-color: color-mix(in oklch, var(--primary) 10%, transparent);
-  }
-
-  @keyframes signal-core-pulse {
-    0%,
-    100% {
-      transform: scale(0.96);
-      opacity: 0.35;
-    }
-    50% {
-      transform: scale(1.04);
-      opacity: 0.85;
-    }
-  }
-
-  .signal-orbit {
-    transform-style: preserve-3d;
-    perspective: 900px;
-  }
-
-  .signal-chip {
-    --chip-x: 0%;
-    --chip-y: 0%;
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    translate: -50% -50%;
-    transform: translate3d(var(--chip-x), var(--chip-y), 0)
-      rotateX(8deg);
-    padding: 0.35rem 0.7rem;
-    border-radius: 9999px;
-    border: 1px solid color-mix(in oklch, var(--border) 100%, transparent);
-    background: color-mix(in oklch, var(--card) 88%, transparent);
-    color: var(--muted-foreground);
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 0.01em;
-    white-space: nowrap;
-    backdrop-filter: blur(6px);
-    transition:
-      opacity var(--duration-slow) var(--ease-out-soft),
-      transform var(--duration-slow) var(--ease-emphasized),
-      border-color var(--duration-standard) var(--ease-out-soft),
-      background-color var(--duration-standard) var(--ease-out-soft),
-      color var(--duration-standard) var(--ease-out-soft);
-    animation: signal-chip-drift 7s ease-in-out infinite;
-    animation-delay: calc(var(--chip-i, 0) * -0.55s);
-  }
-
-  .signal-chip-1 {
-    --chip-x: -38%;
-    --chip-y: -28%;
-  }
-  .signal-chip-2 {
-    --chip-x: 8%;
-    --chip-y: -40%;
-  }
-  .signal-chip-3 {
-    --chip-x: 40%;
-    --chip-y: -22%;
-  }
-  .signal-chip-4 {
-    --chip-x: 46%;
-    --chip-y: 8%;
-  }
-  .signal-chip-5 {
-    --chip-x: 34%;
-    --chip-y: 36%;
-  }
-  .signal-chip-6 {
-    --chip-x: -4%;
-    --chip-y: 42%;
-  }
-  .signal-chip-7 {
-    --chip-x: -40%;
-    --chip-y: 30%;
-  }
-  .signal-chip-8 {
-    --chip-x: -48%;
-    --chip-y: 2%;
-  }
-  .signal-chip-9 {
-    --chip-x: -22%;
-    --chip-y: -42%;
-  }
-  .signal-chip-10 {
-    --chip-x: 22%;
-    --chip-y: -8%;
-  }
-  .signal-chip-11 {
-    --chip-x: 18%;
-    --chip-y: 28%;
-  }
-  .signal-chip-12 {
-    --chip-x: -28%;
-    --chip-y: 12%;
-  }
-
-  .signal-chip-ambient {
-    opacity: 0.55;
-  }
-
-  .signal-chip-strong {
-    opacity: 1;
-    color: var(--accent-foreground);
-    border-color: color-mix(in oklch, var(--primary) 45%, transparent);
-    background: color-mix(in oklch, var(--accent) 80%, var(--card));
-    animation: signal-chip-pulse 2.4s ease-in-out infinite;
-  }
-
-  .signal-chip-fade {
-    opacity: 0.22;
-    transform: translate3d(var(--chip-x), var(--chip-y), 0) scale(0.9);
-    filter: grayscale(0.4);
-    animation: none;
-  }
-
-  .signal-chip-emerge {
-    animation: signal-chip-emerge 0.7s var(--ease-emphasized) both;
-  }
-
-  @keyframes signal-chip-drift {
-    0%,
-    100% {
-      transform: translate3d(var(--chip-x), var(--chip-y), 0) rotateX(8deg);
-    }
-    50% {
-      transform: translate3d(
-          calc(var(--chip-x) * 1.04),
-          calc(var(--chip-y) * 0.94),
-          12px
-        )
-        rotateX(4deg);
-    }
-  }
-
-  @keyframes signal-chip-pulse {
-    0%,
-    100% {
-      transform: translate3d(var(--chip-x), var(--chip-y), 0) scale(1);
-    }
-    50% {
-      transform: translate3d(var(--chip-x), var(--chip-y), 0) scale(1.05);
-    }
-  }
-
-  @keyframes signal-chip-emerge {
-    from {
-      opacity: 0.4;
-      transform: translate3d(var(--chip-x), var(--chip-y), 0) scale(0.85);
-    }
-    to {
-      opacity: 1;
-      transform: translate3d(
-          calc(var(--chip-x) * 0.55),
-          calc(var(--chip-y) * 0.55 + 18%),
-          0
-        )
-        scale(1.05);
-    }
-  }
-
-  .signal-core-resolve .signal-core-ring {
-    animation: signal-core-resolve 0.8s var(--ease-emphasized) both;
-  }
-
-  @keyframes signal-core-resolve {
-    to {
-      transform: scale(1.12);
-      opacity: 0.2;
-    }
-  }
-
-  .search-experience-resolve {
-    animation: search-resolve-glow 0.9s var(--ease-out-soft) both;
-  }
-
-  @keyframes search-resolve-glow {
-    from {
-      box-shadow: 0 0 0 1px transparent;
-    }
-    40% {
-      box-shadow: 0 0 0 1px color-mix(in oklch, var(--primary) 35%, transparent);
-    }
-    to {
-      box-shadow: 0 0 0 1px color-mix(in oklch, var(--primary) 22%, transparent);
-    }
-  }
-
-  @media (max-width: 640px) {
-    .signal-chip-9,
-    .signal-chip-10,
-    .signal-chip-11,
-    .signal-chip-12,
-    .signal-chip-ambient {
-      display: none;
-    }
-    .signal-chip-strong,
-    .signal-chip-fade {
-      display: inline-flex;
-    }
-    .signal-core {
-      width: min(200px, 62vw);
-      height: min(200px, 62vw);
-    }
-  }
-
+  /* Reduced motion: no translate, no blur, no loops. */
   @media (prefers-reduced-motion: reduce) {
-    .row-accent::before {
-      transition: none;
-    }
-
-    .job-search-ring,
     .animate-enter,
     .animate-enter-fade,
     .animate-enter-scale,
     .animate-expand,
-    .stagger-item,
+    .animate-step-forward,
+    .animate-step-back,
     .status-pulse,
-    .brand-breathe,
-    .empty-float,
-    .badge-pop,
-    .signal-core-ring,
-    .signal-chip,
-    .signal-chip-strong,
-    .signal-chip-emerge,
-    .search-experience-resolve,
-    .stage-spotlight-enter,
-    .stage-spotlight-exit,
-    .stage-spotlight-wash,
-    .stage-spotlight-idle .stage-spotlight-num,
     .stage-spotlight-check,
     .stage-progress-spin,
-    .search-progress-fill::after {
+    .search-radar-sweep,
+    .search-radar-ping,
+    .search-radar-blip,
+    .search-activity-line,
+    .material-scan,
+    .material-row-live {
       animation: none !important;
     }
-
-    .job-search-ring {
-      opacity: 0.45;
-      transform: none;
+    .search-radar-sweep {
+      opacity: 0.35;
     }
-
-    .signal-chip {
-      opacity: 0.45;
-      transform: translate3d(var(--chip-x), var(--chip-y), 0) !important;
+    .material-scan {
+      top: 36%;
+      opacity: 0.55;
     }
-
-    .signal-chip-strong {
-      opacity: 1;
-    }
-
-    .signal-chip-fade {
-      opacity: 0.2;
-    }
-
-    .interactive-lift,
     .interactive-row,
+    .interactive-lift,
     .pressable,
-    .nav-icon-motion,
-    .segment-option {
+    .search-progress-fill {
       transition: none !important;
     }
+  }
+}
 
-    .interactive-lift:hover,
-    .pressable:active:not(:disabled),
-    .segment-option:active:not(:disabled),
-    .group:hover .nav-icon-motion {
-      transform: none;
-    }
+/* Motion-driven components read this to skip translate/blur entirely. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
   }
 }
 
@@ -1043,8 +695,7 @@
 
 .app-doc-name {
   margin: 0;
-  font-family: var(--font-display), var(--font-sans), ui-sans-serif, system-ui,
-    sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   font-size: var(--doc-name, 22pt);
   font-weight: 600;
   letter-spacing: -0.035em;
@@ -1305,8 +956,7 @@
 
 .app-doc-signoff-name {
   margin-top: 14pt;
-  font-family: var(--font-display), var(--font-sans), ui-sans-serif, system-ui,
-    sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   font-weight: 600;
   letter-spacing: -0.02em;
   font-size: 11.5pt;
@@ -1319,12 +969,14 @@
 }
 
 [data-sonner-toast][data-styled="true"] {
-  box-shadow: none !important;
+  box-shadow: var(--shadow-overlay) !important;
 }
 
 [data-sonner-toast]:focus-visible,
 [data-sonner-toast][data-styled="true"] [data-close-button]:focus-visible {
-  box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 70%, transparent) !important;
+  outline: 2px solid var(--ring) !important;
+  outline-offset: 2px;
+  box-shadow: var(--shadow-overlay) !important;
 }
 
 .app-email-chrome {
@@ -1389,17 +1041,7 @@
 }
 
 .app-doc-preview-stage {
-  background:
-    radial-gradient(
-      900px 320px at 50% -10%,
-      rgb(255 255 255 / 0.07),
-      transparent 70%
-    ),
-    linear-gradient(
-      165deg,
-      color-mix(in oklch, var(--muted) 55%, #1e293b 8%),
-      color-mix(in oklch, var(--muted) 88%, transparent)
-    );
+  background: var(--subtle);
 }
 
 @media print {

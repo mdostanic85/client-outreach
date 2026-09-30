@@ -155,7 +155,7 @@ export function JobListItem({
             </div>
             <button
               type="button"
-              className="w-full min-w-0 text-left transition-colors duration-150 ease-[var(--ease-out-soft)] hover:bg-transparent"
+              className="w-full min-w-0 text-left transition-colors duration-150 ease-standard hover:bg-transparent"
               onClick={onToggle}
             >
               <p className="text-foreground text-[17px] font-medium leading-snug">
@@ -244,7 +244,7 @@ export function JobListItem({
               <>
                 <Link
                   href={packageCta.href}
-                  className="bg-primary text-primary-foreground hover:bg-primary/80 inline-flex h-[34px] items-center rounded-lg px-3 text-[14px] font-medium"
+                  className="bg-primary text-primary-foreground hover:bg-primary/85 inline-flex h-[34px] items-center rounded-lg px-3 text-[14px] font-medium"
                 >
                   {packageCta.label}
                 </Link>

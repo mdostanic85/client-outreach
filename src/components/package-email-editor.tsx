@@ -24,7 +24,7 @@ export function PackageEmailEditor({
   return (
     <div className="space-y-5">
       <div className="space-y-1">
-        <p className="font-display text-[16px] font-semibold tracking-tight text-[var(--card-foreground)]">
+        <p className="text-[16px] font-medium tracking-tight text-foreground">
           Application email
         </p>
         <p className="text-muted-foreground text-[14px] leading-relaxed">
@@ -93,7 +93,7 @@ function EmailField({
         {label}
       </span>
       {readOnly ? (
-        <p className="text-[14px] text-[var(--card-foreground)]">{value}</p>
+        <p className="text-[14px] text-foreground">{value}</p>
       ) : (
         <Input
           className="h-8 border-0 bg-transparent px-0 text-[14px] shadow-none focus-visible:ring-0"

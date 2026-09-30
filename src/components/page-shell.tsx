@@ -58,7 +58,7 @@ export function PageHeader({
             {meta}
           </div>
         ) : null}
-        <h1 className="font-display text-[28px] leading-[33px] font-semibold tracking-[-0.7px] break-words sm:text-[34px] sm:leading-[39px] sm:tracking-[-0.85px] text-balance text-[var(--card-foreground)]">
+        <h1 className="text-[28px] leading-[33px] font-medium tracking-[-0.7px] break-words sm:text-[34px] sm:leading-[39px] sm:tracking-[-0.85px] text-balance text-foreground">
           {title}
         </h1>
         {description ? (
@@ -97,7 +97,7 @@ export function SectionTitle({
       )}
     >
       <div className="min-w-0 space-y-2">
-        <h2 className="font-display text-[20px] leading-snug font-semibold tracking-tight text-[var(--card-foreground)]">
+        <h2 className="text-[20px] leading-snug font-medium tracking-tight text-foreground">
           {title}
         </h2>
         {description ? (

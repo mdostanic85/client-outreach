@@ -201,7 +201,7 @@ export function OnboardingFlow({
           aria-valuenow={Math.round(progress * 100)}
         >
           <div
-            className="bg-primary h-full rounded-full transition-[width] duration-500 ease-out"
+            className="bg-brand h-full rounded-full transition-[width] duration-500 ease-out"
             style={{ width: `${progress * 100}%` }}
           />
         </div>
@@ -441,11 +441,11 @@ function Screen({
   return (
     <div className="flex flex-col items-center text-center">
       {eyebrow ? (
-        <p className="text-primary mb-3 text-[13px] font-medium tracking-[0.14em] uppercase">
+        <p className="text-brand-ink mb-3 text-[13px] font-medium tracking-[0.14em] uppercase">
           {eyebrow}
         </p>
       ) : null}
-      <h1 className="font-display max-w-3xl text-[clamp(1.85rem,4vw,2.75rem)] leading-[1.08] font-semibold tracking-tight text-[var(--card-foreground)]">
+      <h1 className="max-w-3xl text-[clamp(1.85rem,4vw,2.75rem)] leading-[1.08] font-medium tracking-tight text-foreground">
         {title}
       </h1>
       {hint ? (
@@ -529,7 +529,7 @@ function Choices<T extends string>({
             className={cn(
               "flex min-h-20 items-center justify-between gap-4 rounded-3xl border-2 px-6 py-4 text-left text-[1.2rem] font-medium transition-colors disabled:opacity-60 sm:min-h-24 sm:text-[1.45rem]",
               selected
-                ? "border-primary bg-[color-mix(in_oklch,var(--primary)_42%,#10141c)] font-semibold text-[var(--card-foreground)]"
+                ? "border-brand bg-[color-mix(in_oklch,var(--brand)_42%,#10141c)] font-medium text-foreground"
                 : "border-white/25 bg-secondary text-foreground hover:border-white/45",
             )}
           >
@@ -540,7 +540,7 @@ function Choices<T extends string>({
               ) : null}
             </span>
             {selected ? (
-              <span className="bg-primary text-primary-foreground grid size-7 shrink-0 place-items-center rounded-full">
+              <span className="bg-brand text-white grid size-7 shrink-0 place-items-center rounded-full">
                 <Check className="size-4" strokeWidth={2.75} aria-hidden />
               </span>
             ) : (
@@ -573,7 +573,7 @@ function Chip({
       className={cn(
         "inline-flex h-12 items-center gap-2 rounded-full border-2 px-5 text-[16px] font-medium transition-colors disabled:opacity-40",
         selected
-          ? "border-primary bg-[color-mix(in_oklch,var(--primary)_42%,#10141c)] font-semibold text-[var(--card-foreground)]"
+          ? "border-brand bg-[color-mix(in_oklch,var(--brand)_42%,#10141c)] font-medium text-foreground"
           : "border-white/25 bg-secondary text-foreground hover:border-white/45",
       )}
     >
@@ -636,7 +636,7 @@ function RoleStep({
                   onClick={() => onPick(occupation)}
                   className="hover:bg-card/70 flex w-full items-center justify-between gap-3 px-5 py-3 text-left disabled:opacity-60"
                 >
-                  <span className="text-[16px] font-medium text-[var(--card-foreground)]">{occupation.en}</span>
+                  <span className="text-[16px] font-medium text-foreground">{occupation.en}</span>
                   <span className="text-muted-foreground shrink-0 text-[13px]">
                     {FAMILY_PROFILES[occupation.family].label}
                   </span>
@@ -664,7 +664,7 @@ function RoleStep({
 function Ask({ title, hint, children }: { title: string; hint: string; children: ReactNode }) {
   return (
     <div>
-      <p className="text-[18px] font-medium text-[var(--card-foreground)]">{title}</p>
+      <p className="text-[18px] font-medium text-foreground">{title}</p>
       <p className="text-muted-foreground mt-1 mb-4 text-[14px]">{hint}</p>
       {children}
     </div>
@@ -1016,7 +1016,7 @@ function TagInput({
               key={v}
               type="button"
               onClick={() => onChange(values.filter((x) => x !== v))}
-              className="border-primary bg-primary/12 inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-[14px] font-medium"
+              className="border-brand bg-brand/12 inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-[14px] font-medium"
               aria-label={`Remove ${v}`}
             >
               {v}
@@ -1379,8 +1379,8 @@ function DropZone({
       className={cn(
         "flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-center transition-colors",
         compact ? "px-6 py-10" : "min-h-64 px-6 py-16 sm:min-h-72 sm:py-20",
-        dragging ? "border-primary bg-primary/10" : "border-white/25 bg-card/30 hover:border-primary/50",
-        doneLabel && "border-primary/60 border-solid",
+        dragging ? "border-brand bg-brand/10" : "border-white/25 bg-card/30 hover:border-brand/50",
+        doneLabel && "border-brand/60 border-solid",
       )}
     >
       <input
@@ -1391,13 +1391,13 @@ function DropZone({
         onChange={(event) => onFile(event.target.files?.[0])}
       />
       {pending ? (
-        <Loader2 className="text-primary size-10 animate-spin" aria-hidden />
+        <Loader2 className="text-brand-ink size-10 animate-spin" aria-hidden />
       ) : doneLabel ? (
-        <FileText className="text-primary size-10" aria-hidden />
+        <FileText className="text-brand-ink size-10" aria-hidden />
       ) : (
         <UploadCloud className="text-muted-foreground size-10" aria-hidden />
       )}
-      <span className="text-[22px] font-medium text-[var(--card-foreground)]">
+      <span className="text-[22px] font-medium text-foreground">
         {pending ? "Reading your file…" : doneLabel ?? title}
       </span>
       <span className="text-muted-foreground text-[14px]">{doneLabel ? "Click to replace" : hint}</span>
@@ -1587,14 +1587,14 @@ function SummaryStep({
                   {row.chips.map((chip) => (
                     <li
                       key={chip}
-                      className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-[15px] leading-none text-[var(--card-foreground)] ring-1 ring-white/10"
+                      className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-[15px] leading-none text-foreground ring-1 ring-white/10"
                     >
                       {chip}
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-[18px] leading-snug text-[var(--card-foreground)]">{row.value}</p>
+                <p className="text-[18px] leading-snug text-foreground">{row.value}</p>
               )}
             </dd>
           </div>
@@ -1640,7 +1640,7 @@ function ReviewStep({
 
   return (
     <div className="flex flex-col">
-      <p className="text-primary mb-3 text-center text-[13px] font-medium tracking-[0.14em] uppercase">
+      <p className="text-brand-ink mb-3 text-center text-[13px] font-medium tracking-[0.14em] uppercase">
         Your CV score
       </p>
       {review ? (

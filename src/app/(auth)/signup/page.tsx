@@ -12,7 +12,7 @@ export default function SignUpPage() {
   return (
     <AuthShell panel={<ProductPanel />}>
       <div className="max-w-sm">
-        <h1 className="font-display text-[1.75rem] font-semibold tracking-tight text-[var(--card-foreground)]">
+        <h1 className="text-[1.75rem] font-medium tracking-tight text-foreground">
           Create your account
         </h1>
         <p className="text-muted-foreground mt-2 mb-5 text-[14px]">

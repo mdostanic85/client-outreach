@@ -42,36 +42,36 @@ function NavLink({
       onClick={onNavigate}
       prefetch
       className={cn(
-        "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] transition-[background-color,color,transform] duration-150 ease-[var(--ease-out-soft)] active:scale-[0.98]",
+        "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] transition-[background-color,color,transform] duration-150 ease-standard active:scale-[0.98]",
         active
           ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-          : "text-sidebar-foreground hover:bg-white/5 hover:text-[var(--card-foreground)]",
+          : "text-sidebar-foreground hover:bg-white/5 hover:text-foreground",
       )}
     >
       <span
         aria-hidden
         className={cn(
-          "absolute top-1/2 left-0 h-5 w-[3px] -translate-y-1/2 rounded-r-full transition-[background-color,height,opacity] duration-200 ease-[var(--ease-emphasized)]",
+          "absolute top-1/2 left-0 h-5 w-[3px] -translate-y-1/2 rounded-r-full transition-[background-color,height,opacity] duration-200 ease-enter",
           active
-            ? "bg-primary h-6"
-            : "bg-transparent group-hover:bg-primary/40",
+            ? "bg-brand h-6"
+            : "bg-transparent group-hover:bg-brand/40",
         )}
       />
       <Icon
         className={cn(
           "nav-icon-motion size-[18px] shrink-0",
           active
-            ? "text-primary"
-            : "text-muted-foreground group-hover:text-[var(--card-foreground)]",
+            ? "text-brand-ink"
+            : "text-muted-foreground group-hover:text-foreground",
         )}
       />
       <span className="flex-1 truncate">{item.label}</span>
       {item.count != null && item.count > 0 ? (
         <span
           className={cn(
-            "badge-pop tabular rounded-md px-1.5 py-0.5 text-[12px] font-semibold",
+            "badge-pop tabular rounded-md px-1.5 py-0.5 text-[12px] font-medium",
             active
-              ? "bg-primary/20 text-primary"
+              ? "bg-brand/20 text-brand-ink"
               : "bg-white/8 text-muted-foreground",
           )}
         >
@@ -167,12 +167,12 @@ export function AppSidebarNav({
       <div className="flex h-14 items-center gap-3 px-4">
         <span
           aria-hidden
-          className="brand-breathe bg-primary size-2.5 rounded-[5px]"
+          className="brand-breathe bg-brand size-2.5 rounded-[5px]"
         />
         <Link
           href="/"
           onClick={() => handleNavigate("/")}
-          className="font-display text-[17px] font-semibold tracking-tight text-[var(--card-foreground)]"
+          className="text-[17px] font-medium tracking-tight text-foreground"
         >
           Optra
         </Link>

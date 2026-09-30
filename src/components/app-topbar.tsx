@@ -79,7 +79,7 @@ function PageContext() {
   const deeper = pathname !== context.item.href;
   return (
     <nav aria-label="Current page" className="hidden min-w-0 items-center gap-2 text-[14px] md:flex">
-      <span className="text-muted-foreground/80 text-[12px] font-semibold tracking-[0.08em] uppercase">
+      <span className="text-muted-foreground/80 text-[12px] font-medium tracking-[0.08em] uppercase">
         {context.group}
       </span>
       <ChevronRight aria-hidden className="text-muted-foreground/50 size-3.5 shrink-0" />
@@ -92,8 +92,8 @@ function PageContext() {
           {context.item.label}
         </Link>
       ) : (
-        <span aria-current="page" className="flex items-center gap-1.5 truncate font-medium text-[var(--card-foreground)]">
-          <Icon className="text-primary size-4 shrink-0" />
+        <span aria-current="page" className="flex items-center gap-1.5 truncate font-medium text-foreground">
+          <Icon className="text-brand-ink size-4 shrink-0" />
           {context.item.label}
         </span>
       )}
@@ -107,7 +107,7 @@ function MobilePageTitle() {
   const context = navContextFor(pathname);
   if (!context) return null;
   return (
-    <span className="min-w-0 truncate text-[15px] font-medium text-[var(--card-foreground)] max-[374px]:hidden md:hidden">
+    <span className="min-w-0 truncate text-[15px] font-medium text-foreground max-[374px]:hidden md:hidden">
       {context.item.label}
     </span>
   );
@@ -131,20 +131,20 @@ function JobSearchControl({ status }: { status: JobSearchStatus }) {
         <button
           type="button"
           onClick={search.showOverlay}
-          className="group bg-primary/10 hover:bg-primary/15 ring-primary/25 flex h-9 min-w-0 items-center gap-2.5 rounded-full pr-3.5 pl-3 text-left ring-1 transition-colors"
+          className="group bg-brand/10 hover:bg-brand/15 ring-brand/25 flex h-9 min-w-0 items-center gap-2.5 rounded-full pr-3.5 pl-3 text-left ring-1 transition-colors"
           aria-label={`Job search ${percent}% — open progress`}
         >
           <span aria-hidden className="relative flex size-2 shrink-0">
-            <span className="bg-primary absolute inline-flex size-full animate-ping rounded-full opacity-60" />
-            <span className="bg-primary relative inline-flex size-2 rounded-full" />
+            <span className="bg-brand absolute inline-flex size-full animate-ping rounded-full opacity-60" />
+            <span className="bg-brand relative inline-flex size-2 rounded-full" />
           </span>
           <span className="min-w-0 truncate text-[13px]">
-            <span className="font-medium text-[var(--card-foreground)]">{stage?.label ?? "Searching"}</span>
+            <span className="font-medium text-foreground">{stage?.label ?? "Searching"}</span>
             {search.live?.detail ? (
               <span className="text-muted-foreground hidden lg:inline"> · {search.live.detail}</span>
             ) : null}
           </span>
-          <span className="tabular text-primary shrink-0 text-[13px] font-semibold">{percent}%</span>
+          <span className="tabular text-brand-ink shrink-0 text-[13px] font-medium">{percent}%</span>
         </button>
         <Tooltip>
           <TooltipTrigger
@@ -200,13 +200,13 @@ function JobSearchControl({ status }: { status: JobSearchStatus }) {
         >
           {outcome ? (
             <span className="truncate">
-              <span className="font-medium text-[var(--card-foreground)]">{outcome.strong} strong</span>
+              <span className="font-medium text-foreground">{outcome.strong} strong</span>
               {" · "}
               {outcome.worth} worth a look
             </span>
           ) : status.toReview > 0 ? (
             <span className="truncate">
-              <span className="tabular font-medium text-[var(--card-foreground)]">{status.toReview}</span> to review
+              <span className="tabular font-medium text-foreground">{status.toReview}</span> to review
             </span>
           ) : (
             <span className="truncate">Shortlist reviewed</span>
@@ -253,7 +253,7 @@ function BudgetPill({ budget }: { budget: BudgetMeter }) {
           )}
         />
         <span className="hidden font-medium tracking-wide uppercase sm:inline">AI</span>
-        <span className="tabular text-[var(--card-foreground)]">
+        <span className="tabular text-foreground">
           <span className="font-medium">${budget.spentUsd.toFixed(0)}</span>
           <span className="text-muted-foreground max-sm:hidden"> / ${budget.budgetUsd}</span>
         </span>
@@ -274,7 +274,7 @@ function AccountMenu({ email }: { email: string }) {
             <button
               type="button"
               aria-label="Account"
-              className="bg-primary/18 text-primary focus-visible:ring-ring/50 grid size-8 place-items-center rounded-full text-[12px] font-semibold tracking-wide ring-1 ring-[color-mix(in_oklab,var(--primary)_35%,transparent)] outline-none focus-visible:ring-3"
+              className="bg-brand/18 text-brand-ink focus-visible:ring-ring/50 grid size-8 place-items-center rounded-full text-[12px] font-medium tracking-wide ring-1 ring-[color-mix(in_oklab,var(--brand)_35%,transparent)] outline-none focus-visible:ring-3"
             />
           }
         >
@@ -365,7 +365,7 @@ export function AppTopbar({
       {running ? (
         <div
           aria-hidden
-          className="bg-primary/15 absolute inset-x-0 -bottom-px h-[2px] overflow-hidden"
+          className="bg-brand/15 absolute inset-x-0 -bottom-px h-[2px] overflow-hidden"
         >
           <div
             className="search-progress-fill h-full"

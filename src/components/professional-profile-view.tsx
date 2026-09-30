@@ -319,7 +319,7 @@ export function ProfessionalProfileView({
             </div>
           </div>
         ) : (
-          <div className="text-[15px] leading-relaxed text-[var(--card-foreground)]">
+          <div className="text-[15px] leading-relaxed text-foreground">
             {display}
           </div>
         )}
@@ -454,7 +454,7 @@ export function ProfessionalProfileView({
   return (
     <Surface>
       <PanelHeader className="flex-col items-start gap-1">
-        <p className="font-display text-[16px] font-semibold tracking-tight">
+        <p className="text-[16px] font-medium tracking-tight">
           Approved knowledge
         </p>
         <p className="text-muted-foreground text-[14px] leading-relaxed">
