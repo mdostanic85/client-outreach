@@ -1,6 +1,7 @@
 import type { JobSearchParams } from "@/modules/search-profile/schemas";
 import type { RawCollectedJob } from "@/modules/collectors/types";
 import { jobIdentityKeys } from "@/modules/collectors/identity";
+import { normalizeTitle } from "@/modules/occupations/search";
 
 export type FilterDropReason =
   | "excluded_title"
@@ -23,6 +24,10 @@ const SENIORITY_STOP = new Set([
   "junior",
   "mid",
   "level",
+  "glavni",
+  "samostalni",
+  "mladji",
+  "visi",
 ]);
 
 export type FilteredJob = {
@@ -73,37 +78,41 @@ function titleExcluded(title: string, excluded: string[]): boolean {
  */
 const MIN_MAX_AGE_HOURS = 30 * 24;
 
+/** Two-letter tokens that name a discipline rather than being noise. */
+const ACRONYMS = new Set(["ux", "ui", "qa", "hr", "it", "pr", "bi", "ai", "ml", "rn"]);
+
 function titleTokens(title: string): string[] {
-  return title
-    .toLowerCase()
-    .split(/[^a-z0-9+]+/)
-    .filter((t) => t.length > 2 && !SENIORITY_STOP.has(t));
+  return normalizeTitle(title)
+    .split(/[^\p{L}\p{N}+#]+/u)
+    .filter((t) => (t.length > 2 || ACRONYMS.has(t)) && !SENIORITY_STOP.has(t));
+}
+
+/** Word-start match, so "designer" hits "designers" but "ui" never hits "build". */
+function hasToken(titleWords: string[], token: string): boolean {
+  return titleWords.some((word) =>
+    token.length <= 2 ? word === token : word.startsWith(token),
+  );
 }
 
 /**
- * Keep roles that share meaningful tokens with target titles
- * (e.g. "product"+"designer"), or clear UX/UI/product-design titles
- * when the search is design-oriented.
+ * Keep roles that share meaningful tokens with a target title or one of the
+ * occupation's synonyms ("Vozač C kategorije" for "Truck Driver"). Accents
+ * are ignored, so "vozac" matches "vozač".
  */
-function titleRelevant(title: string, targetTitles: string[]): boolean {
+function titleRelevant(
+  title: string,
+  targetTitles: string[],
+  synonyms: string[] = [],
+): boolean {
   if (!targetTitles.length) return true;
-  const t = title.toLowerCase();
-  const designSearch = targetTitles.some((target) =>
-    /design|ux|ui|figma/i.test(target),
-  );
+  const words = titleTokens(title);
 
-  for (const target of targetTitles) {
+  for (const target of [...targetTitles, ...synonyms]) {
     const tokens = titleTokens(target);
     if (!tokens.length) continue;
-    const hits = tokens.filter((tok) => t.includes(tok)).length;
+    const hits = tokens.filter((tok) => hasToken(words, tok)).length;
     if (hits >= Math.min(2, tokens.length)) return true;
     if (tokens.length === 1 && hits === 1) return true;
-  }
-
-  if (designSearch) {
-    return /product\s*design|ux\s*design|ui\s*design|ui\s*\/?\s*ux|\bux\/ui\b|design systems|design\s*lead|head\s*of\s*design|director\s*of\s*design|\b(ux|ui)\s*designer\b/i.test(
-      t,
-    );
   }
   return false;
 }
@@ -113,7 +122,8 @@ function employmentTypesForFilter(types: string[]): string[] {
 }
 
 /**
- * Deterministic pre-LLM filter (Serbia remote hard rules + search profile).
+ * Deterministic pre-LLM filter (search profile rules; remote rules only when
+ * the person asked for remote).
  */
 export function filterRawJobs(
   raw: RawCollectedJob[],
@@ -137,7 +147,7 @@ export function filterRawJobs(
       continue;
     }
 
-    if (!titleRelevant(job.title, params.targetTitles)) {
+    if (!titleRelevant(job.title, params.targetTitles, params.titleSynonyms)) {
       dropped.push({ job, reason: "unrelated_title" });
       continue;
     }

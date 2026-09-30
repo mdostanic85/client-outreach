@@ -22,12 +22,19 @@ const base: RawCollectedJob = {
   postedAt: new Date().toISOString(),
 };
 
-const params = {
+// A search saved before occupations existed: no synonyms, no family.
+// normalizeCollectorParams recovers both from the catalog.
+const params = normalizeCollectorParams({
   ...EMPTY_SEARCH_PARAMS,
+  targetTitles: ["Senior Product Designer", "Product Designer"],
+  locations: ["Remote", "Europe"],
   excludedTitles: ["Junior Designer", "Intern"],
   excludedKeywords: ["US residents only", "internship"],
   remoteRequired: true,
-};
+  remotePolicy: "remote_ok_required",
+});
+assert.equal(params.occupationFamily, "tech_digital");
+assert.ok(params.titleSynonyms.includes("UI Designer"));
 
 {
   const { kept, dropped } = filterRawJobs([base], params);
@@ -108,7 +115,7 @@ const params = {
     title: "Senior UI Designer",
   };
   const { kept } = filterRawJobs([uiDesigner], params);
-  assert.equal(kept.length, 1, "UI Designer should pass design-oriented titleRelevant");
+  assert.equal(kept.length, 1, "UI Designer is a Product Designer synonym");
 }
 
 {

@@ -14,7 +14,17 @@ import {
   getApprovedProfile,
   getMatchingProfile,
 } from "@/modules/profile/queries";
-import { formatCompensation } from "@/modules/profile/schemas";
+import {
+  formatCompensation,
+  type StructuredProfile,
+} from "@/modules/profile/schemas";
+import { getOccupation } from "@/modules/occupations/catalog";
+import { FAMILY_PROFILES, type OccupationFamily } from "@/modules/occupations/families";
+import {
+  findOccupation,
+  occupationSearchTerms,
+  resolveFamily,
+} from "@/modules/occupations/search";
 import {
   EMPTY_SEARCH_PARAMS,
   JobSearchParamsSchema,
@@ -40,36 +50,55 @@ async function nextVersion(): Promise<number> {
   return (latest?.version ?? 0) + 1;
 }
 
+export type OccupationContext = {
+  family: OccupationFamily | null;
+  occupationId: string | null;
+  /** Catalog names in English and Serbian; empty for unknown titles. */
+  synonyms: string[];
+};
+
+/** What we know about the person's occupation, from the survey or the titles. */
+export function occupationContext(
+  profile: Pick<StructuredProfile, "occupationId" | "occupationFamily" | "targetRoles" | "currentRole"> | null,
+): OccupationContext {
+  const occ =
+    getOccupation(profile?.occupationId) ??
+    findOccupation(profile?.targetRoles?.[0]) ??
+    findOccupation(profile?.currentRole);
+  return {
+    family: resolveFamily(profile) ?? occ?.family ?? null,
+    occupationId: occ?.id ?? null,
+    synonyms: occ ? occupationSearchTerms(occ) : [],
+  };
+}
+
 /** Deterministic fallback when LLM unavailable — still human-reviewable. */
 export async function deriveSearchParamsFromProfile(): Promise<{
   params: JobSearchParams;
   rationale: string[];
 }> {
   const p = await getMatchingProfile();
-  const titles =
-    p?.targetRoles?.length ?
-      p.targetRoles.slice(0, 5)
-    : p?.currentRole ?
-      [p.currentRole, `Senior ${p.currentRole}`].filter(Boolean).slice(0, 5)
-    : EMPTY_SEARCH_PARAMS.targetTitles;
+  const occ = occupationContext(p);
+  const catalogTitle = getOccupation(occ.occupationId)?.en;
+  const titles = p?.targetRoles?.length
+    ? p.targetRoles.slice(0, 5)
+    : [p?.currentRole, catalogTitle].filter((t): t is string => Boolean(t)).slice(0, 5);
+  if (titles.length === 0) {
+    throw new Error("Add the job you're looking for to your profile first.");
+  }
 
-  const excluded = [
-    ...(p?.rolesBelowLevel ?? []),
-    "Junior Designer",
-    "Intern",
-    "Graphic Designer",
-    "Product Manager",
-  ];
-
-  const locations =
-    p?.preferredLocations?.length ?
-      p.preferredLocations.slice(0, 5)
+  const locations = p?.preferredLocations?.length
+    ? p.preferredLocations.slice(0, 5)
     : EMPTY_SEARCH_PARAMS.locations;
+  const remoteOnly = locations.every((loc) => /remote/i.test(loc));
 
   const params = JobSearchParamsSchema.parse({
     ...EMPTY_SEARCH_PARAMS,
+    occupationFamily: occ.family ?? undefined,
+    occupationId: occ.occupationId ?? undefined,
     targetTitles: titles,
-    excludedTitles: [...new Set(excluded)],
+    titleSynonyms: occ.synonyms,
+    excludedTitles: [...new Set(p?.rolesBelowLevel ?? [])],
     locations,
     employmentTypes:
       p?.preferredEmploymentTypes?.length ?
@@ -78,19 +107,18 @@ export async function deriveSearchParamsFromProfile(): Promise<{
     searchKeywords: [
       ...(p?.strongestSkills ?? []).slice(0, 5),
       ...(p?.tools ?? []).slice(0, 3),
-      ...(p?.productTypes ?? []).slice(0, 3),
     ],
     requiredSkills: (p?.strongestSkills ?? []).slice(0, 4),
     preferredSkills: (p?.tools ?? []).slice(0, 6),
-    seniority: p?.seniority ? [p.seniority.toLowerCase()] : ["senior", "lead"],
+    seniority: p?.seniority ? [p.seniority.toLowerCase()] : [],
+    remoteRequired: remoteOnly,
+    remotePolicy: remoteOnly ? "remote_ok_required" : "any",
     priorityIndustries: (p?.industries ?? []).slice(0, 5),
     salary: {
       min: p?.compensation?.min ?? null,
       currency: p?.compensation?.currency ?? "EUR",
       notes: formatCompensation(p?.compensation) ?? p?.salaryOrRateExpectations ?? "",
     },
-    sourcesEnabled: [...EMPTY_SEARCH_PARAMS.sourcesEnabled],
-    atsBoardUrls: EMPTY_SEARCH_PARAMS.atsBoardUrls,
   });
 
   return {
@@ -102,7 +130,7 @@ export async function deriveSearchParamsFromProfile(): Promise<{
   };
 }
 
-async function callLlm(profileJson: string): Promise<{
+async function callLlm(profileJson: string, occ: OccupationContext): Promise<{
   parsed: SearchProfileLlm;
   model: string;
   costUsd: number;
@@ -110,7 +138,9 @@ async function callLlm(profileJson: string): Promise<{
   await assertPublicBudgetAllows("jobSearchProfile");
   const system = loadPrompt("jobs/search-profile.md");
   const model = resolveModel("jobSearchProfile");
-  const user = `Approved structured profile JSON:\n${profileJson}\n\nGenerate the job search profile JSON.`;
+  const family = occ.family ? FAMILY_PROFILES[occ.family].label : "unknown";
+  const known = occ.synonyms.length ? occ.synonyms.join(", ") : "none";
+  const user = `Occupation family: ${family}\nKnown names for this job: ${known}\n\nApproved structured profile JSON:\n${profileJson}\n\nGenerate the job search profile JSON.`;
 
   const tryOnce = async () => {
     const completion = await googleProvider.complete({
@@ -157,6 +187,7 @@ export async function generateSearchProfile(options?: {
   if (!approved) {
     throw new Error("Approve a structured profile before generating search criteria");
   }
+  const occ = occupationContext(approved.profile);
 
   const trigger = options?.trigger ?? "manual";
   const useLlm = options?.useLlm !== false;
@@ -168,7 +199,7 @@ export async function generateSearchProfile(options?: {
 
   if (useLlm && process.env.GOOGLE_API_KEY?.trim()) {
     try {
-      const result = await callLlm(JSON.stringify(approved.profile, null, 2));
+      const result = await callLlm(JSON.stringify(approved.profile, null, 2), occ);
       const { rationale: r, ...rest } = result.parsed;
       params = JobSearchParamsSchema.parse(rest);
       rationale = r;
@@ -186,7 +217,7 @@ export async function generateSearchProfile(options?: {
     params = derived.params;
     rationale = derived.rationale;
   }
-  params = withMarketDefaults(params);
+  params = withMarketDefaults(params, occ);
 
   const db = getDb();
   const version = await nextVersion();

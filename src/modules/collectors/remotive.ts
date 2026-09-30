@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import {
   extractDomain,
   RawCollectedJobSchema,
+  titleMatchesQuery,
   type CollectorQuery,
   type RawCollectedJob,
 } from "./types";
@@ -52,13 +53,24 @@ function domainFromDescription(
   );
 }
 
+/** Remotive's search is literal; level words only narrow it. */
+function searchTerm(title: string): string {
+  return (
+    title
+      .replace(/\b(senior|sr\.?|junior|jr\.?|lead|staff|principal|head of)\b/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim() || title
+  );
+}
+
 /**
- * Fetch Remotive jobs filtered toward the query title (category=design baseline).
+ * Fetch Remotive jobs matching the query title (any category — the
+ * occupation decides what we search for).
  */
 export async function collectRemotive(
   query: CollectorQuery,
 ): Promise<RawCollectedJob[]> {
-  const url = `${REMOTIVE_API}?category=design`;
+  const url = `${REMOTIVE_API}?search=${encodeURIComponent(searchTerm(query.title))}&limit=100`;
   const res = await fetch(url, {
     headers: { Accept: "application/json" },
     cache: "no-store",
@@ -66,16 +78,7 @@ export async function collectRemotive(
   if (!res.ok) throw new Error(`Remotive HTTP ${res.status}`);
 
   const data = (await res.json()) as { jobs?: RemotiveJob[] };
-  const titleNeedle = query.title.toLowerCase();
-  const titleTokens = titleNeedle
-    .split(/\s+/)
-    .filter((t) => t.length > 2 && !["senior", "lead", "staff"].includes(t));
-
-  const matched = (data.jobs ?? []).filter((job) => {
-    const t = job.title.toLowerCase();
-    if (t.includes(titleNeedle)) return true;
-    return titleTokens.some((tok) => t.includes(tok));
-  });
+  const matched = (data.jobs ?? []).filter((job) => titleMatchesQuery(job.title, query));
 
   // No silent fallback to the entire Remotive board — that floods the
   // pipeline with unrelated roles (data labeling, support, etc.).

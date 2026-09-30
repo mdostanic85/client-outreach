@@ -18,6 +18,8 @@ import { createMcpHandler } from "../src/modules/mcp/protocol";
 const gh = parseAtsBoard("https://boards.greenhouse.io/acme");
 const posting = { id: 1, title: "Senior Product Designer", absolute_url: "https://example.com/jobs/1", content: "&lt;p&gt;Design &amp;amp; build&lt;/p&gt;", location: { name: "Remote Europe" }, updated_at: "2026-09-29" };
 const raw = normalizeAtsPayload(gh, { jobs: [posting] })[0]!;
+/** Remote product-design search (EMPTY_SEARCH_PARAMS assumes no occupation). */
+const designRemote = { ...EMPTY_SEARCH_PARAMS, targetTitles: ["Senior Product Designer"], locations: ["Remote"], remoteRequired: true, remotePolicy: "remote_ok_required" as const };
 
 test("strict board hosts and path validation, including Lever EU", () => {
   assert.match(parseAtsBoard("https://jobs.eu.lever.co/acme").endpoint, /^https:\/\/api.eu.lever.co/);
@@ -40,7 +42,8 @@ test("Lever retains requirements and workplace mode", () => {
   const job = normalizeAtsPayload(parseAtsBoard("https://jobs.lever.co/acme"), [{ id: "a", text: posting.title, hostedUrl: posting.absolute_url, descriptionPlain: "Intro", lists: [{ text: "Requirements", content: "<li>Figma</li>" }], workplaceType: "hybrid", categories: { commitment: "Full-time" } }])[0]!;
   assert.match(job.description, /Requirements Figma/);
   assert.equal(job.remotePolicy, "hybrid");
-  assert.equal(filterRawJobs([job], EMPTY_SEARCH_PARAMS).dropped[0]?.reason, "remote_required");
+  assert.equal(filterRawJobs([job], designRemote).dropped[0]?.reason, "remote_required");
+  assert.equal(filterRawJobs([job], { ...designRemote, remoteRequired: false, remotePolicy: "any" }).kept.length, 1);
 });
 
 test("Ashby excludes unlisted postings, preserves explicit remote and valid dates", () => {
@@ -75,7 +78,8 @@ test("source preferences survive normalization and board planning does not requi
   assert.ok(plan[0]?.board);
   assert.ok(plan[1]?.error);
   assert.deepEqual(plannedAtsBoards({ ...params, sourcesEnabled: [] }), []);
-  assert.ok(!EMPTY_SEARCH_PARAMS.sourcesEnabled.includes("linkedin"));
+  assert.deepEqual(EMPTY_SEARCH_PARAMS.atsBoardUrls, [], "no occupation-specific boards by default");
+  assert.ok(!EMPTY_SEARCH_PARAMS.sourcesEnabled.includes("greenhouse"));
 });
 
 test("direct board relevance precedes truncation and respects the remaining cap", async () => {
@@ -83,19 +87,19 @@ test("direct board relevance precedes truncation and respects the remaining cap"
     { ...posting, id: 2, title: "Accountant" }, posting,
     { ...posting, id: 3, absolute_url: "https://example.com/jobs/3" },
   ] });
-  const collected = await collectDirectBoard(gh, EMPTY_SEARCH_PARAMS, 1, response);
+  const collected = await collectDirectBoard(gh, designRemote, 1, response);
   assert.equal(collected.length, 1);
   assert.equal(collected[0]?.title, posting.title);
-  assert.equal((await collectDirectBoard(gh, EMPTY_SEARCH_PARAMS, 0, response)).length, 0);
+  assert.equal((await collectDirectBoard(gh, designRemote, 0, response)).length, 0);
 });
 
 test("identity keeps distinct requisitions and removes attribution-only duplicates", () => {
   const second = { ...raw, externalId: "2", sourceUrl: "https://example.com/jobs/2" };
-  assert.equal(filterRawJobs([raw, second], EMPTY_SEARCH_PARAMS).kept.length, 2);
+  assert.equal(filterRawJobs([raw, second], designRemote).kept.length, 2);
   const duplicate = { ...raw, source: "apify", externalId: "other", sourceUrl: raw.sourceUrl + "?utm_source=feed#apply" };
-  assert.equal(filterRawJobs([raw, duplicate], EMPTY_SEARCH_PARAMS).kept.length, 1);
+  assert.equal(filterRawJobs([raw, duplicate], designRemote).kept.length, 1);
   assert.notEqual(canonicalJobUrl("https://example.com/jobs?gh_jid=1"), canonicalJobUrl("https://example.com/jobs?gh_jid=2"));
-  const flagged = filterRawJobs([raw], EMPTY_SEARCH_PARAMS).softFlagged[0]!;
+  const flagged = filterRawJobs([raw], designRemote).softFlagged[0]!;
   assert.ok(flagged.flags.includes("unknown_posted_date"));
   assert.ok(flagged.flags.includes("unconfirmed_remote"));
 });
@@ -103,7 +107,7 @@ test("identity keeps distinct requisitions and removes attribution-only duplicat
 test("AI cache invalidates for evidence, criteria, model and profile changes", () => {
   const input = { promptVersion: "v1", model: "test", profileJson: "{}", searchProfileVersion: 1, searchParams: EMPTY_SEARCH_PARAMS, job: raw };
   const key = evaluationCacheVersion(input);
-  for (const changed of [{ ...input, model: "new" }, { ...input, searchProfileVersion: 2 }, { ...input, profileJson: '{"role":"designer"}' }, { ...input, job: { ...raw, description: "changed" } }, { ...input, searchParams: { ...EMPTY_SEARCH_PARAMS, remoteRequired: false } }]) {
+  for (const changed of [{ ...input, model: "new" }, { ...input, searchProfileVersion: 2 }, { ...input, profileJson: '{"role":"designer"}' }, { ...input, job: { ...raw, description: "changed" } }, { ...input, searchParams: { ...EMPTY_SEARCH_PARAMS, remoteRequired: true } }]) {
     assert.notEqual(evaluationCacheVersion(changed), key);
   }
   assert.equal(evaluationCacheVersion({ ...input, job: { ...raw, updatedAt: "today" } } as typeof input), key);

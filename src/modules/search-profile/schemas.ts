@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { OccupationFamilySchema, type OccupationFamily } from "@/modules/occupations/families";
+import { findOccupation, occupationSearchTerms } from "@/modules/occupations/search";
+import { planSources } from "@/modules/occupations/sources";
 
 export const JobSourceSchema = z.enum([
   "remotive",
@@ -15,51 +18,68 @@ export const JobSourceSchema = z.enum([
 
 export type JobSource = z.infer<typeof JobSourceSchema>;
 
-/** Default SaaS / product-design ATS boards for direct public collection. */
-export const DEFAULT_ATS_BOARD_URLS = [
-  "https://boards.greenhouse.io/figma",
-  "https://jobs.ashbyhq.com/notion",
-  "https://boards.greenhouse.io/stripe",
-  "https://boards.greenhouse.io/discord",
-  "https://boards.greenhouse.io/webflow",
-  "https://boards.greenhouse.io/intercom",
-  "https://boards.greenhouse.io/airbnb",
-  "https://jobs.ashbyhq.com/linear",
-  "https://jobs.ashbyhq.com/ramp",
-  "https://boards.greenhouse.io/vercel",
-];
-
 /** Companies that moved ATS; saved profiles still point at the dead board. */
 const MOVED_ATS_BOARDS: Record<string, string> = {
   "https://boards.greenhouse.io/notion": "https://jobs.ashbyhq.com/notion",
   "https://jobs.lever.co/vercel": "https://boards.greenhouse.io/vercel",
 };
 
-/** Market order for every account: Serbia first, then remote, then EU on-site. */
-export const MARKET_LOCATIONS = ["Serbia", "Remote", "Europe"] as const;
-export const REGIONAL_SOURCES: JobSource[] = ["helloworld", "infostud", "linkedin"];
+/** Serbia is the first market: a search with no location looks there. */
+export const HOME_MARKET = "Serbia";
 
-/**
- * Puts the market order in front of whatever the model or user chose and
- * turns on the Serbian boards. Used when a search profile is generated.
- */
-export function withMarketDefaults(params: JobSearchParams): JobSearchParams {
+function uniqueCaseless(values: string[]): string[] {
   const seen = new Set<string>();
-  const locations = [...MARKET_LOCATIONS, ...params.locations].filter((loc) => {
-    const key = loc.trim().toLowerCase();
+  return values.filter((value) => {
+    const key = value.trim().toLowerCase();
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+}
+
+/**
+ * Fits a generated search to the occupation: boards chosen by family and
+ * location, synonyms for title matching, and remote only when the person
+ * chose it. Used when a search profile is generated.
+ */
+export function withMarketDefaults(
+  params: JobSearchParams,
+  occupation: {
+    family: OccupationFamily | null;
+    occupationId?: string | null;
+    synonyms?: string[];
+  } = { family: params.occupationFamily ?? null },
+): JobSearchParams {
+  const locations = uniqueCaseless(params.locations).slice(0, 5);
+  if (locations.length === 0) locations.push(HOME_MARKET);
+  const remoteAllowed =
+    params.remoteRequired || locations.some((loc) => /remote/i.test(loc));
+  const plan = planSources({
+    family: occupation.family,
+    locations,
+    remoteAllowed,
+  });
   return {
     ...params,
-    locations: locations.slice(0, 5),
-    sourcesEnabled: [...new Set([...params.sourcesEnabled, ...REGIONAL_SOURCES])],
+    occupationFamily: occupation.family ?? params.occupationFamily,
+    occupationId: occupation.occupationId ?? params.occupationId,
+    titleSynonyms: uniqueCaseless([
+      ...params.titleSynonyms,
+      ...(occupation.synonyms ?? []),
+    ]).slice(0, 16),
+    locations,
+    sourcesEnabled: plan.sourcesEnabled,
+    atsBoardUrls: plan.atsBoardUrls,
   };
 }
 
 export const JobSearchParamsSchema = z.object({
+  /** Set from the survey; drives sources, filters and scoring weights. */
+  occupationFamily: OccupationFamilySchema.optional(),
+  occupationId: z.string().optional(),
   targetTitles: z.array(z.string()).min(1),
+  /** Other names for the same job (both languages) — widen search and title matching. */
+  titleSynonyms: z.array(z.string()).default([]),
   excludedTitles: z.array(z.string()).default([]),
   locations: z.array(z.string()).min(1),
   employmentTypes: z.array(z.string()).default(["Full-time", "Contract"]),
@@ -69,10 +89,11 @@ export const JobSearchParamsSchema = z.object({
   requiredSkills: z.array(z.string()).default([]),
   preferredSkills: z.array(z.string()).default([]),
   seniority: z.array(z.string()).default([]),
-  remoteRequired: z.boolean().default(true),
+  /** On-site is the default; remote only when the person chose it. */
+  remoteRequired: z.boolean().default(false),
   remotePolicy: z
     .enum(["remote_ok_required", "remote_preferred", "any"])
-    .default("remote_ok_required"),
+    .default("any"),
   priorityIndustries: z.array(z.string()).default([]),
   avoidIndustries: z.array(z.string()).default([]),
   salary: z
@@ -83,16 +104,8 @@ export const JobSearchParamsSchema = z.object({
     })
     .optional(),
   /** Public Greenhouse / Lever / Ashby board URLs for direct public collection. */
-  atsBoardUrls: z.array(z.string()).default([...DEFAULT_ATS_BOARD_URLS]),
-  sourcesEnabled: z
-    .array(JobSourceSchema)
-    .default([
-      "remotive",
-      "arbeitnow",
-      "greenhouse",
-      "lever",
-      "ashby",
-    ]),
+  atsBoardUrls: z.array(z.string()).default([]),
+  sourcesEnabled: z.array(JobSourceSchema).default(["infostud", "linkedin"]),
   maxResultsPerQuery: z.number().int().positive().default(12),
   maxDailyRawJobs: z.number().int().positive().default(80),
   /** Hard Apify spend cap — keep ≤ $0.50/day for MVP mix. */
@@ -107,40 +120,28 @@ export const SearchProfileLlmSchema = JobSearchParamsSchema.extend({
 
 export type SearchProfileLlm = z.infer<typeof SearchProfileLlmSchema>;
 
+/**
+ * No occupation assumptions: titles, keywords and boards all come from the
+ * survey and profile. (Not valid on its own — targetTitles must be filled.)
+ */
 export const EMPTY_SEARCH_PARAMS: JobSearchParams = {
-  targetTitles: ["Senior Product Designer", "Product Designer"],
-  excludedTitles: [
-    "Graphic Designer",
-    "Product Manager",
-    "Junior Designer",
-    "Intern",
-  ],
-  locations: ["Remote", "Europe", "EMEA", "Serbia"],
-  employmentTypes: ["Full-time", "Contract"],
-  postedWithinHours: 48,
-  searchKeywords: ["product design", "Figma", "design systems"],
-  excludedKeywords: [
-    "US residents only",
-    "must be based in the US",
-    "no remote",
-    "internship",
-    "relocation required",
-  ],
+  targetTitles: [],
+  titleSynonyms: [],
+  excludedTitles: [],
+  locations: [HOME_MARKET],
+  employmentTypes: ["Full-time"],
+  postedWithinHours: 168,
+  searchKeywords: [],
+  excludedKeywords: [],
   requiredSkills: [],
   preferredSkills: [],
-  seniority: ["senior", "lead"],
-  remoteRequired: true,
-  remotePolicy: "remote_ok_required",
+  seniority: [],
+  remoteRequired: false,
+  remotePolicy: "any",
   priorityIndustries: [],
   avoidIndustries: [],
-  atsBoardUrls: [...DEFAULT_ATS_BOARD_URLS],
-  sourcesEnabled: [
-    "remotive",
-    "arbeitnow",
-    "greenhouse",
-    "lever",
-    "ashby",
-  ],
+  atsBoardUrls: [],
+  sourcesEnabled: ["infostud", "linkedin"],
   maxResultsPerQuery: 12,
   maxDailyRawJobs: 80,
   maxDailyApifyUsd: 0.5,
@@ -204,8 +205,20 @@ export function normalizeCollectorParams(params: JobSearchParams): JobSearchPara
     ...new Set(params.atsBoardUrls.map((url) => MOVED_ATS_BOARDS[url.replace(/\/+$/, "")] ?? url)),
   ];
 
+  // Searches saved before occupations existed: recover synonyms and family
+  // from the catalog so title matching keeps working.
+  const known = params.targetTitles
+    .map((title) => findOccupation(title))
+    .filter((occ) => occ != null);
+  const titleSynonyms = params.titleSynonyms.length
+    ? params.titleSynonyms
+    : uniqueCaseless(known.flatMap(occupationSearchTerms)).slice(0, 16);
+
   return {
     ...params,
+    occupationFamily: params.occupationFamily ?? known[0]?.family,
+    occupationId: params.occupationId ?? known[0]?.id,
+    titleSynonyms,
     excludedKeywords,
     atsBoardUrls,
     employmentTypes,

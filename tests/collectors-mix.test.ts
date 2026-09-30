@@ -68,16 +68,27 @@ function testExpandLinkedIn() {
     targetTitles: ["Senior Product Designer", "Product Designer"],
     locations: ["Remote", "Europe", "Serbia"],
     sourcesEnabled: ["linkedin"],
+    remoteRequired: true,
   });
   assert.equal(queries.length, 3);
   assert.ok(queries.every((q) => q.source === "linkedin"));
   assert.ok(queries.some((q) => q.location === "United States"));
   assert.ok(queries.some((q) => q.location === "Serbia"));
+
+  // On-site: follow the person's places, never the US.
+  const onsite = expandLinkedInQueries({
+    ...EMPTY_SEARCH_PARAMS,
+    targetTitles: ["Medicinska sestra"],
+    locations: ["Beograd", "Novi Sad"],
+    sourcesEnabled: ["linkedin"],
+  });
+  assert.deepEqual(onsite.map((q) => q.location), ["Beograd", "Novi Sad"]);
 }
 
 function testExpandRegional() {
   const withHw = expandRegionalQueries({
     ...EMPTY_SEARCH_PARAMS,
+    targetTitles: ["Product Designer"],
     sourcesEnabled: ["helloworld"],
   });
   assert.equal(withHw.length, 1);
@@ -85,6 +96,7 @@ function testExpandRegional() {
 
   const withBoth = expandRegionalQueries({
     ...EMPTY_SEARCH_PARAMS,
+    targetTitles: ["Product Designer"],
     sourcesEnabled: ["helloworld", "infostud"],
   });
   assert.equal(withBoth.length, 2);

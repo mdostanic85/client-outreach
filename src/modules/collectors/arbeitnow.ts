@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import {
   extractDomain,
   RawCollectedJobSchema,
+  titleMatchesQuery,
   type CollectorQuery,
   type RawCollectedJob,
 } from "./types";
@@ -78,33 +79,10 @@ export async function collectArbeitnow(
     all.push(...(data.data ?? []));
   }
 
-  const titleNeedle = query.title.toLowerCase();
-  const titleTokens = titleNeedle
-    .split(/\s+/)
-    .filter((t) => t.length > 2 && !["senior", "lead", "staff"].includes(t));
-
-  const designish = all.filter((job) => {
-    const t = job.title.toLowerCase();
-    return /design|ux|ui|product design|figma/i.test(t);
-  });
-
-  const matched = designish.filter((job) => {
-    const t = job.title.toLowerCase();
-    if (t.includes(titleNeedle)) return true;
-    return titleTokens.some((tok) => t.includes(tok));
-  });
-
-  // Prefer title matches; otherwise only product/UX-adjacent design roles
-  // (never dump unrelated "designish" noise into the pipeline).
-  const productish = designish.filter((job) =>
-    /product\s*design|ux\s*design|ui\s*\/?\s*ux|\bux\/ui\b|design systems/i.test(
-      job.title,
-    ),
-  );
-  const slice = (matched.length ? matched : productish).slice(
-    0,
-    query.maxResults,
-  );
+  // Only title matches — never dump the whole board into the pipeline.
+  const slice = all
+    .filter((job) => titleMatchesQuery(job.title, query))
+    .slice(0, query.maxResults);
 
   return slice.map((job) => {
     const types = asStringList(job.job_types);

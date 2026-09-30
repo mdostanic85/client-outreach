@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { EMPTY_SEARCH_PARAMS, type JobSearchParams } from "../src/modules/search-profile/schemas";
+import { EMPTY_SEARCH_PARAMS, normalizeCollectorParams, type JobSearchParams } from "../src/modules/search-profile/schemas";
 import { isoDate, SourceBlockedError, walkListing } from "../src/modules/collectors/polite-fetch";
 import { collectLinkedIn, linkedInSearchUrl, parseLinkedInPosting, parseLinkedInSearch } from "../src/modules/collectors/linkedin";
 import { collectHelloWorld, helloWorldSearchUrl, helloWorldWorkplace, parseHelloWorldListing, parseHelloWorldPosting } from "../src/modules/collectors/helloworld";
@@ -8,7 +8,7 @@ import { collectInfostud, parseInfostudPosting, parseInfostudSearch } from "../s
 import { regionalSearchTerms } from "../src/modules/collectors/run";
 import type { CollectorQuery } from "../src/modules/collectors/types";
 
-const params: JobSearchParams = { ...EMPTY_SEARCH_PARAMS, targetTitles: ["Senior Product Designer"], locations: ["Remote"], postedWithinHours: 720 };
+const params: JobSearchParams = normalizeCollectorParams({ ...EMPTY_SEARCH_PARAMS, targetTitles: ["Senior Product Designer"], locations: ["Remote"], postedWithinHours: 720, remoteRequired: true, remotePolicy: "remote_ok_required" });
 const hybridOk: JobSearchParams = { ...params, remoteRequired: false, remotePolicy: "any" };
 const noSleep = async () => {};
 const query = (source: CollectorQuery["source"], extra: Partial<CollectorQuery> = {}): CollectorQuery =>
@@ -163,10 +163,14 @@ test("walkListing keeps earlier cards on a later block and caps requests", async
   assert.equal(requests, 3);
 });
 
-test("Regional terms include the core title and local-language design terms", () => {
-  assert.deepEqual(regionalSearchTerms({ ...params, targetTitles: ["Senior Product Designer", "Staff Product Designer"] }),
-    ["Senior Product Designer", "Product Designer", "UX", "dizajner"]);
-  assert.deepEqual(regionalSearchTerms({ ...params, targetTitles: ["Senior Data Engineer"] }), ["Senior Data Engineer", "Data Engineer"]);
+test("Regional terms include the core title, the Serbian name and synonyms", () => {
+  assert.deepEqual(
+    regionalSearchTerms({ ...params, targetTitles: ["Senior Product Designer", "Staff Product Designer"], occupationId: "product_designer", titleSynonyms: ["UX Designer", "UI/UX dizajner"] }),
+    ["Senior Product Designer", "Product Designer", "Product dizajner", "UX Designer"]);
+  assert.deepEqual(regionalSearchTerms({ ...params, targetTitles: ["Senior Data Engineer"], occupationId: undefined, titleSynonyms: [] }), ["Senior Data Engineer", "Data Engineer"]);
+  assert.deepEqual(
+    regionalSearchTerms({ ...params, targetTitles: ["Truck Driver"], occupationId: "truck_driver", titleSynonyms: ["Vozač C kategorije"] }),
+    ["Truck Driver", "Vozač kamiona", "Vozač C kategorije"]);
   assert.equal(isoDate("06.10.2026."), "2026-10-06T00:00:00.000Z");
   assert.equal(isoDate("not a date"), undefined);
 });

@@ -24,6 +24,7 @@ import { collectInfostud } from "./infostud";
 import { collectLinkedIn } from "./linkedin";
 import { collectRemotive } from "./remotive";
 import type { CollectorQuery, RawCollectedJob } from "./types";
+import { getOccupation } from "@/modules/occupations/catalog";
 import { currentUserId, owned } from "@/modules/auth/current-user";
 
 function queryDetail(query: CollectorQuery): string {
@@ -75,6 +76,7 @@ export function expandFreeQueries(params: JobSearchParams): CollectorQuery[] {
         postedWithinHours: params.postedWithinHours,
         maxResults: params.maxResultsPerQuery,
         source,
+        searchTerms: params.titleSynonyms,
       });
     }
   }
@@ -82,8 +84,8 @@ export function expandFreeQueries(params: JobSearchParams): CollectorQuery[] {
 }
 
 /**
- * LinkedIn: 2–3 focused queries (not title×location matrix).
- * Budget-aware defaults for US / Europe / Serbia coverage.
+ * LinkedIn: 2–3 focused queries (not title×location matrix), following the
+ * person's locations. The US is only searched for remote roles.
  */
 export function expandLinkedInQueries(params: JobSearchParams): CollectorQuery[] {
   if (!params.sourcesEnabled.includes("linkedin")) return [];
@@ -100,22 +102,27 @@ export function expandLinkedInQueries(params: JobSearchParams): CollectorQuery[]
   };
 
   const queries: CollectorQuery[] = [];
-  const remoteLoc =
-    params.locations.find((l) => /remote|europe|emea/i.test(l)) ?? "Remote";
+  const serbia = params.locations.some((l) => /serbia|srbija|belgrade|beograd/i.test(l));
 
-  queries.push({ ...base, title, location: remoteLoc });
-
-  // US coverage — largest remote market; LinkedIn workplaceType=remote filters onsite noise
-  queries.push({ ...base, title, location: "United States" });
-
-  if (params.locations.some((l) => /serbia|belgrade|balkan/i.test(l))) {
-    queries.push({ ...base, title, location: "Serbia" });
-  } else if (params.targetTitles[1]) {
-    queries.push({
-      ...base,
-      title: params.targetTitles[1]!,
-      location: remoteLoc,
-    });
+  if (params.remoteRequired) {
+    const remoteLoc =
+      params.locations.find((l) => /remote|europe|emea/i.test(l)) ?? "Remote";
+    queries.push({ ...base, title, location: remoteLoc });
+    // Largest remote market; LinkedIn workplaceType=remote filters on-site noise.
+    queries.push({ ...base, title, location: "United States" });
+    if (serbia) {
+      queries.push({ ...base, title, location: "Serbia" });
+    } else if (params.targetTitles[1]) {
+      queries.push({ ...base, title: params.targetTitles[1]!, location: remoteLoc });
+    }
+  } else {
+    const places = params.locations.filter((l) => !/^remote$/i.test(l.trim()));
+    const primary = places[0] ?? "Serbia";
+    queries.push({ ...base, title, location: primary });
+    if (places[1]) queries.push({ ...base, title, location: places[1] });
+    if (params.targetTitles[1]) {
+      queries.push({ ...base, title: params.targetTitles[1]!, location: primary });
+    }
   }
 
   // Dedupe identical title|location pairs, hard-cap at 3
@@ -129,17 +136,23 @@ export function expandLinkedInQueries(params: JobSearchParams): CollectorQuery[]
 }
 
 /**
- * Serbian boards rarely use the exact English senior title ("UX/UI dizajner",
- * "Product Designer"), so search broader terms and let filterRawJobs decide.
+ * Serbian boards rarely use the exact English senior title, so search the
+ * core title and the Serbian name ("Vozač kamiona", "Medicinska sestra"),
+ * then let filterRawJobs decide.
  */
 export function regionalSearchTerms(params: JobSearchParams): string[] {
-  const terms = params.targetTitles.slice(0, 1);
-  for (const title of params.targetTitles) {
-    const core = title.replace(/\b(senior|sr\.?|lead|staff|principal|head of|junior|mid|ai)\b/gi, " ").replace(/\s+/g, " ").trim();
-    if (core) terms.push(core);
-  }
-  if (params.targetTitles.some(t => /design|ux|ui/i.test(t))) terms.push("UX", "dizajner");
-  terms.push(...params.targetTitles.slice(1));
+  const cores = params.targetTitles
+    .map((title) => title.replace(/\b(senior|sr\.?|lead|staff|principal|head of|junior|mid|ai)\b/gi, " ").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const serbian = getOccupation(params.occupationId)?.sr;
+  const terms = [
+    ...params.targetTitles.slice(0, 1),
+    ...cores.slice(0, 1),
+    ...(serbian ? [serbian] : []),
+    ...cores.slice(1),
+    ...params.titleSynonyms,
+    ...params.targetTitles.slice(1),
+  ];
   const seen = new Set<string>();
   return terms.filter(t => {
     const key = t.toLowerCase();
