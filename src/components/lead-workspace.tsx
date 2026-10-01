@@ -3,26 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import {
-  acceptLeadAction,
-  addContactAction,
-  approveDraftAction,
-  checkMxAction,
-  confirmContactAction,
-  generateDraftAction,
-  harvestContactsAction,
-  inspectDraftQualityAction,
-  markRepliedAction,
-  markSentAction,
-  rejectLeadAction,
-  researchLeadAction,
-  saveDraftAction,
-  saveForLaterAction,
-  setFollowUpAction,
-  setLeadStateAction,
-  suggestPatternsAction,
-  suppressLeadAction,
-} from "@/app/actions";
+import { addContactAction, checkMxAction, confirmContactAction, harvestContactsAction, suggestPatternsAction } from "@/modules/contacts/actions";
+import { acceptLeadAction, markRepliedAction, rejectLeadAction, researchLeadAction, saveForLaterAction, setFollowUpAction, setLeadStateAction, suppressLeadAction } from "@/modules/leads/actions";
+import { approveDraftAction } from "@/modules/mail/actions";
+import { generateDraftAction, inspectDraftQualityAction, markSentAction, saveDraftAction } from "@/modules/outreach/actions";
 import { InlineAlert } from "@/components/inline-alert";
 import {
   PanelBody,
@@ -51,7 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { gmailComposeUrl } from "@/lib/gmail";
 import { labelPolicy } from "@/lib/ui-labels";
 import { cn } from "@/lib/utils";
-import type { ContactConfidence } from "@/modules/leads/actions";
+import type { ContactConfidence } from "@/modules/contacts/confidence";
 import type { getLeadDetail } from "@/modules/leads/queries";
 
 type Detail = NonNullable<Awaited<ReturnType<typeof getLeadDetail>>>;

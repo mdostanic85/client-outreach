@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { markApplicationGotReplyAction } from "@/app/actions";
+import { markApplicationGotReplyAction } from "@/modules/applications/actions";
 import { Send } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { badgeVariants } from "@/components/ui/badge";

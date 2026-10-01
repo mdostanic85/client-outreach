@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Eye, EyeOff, ExternalLink } from "lucide-react";
-import { clearSecretAction, saveSecretAction } from "@/app/actions";
+import { clearSecretAction, saveSecretAction } from "@/modules/ops/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

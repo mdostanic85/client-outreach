@@ -2,11 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import {
-  disconnectMailboxAction,
-  saveOtherMailboxAction,
-  saveGoogleOauthClientAction,
-} from "@/app/actions";
+import { disconnectMailboxAction, saveGoogleOauthClientAction, saveOtherMailboxAction } from "@/modules/mail/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

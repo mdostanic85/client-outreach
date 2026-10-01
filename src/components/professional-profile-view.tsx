@@ -2,11 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import {
-  addProfileFactAction,
-  removeProfileFactAction,
-  updateProfileFactAction,
-} from "@/app/actions";
+import { addProfileFactAction, removeProfileFactAction, updateProfileFactAction } from "@/modules/profile/actions";
 import { InlineAlert } from "@/components/inline-alert";
 import { PanelBody, PanelHeader, Surface } from "@/components/page-shell";
 import { Badge } from "@/components/ui/badge";

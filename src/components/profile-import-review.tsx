@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { applyProfileDiffDecisionsAction } from "@/app/actions";
+import { applyProfileDiffDecisionsAction } from "@/modules/profile/actions";
 import { InlineAlert } from "@/components/inline-alert";
 import { PanelBody, PanelHeader, Surface } from "@/components/page-shell";
 import { Badge } from "@/components/ui/badge";

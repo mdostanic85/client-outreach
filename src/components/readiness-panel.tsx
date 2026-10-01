@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { updateOpsChecklistAction } from "@/app/actions";
+import { updateOpsChecklistAction } from "@/modules/ops/actions";
 import { Button } from "@/components/ui/button";
 import type { ChecklistItem, OpsChecklist } from "@/modules/ops/readiness";
 

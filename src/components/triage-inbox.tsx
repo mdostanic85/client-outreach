@@ -4,11 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Building2, ChevronDown, ExternalLink } from "lucide-react";
-import {
-  acceptLeadAction,
-  rejectLeadAction,
-  saveForLaterAction,
-} from "@/app/actions";
+import { acceptLeadAction, rejectLeadAction, saveForLaterAction } from "@/modules/leads/actions";
 import { DiscoverControls } from "@/components/discover-controls";
 import { EmptyState } from "@/components/empty-state";
 import { InlineAlert } from "@/components/inline-alert";

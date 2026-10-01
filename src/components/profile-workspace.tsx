@@ -3,20 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { X } from "lucide-react";
-import {
-  approveProfileAction,
-  createProfileDraftFromApprovedAction,
-  deleteProfileSourceAction,
-  extractProfileAction,
-  setMatchingSourcesConfigAction,
-  setProfileSourceMatchingEnabledAction,
-  ingestCvAction,
-  ingestGithubAction,
-  ingestManualNotesAction,
-  ingestPortfolioUrlAction,
-  ingestTextSourceAction,
-  saveProfileDraftAction,
-} from "@/app/actions";
+import { approveProfileAction, createProfileDraftFromApprovedAction, deleteProfileSourceAction, extractProfileAction, ingestCvAction, ingestGithubAction, ingestManualNotesAction, ingestPortfolioUrlAction, ingestTextSourceAction, saveProfileDraftAction, setMatchingSourcesConfigAction, setProfileSourceMatchingEnabledAction } from "@/modules/profile/actions";
 import {
   Accordion,
   AccordionItem,

@@ -14,16 +14,7 @@ import {
   RefreshCw,
   Save,
 } from "lucide-react";
-import {
-  approvePackageAction,
-  exportPackageTextAction,
-  generateApplicationPackageAction,
-  markPackagePreparedAction,
-  regeneratePackageSlotAction,
-  savePackageCvAction,
-  savePackageEmailAction,
-  savePackageLetterAction,
-} from "@/app/actions";
+import { approvePackageAction, exportPackageTextAction, generateApplicationPackageAction, markPackagePreparedAction, regeneratePackageSlotAction, savePackageCvAction, savePackageEmailAction, savePackageLetterAction } from "@/modules/applications/actions";
 import { ApplicationSendModal } from "@/components/application-send-modal";
 import { CoverLetterPreview } from "@/components/cover-letter-preview";
 import { CvDocumentPreview } from "@/components/cv-document-preview";

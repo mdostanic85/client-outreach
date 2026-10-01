@@ -2,11 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import {
-  processSendQueueAction,
-  resumeMailboxAction,
-  syncMailboxAction,
-} from "@/app/actions";
+import { processSendQueueAction, resumeMailboxAction, syncMailboxAction } from "@/modules/mail/actions";
 import { Button } from "@/components/ui/button";
 
 export function QueueControls({ paused }: { paused: boolean }) {

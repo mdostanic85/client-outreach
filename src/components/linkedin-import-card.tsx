@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { extractProfileAction, ingestCvAction } from "@/app/actions";
+import { extractProfileAction, ingestCvAction } from "@/modules/profile/actions";
 import { FileDropzone } from "@/components/file-dropzone";
 import { InlineAlert } from "@/components/inline-alert";
 import { PanelBody, PanelHeader, Surface } from "@/components/page-shell";

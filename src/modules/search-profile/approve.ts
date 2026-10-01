@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { jobSearchProfiles } from "@/db/schema";
 import { nowIso } from "@/lib/ids";
@@ -69,4 +69,18 @@ export async function reactivateSearchProfile(id: string): Promise<{
 
   logger.info({ id, version: row.version }, "job search profile reactivated");
   return { version: row.version };
+}
+
+/** Reactivates the newest search profile row stored under `version` (Improve → strategy history). */
+export async function reactivateSearchProfileVersion(version: number): Promise<{ version: number }> {
+  const row = (
+    await getDb()
+      .select({ id: jobSearchProfiles.id })
+      .from(jobSearchProfiles)
+      .where(and(await owned(jobSearchProfiles), eq(jobSearchProfiles.version, version)))
+      .orderBy(desc(jobSearchProfiles.createdAt))
+      .limit(1)
+  )[0];
+  if (!row) throw new Error(`No search profile for version ${version}`);
+  return reactivateSearchProfile(row.id);
 }

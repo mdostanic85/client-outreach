@@ -1,11 +1,9 @@
 import { TodayTabs } from "@/components/today-tabs";
 import { ensureDb } from "@/db/ensure";
-import {
-  getTodayMode,
-  listDailyJobs,
-} from "@/modules/jobs/queries";
+import { listDailyJobs } from "@/modules/jobs/queries";
 import { toJobTriageRow } from "@/modules/jobs/to-triage-row";
-import { listDailyLeads, getSettingsRow } from "@/modules/leads/queries";
+import { listDailyLeads } from "@/modules/leads/queries";
+import { getTodayMode, getUserSettings } from "@/modules/settings/user-settings";
 import { getApprovedSearchProfile } from "@/modules/search-profile/queries";
 import { clientsModeEnabled } from "@/modules/onboarding/clients-mode";
 
@@ -21,8 +19,8 @@ export default async function HomePage({
   const clientsEnabled = await clientsModeEnabled();
   const [leadRows, jobRows, mode, hasSearchProfile] = await Promise.all([
     clientsEnabled
-      ? getSettingsRow().then((settings) =>
-          listDailyLeads(settings?.dailyLeadCount ?? 12),
+      ? getUserSettings().then((settings) =>
+          listDailyLeads(settings.dailyLeadCount ?? 12),
         )
       : [],
     listDailyJobs(),

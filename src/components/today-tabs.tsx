@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useState, useTransition } from "react";
-import { setTodayModeAction } from "@/app/actions";
+import { setTodayModeAction } from "@/modules/settings/actions";
 import { JobsInbox } from "@/components/jobs-inbox";
 import type { JobTriageRow } from "@/modules/jobs/triage-row";
 import { AnimateIn } from "@/components/motion";

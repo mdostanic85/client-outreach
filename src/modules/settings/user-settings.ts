@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { settings } from "@/db/schema";
 import { newId, nowIso } from "@/lib/ids";
@@ -79,3 +79,67 @@ const getSettingsFor = cache(async (userId: string): Promise<UserSettings> => {
     await db.select().from(settings).where(eq(settings.userId, userId)).limit(1)
   )[0]!;
 });
+
+/** Settings columns an account may change (identity and timestamps are managed here). */
+export type UserSettingsPatch = Partial<
+  Omit<typeof settings.$inferInsert, "id" | "userId" | "createdAt" | "updatedAt">
+>;
+
+/**
+ * Writes the given columns on the current account's settings row.
+ * Keys left `undefined` keep their stored value.
+ */
+export async function updateUserSettings(patch: UserSettingsPatch): Promise<void> {
+  const row = await getUserSettings();
+  const defined = Object.fromEntries(
+    Object.entries(patch).filter(([, value]) => value !== undefined),
+  ) as UserSettingsPatch;
+  await getDb()
+    .update(settings)
+    .set({ ...defined, updatedAt: nowIso() })
+    .where(and(eq(settings.userId, row.userId), eq(settings.id, row.id)));
+}
+
+export type TodayMode = "jobs" | "clients";
+
+/** Which list Today opens on. Companies is owner-only; callers gate it. */
+export async function getTodayMode(): Promise<TodayMode> {
+  return (await getUserSettings()).todayMode === "clients" ? "clients" : "jobs";
+}
+
+export async function setTodayMode(mode: TodayMode): Promise<void> {
+  await updateUserSettings({ todayMode: mode });
+}
+
+/** Learned ranking boosts on Today; on unless the account turned it off. */
+export async function getAdaptiveJobRanking(): Promise<boolean> {
+  return (await getUserSettings()).adaptiveJobRanking !== 0;
+}
+
+export async function setAdaptiveJobRanking(enabled: boolean): Promise<void> {
+  await updateUserSettings({ adaptiveJobRanking: enabled ? 1 : 0 });
+}
+
+/** Fields edited on Settings → Outreach voice (owner only). */
+export type OutreachSettingsInput = Pick<
+  UserSettingsPatch,
+  | "profileMd"
+  | "styleProfileJson"
+  | "targetFiltersJson"
+  | "countryPolicyJson"
+  | "sendPolicyJson"
+  | "dailyLeadCount"
+  | "aiBudgetUsd"
+>;
+
+export async function updateOutreachSettings(input: OutreachSettingsInput): Promise<void> {
+  await updateUserSettings({
+    profileMd: input.profileMd,
+    styleProfileJson: input.styleProfileJson,
+    targetFiltersJson: input.targetFiltersJson,
+    countryPolicyJson: input.countryPolicyJson,
+    sendPolicyJson: input.sendPolicyJson,
+    dailyLeadCount: input.dailyLeadCount,
+    aiBudgetUsd: input.aiBudgetUsd,
+  });
+}

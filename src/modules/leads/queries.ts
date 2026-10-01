@@ -235,7 +235,3 @@ export async function getAdminOverview() {
   };
 }
 
-export async function getSettingsRow() {
-  await ensureDb();
-  return (await getUserSettings()) ?? null;
-}

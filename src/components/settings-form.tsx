@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { updateSettingsAction } from "@/app/actions";
+import { updateSettingsAction } from "@/modules/settings/actions";
 import { InlineAlert } from "@/components/inline-alert";
 import { PanelBody, PanelHeader, Surface } from "@/components/page-shell";
 import { StickyFormActions } from "@/components/sticky-form-actions";

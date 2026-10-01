@@ -1,13 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import {
-  draftEdits,
-  learningProposals,
-  learningReports,
-  settings,
-  settingsScoring,
-} from "@/db/schema";
+import { draftEdits, learningProposals, learningReports, settingsScoring } from "@/db/schema";
 import { anthropicProvider } from "@/lib/ai/anthropic";
 import { buildMessages } from "@/lib/ai/google";
 import { resolveModel } from "@/lib/ai/routing";
@@ -23,7 +17,7 @@ import { assertGatesOrPreview } from "./gates";
 import { buildSourcePerformance } from "./reports";
 import { approveSearchProfile } from "@/modules/search-profile/approve";
 import { getApprovedSearchProfile } from "@/modules/search-profile/queries";
-import { getUserSettings } from "@/modules/settings/user-settings";
+import { getUserSettings, updateUserSettings } from "@/modules/settings/user-settings";
 import { currentUserId, owned } from "@/modules/auth/current-user";
 
 function parseJsonLoose(text: string): unknown {
@@ -343,9 +337,7 @@ export async function applyProposal(proposalId: string) {
         ...patch.ctaPatternsAdd,
       ];
     }
-    await db.update(settings)
-      .set({ styleProfileJson: JSON.stringify(style), updatedAt: now })
-      .where(and(await owned(settings), eq(settings.id, setting.id)));
+    await updateUserSettings({ styleProfileJson: JSON.stringify(style) });
   } else if (proposal.kind === "scoring_weights") {
     const existing = (await db.select().from(settingsScoring).where(await owned(settingsScoring)).limit(1))[0];
     if (existing) {

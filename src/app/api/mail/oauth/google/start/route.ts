@@ -1,7 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { ensureDb } from "@/db/ensure";
 import { loadLocalEnv } from "@/lib/env";
+import { getRequestUser } from "@/modules/auth/page-guards";
 import {
   buildGoogleOauthAuthUrl,
   getGoogleOauthClient,
@@ -10,8 +12,14 @@ import {
 
 export const dynamic = "force-dynamic";
 
+/** Connects the shared outbound mailbox, so only the workspace owner may start it. */
 export async function GET(request: Request) {
   loadLocalEnv();
+  await ensureDb();
+  const caller = await getRequestUser();
+  if (!caller) return NextResponse.redirect(new URL("/login", request.url));
+  if (!caller.owner) return NextResponse.redirect(new URL("/", request.url));
+
   if (!getGoogleOauthClient()) {
     return NextResponse.redirect(
       new URL(

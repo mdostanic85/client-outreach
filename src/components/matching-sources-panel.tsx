@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { setMatchingSourcesConfigAction } from "@/app/actions";
+import { setMatchingSourcesConfigAction } from "@/modules/profile/actions";
 import { InlineAlert } from "@/components/inline-alert";
 import {
   MATCHING_SOURCE_COPY,

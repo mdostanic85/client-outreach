@@ -3,12 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, RefreshCw } from "lucide-react";
-import {
-  approveSearchProfileAction,
-  createSearchDraftFromApprovedAction,
-  generateSearchProfileAction,
-  saveSearchProfileDraftAction,
-} from "@/app/actions";
+import { approveSearchProfileAction, createSearchDraftFromApprovedAction, generateSearchProfileAction, saveSearchProfileDraftAction } from "@/modules/search-profile/actions";
 import { EmptyState } from "@/components/empty-state";
 import { InlineAlert } from "@/components/inline-alert";
 import {

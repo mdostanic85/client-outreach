@@ -2,16 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import {
-  applyLearningProposalAction,
-  generateMarketReportAction,
-  generatePositioningAction,
-  proposeJobScoringAction,
-  proposeScoringAction,
-  proposeStyleAction,
-  rejectLearningProposalAction,
-  saveSourceReportAction,
-} from "@/app/actions";
+import { applyLearningProposalAction, generateMarketReportAction, generatePositioningAction, proposeJobScoringAction, proposeScoringAction, proposeStyleAction, rejectLearningProposalAction, saveSourceReportAction } from "@/modules/learning/actions";
 import { Button } from "@/components/ui/button";
 
 export function LearningControls({ gatesReady }: { gatesReady: boolean }) {

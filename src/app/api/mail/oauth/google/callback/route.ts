@@ -1,6 +1,9 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { ensureDb } from "@/db/ensure";
 import { loadLocalEnv } from "@/lib/env";
+import { logger } from "@/lib/logging/logger";
+import { getRequestUser } from "@/modules/auth/page-guards";
 import {
   exchangeGoogleAuthCode,
   mailOauthStateCookieName,
@@ -15,8 +18,14 @@ function redirectAdmin(request: Request, query: Record<string, string>) {
   return NextResponse.redirect(url);
 }
 
+/** Saves the shared mailbox token: the owner's own session must finish the flow. */
 export async function GET(request: Request) {
   loadLocalEnv();
+  await ensureDb();
+  const caller = await getRequestUser();
+  if (!caller) return NextResponse.redirect(new URL("/login", request.url));
+  if (!caller.owner) return NextResponse.redirect(new URL("/", request.url));
+
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
@@ -52,6 +61,7 @@ export async function GET(request: Request) {
       message: tokens.email,
     });
   } catch (err) {
+    logger.warn({ err }, "gmail oauth connection failed");
     return redirectAdmin(request, {
       mailbox: "error",
       message:

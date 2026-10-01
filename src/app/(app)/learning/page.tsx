@@ -3,7 +3,7 @@ import { JobLearningHub } from "@/components/job-learning-hub";
 import { LearningModeSwitch } from "@/components/learning-mode-switch";
 import { PageHeader, PageShell } from "@/components/page-shell";
 import { ensureDb } from "@/db/ensure";
-import { getTodayMode } from "@/modules/jobs/queries";
+import { getTodayMode } from "@/modules/settings/user-settings";
 import {
   getJobLearningDashboard,
   getLearningDashboard,

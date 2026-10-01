@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, ArrowRight, Check, FileText, Loader2, UploadCloud, X } from "lucide-react";
-import { ingestCvAction, ingestPortfolioUrlAction } from "@/app/actions";
+import { ingestCvAction, ingestPortfolioUrlAction } from "@/modules/profile/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CapsuleLabel } from "@/components/ui/capsule-label";
 import { Input } from "@/components/ui/input";

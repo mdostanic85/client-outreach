@@ -2,11 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import {
-  runDailyPipelineAction,
-  runVerticalSliceAction,
-  submitManualCompanyAction,
-} from "@/app/actions";
+import { runVerticalSliceAction, submitManualCompanyAction } from "@/modules/discovery/actions";
+import { runDailyPipelineAction } from "@/modules/ops/actions";
 import { InlineAlert } from "@/components/inline-alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

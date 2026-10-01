@@ -13,12 +13,7 @@ import {
   ThumbsDown,
   Undo2,
 } from "lucide-react";
-import {
-  interestedJobAction,
-  markJobAppliedAction,
-  rejectJobAction,
-  saveJobForLaterAction,
-} from "@/app/actions";
+import { interestedJobAction, markJobAppliedAction, rejectJobAction, saveJobForLaterAction } from "@/modules/jobs/actions";
 import { CompanySnapshotCard } from "@/components/company-snapshot";
 import { InlineAlert } from "@/components/inline-alert";
 import { CompanyTile } from "@/components/job-list-item";
