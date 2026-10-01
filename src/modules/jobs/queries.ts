@@ -19,6 +19,12 @@ import {
   type RemoteFit,
 } from "@/modules/matching/remote-fit";
 import type { MatchDimensions } from "@/modules/matching/score";
+import { estimateJobScore, type JobEstimate } from "@/modules/matching/quick-estimate";
+import {
+  assessWorkLocation,
+  homePlacesOf,
+  type WorkLocationAssessment,
+} from "@/modules/matching/work-location";
 import { WORTH_A_LOOK_LIMIT } from "@/modules/matching/tiers";
 import type { ResearchAndScore } from "@/modules/research/schemas";
 import { getApprovedSearchProfile } from "@/modules/search-profile/queries";
@@ -44,6 +50,10 @@ export type DailyJobRow = {
   missingRequirements: string[];
   matchDimensions: MatchDimensions | null;
   remoteRequired: boolean;
+  /** Work mode and whether the person can work it from where they live. */
+  work: WorkLocationAssessment;
+  /** Quick score for a job the AI has not scored; null once there is a real match. */
+  estimate: JobEstimate | null;
   companySnapshot: CompanySnapshot;
 };
 
@@ -196,6 +206,17 @@ async function hydrateJobRows(
     ),
   ]);
   const remoteRequired = searchProfile?.params.remoteRequired ?? true;
+  const homePlaces = homePlacesOf(searchProfile?.params.locations ?? []);
+  const estimateCriteria = {
+    targetTitles: searchProfile?.params.targetTitles ?? [],
+    titleSynonyms: searchProfile?.params.titleSynonyms ?? [],
+    skills: [
+      ...(searchProfile?.params.requiredSkills ?? []),
+      ...(searchProfile?.params.preferredSkills ?? []),
+      ...(searchProfile?.params.searchKeywords ?? []),
+    ],
+    seniority: searchProfile?.params.seniority ?? [],
+  };
 
   const companyById = new Map(companyRows.map((c) => [c.id, c]));
   const latestMatchByJob = new Map<string, typeof jobMatches.$inferSelect>();
@@ -234,10 +255,13 @@ async function hydrateJobRows(
       remoteRequired,
     });
 
+    const work = assessWorkLocation(job, { places: homePlaces });
     rows.push({
       job,
       company,
       match,
+      work,
+      estimate: match ? null : estimateJobScore(job, estimateCriteria, work.home),
       matchingReasons,
       concerns,
       remoteFit,
@@ -279,6 +303,34 @@ export async function listDailyJobs(limit?: number): Promise<DailyJobRow[]> {
     .limit(cap));
 
   return hydrateJobRows(published);
+}
+
+/** Longest the all-found list reaches back; older postings are mostly closed. */
+const ALL_FOUND_LOOKBACK_DAYS = 30;
+const ALL_FOUND_LIMIT = 400;
+
+/**
+ * Every job the searches found for this account (not only the published
+ * picks), best score first. Jobs the AI has not scored carry an estimate.
+ * Rejected jobs stay out.
+ */
+export async function listAllFoundJobs(limit = ALL_FOUND_LIMIT): Promise<DailyJobRow[]> {
+  const found = await getDb()
+    .select()
+    .from(jobs)
+    .where(
+      and(
+        await owned(jobs),
+        eq(jobs.status, "active"),
+        inArray(jobs.triageState, ["discovered", "published", "saved", "interested", "applied"]),
+        gte(jobs.createdAt, lookbackIso(ALL_FOUND_LOOKBACK_DAYS)),
+      ),
+    )
+    .orderBy(desc(jobs.createdAt))
+    .limit(limit);
+  const rows = await hydrateJobRows(found);
+  const effective = (row: DailyJobRow) => row.match?.matchScore ?? row.estimate?.score ?? 0;
+  return rows.sort((a, b) => effective(b) - effective(a));
 }
 
 export type JobSearchStatus = {

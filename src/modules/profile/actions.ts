@@ -6,12 +6,9 @@ import { runAction } from "@/lib/server-action";
 import { generateSearchProfile } from "@/modules/search-profile/generate";
 import { approveStructuredProfile } from "./approve";
 import type { DiffDecision } from "./diff";
-import {
-  createDraftFromApprovedProfile,
-  extractStructuredProfile,
-  saveDraftProfileEdits,
-} from "./extract";
+import { createDraftFromApprovedProfile, saveDraftProfileEdits } from "./extract";
 import { addFact, applyDiffDecisionsToDraft, removeFact, updateFact } from "./facts";
+import { rebuildDraftProfile } from "./rebuild";
 import {
   ingestFileUpload,
   ingestGithubProfile,
@@ -150,11 +147,12 @@ export async function setUsePortfolioInMatchingAction(enabled: boolean) {
 
 // ─── Structured profile drafts ──────────────────────────────────────────────
 
+/** Rebuilds the draft from every source, keeping the person's own preferences. */
 export async function extractProfileAction() {
   return runAction("profile.extract", "user", async () => {
-    const result = await extractStructuredProfile();
+    const { profileId, version, model, usedPrivate, groundingIssues } = await rebuildDraftProfile();
     revalidatePath("/profile");
-    return result;
+    return { profileId, version, model, usedPrivate, groundingIssues };
   });
 }
 

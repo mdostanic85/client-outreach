@@ -14,6 +14,7 @@ import { TriageInbox, type TriageRow } from "@/components/triage-inbox";
 export function TodayTabs({
   mode,
   jobRows,
+  allJobRows,
   leadRows,
   hasSearchProfile,
   clientsEnabled,
@@ -23,6 +24,7 @@ export function TodayTabs({
   /** Company outreach is owner-only; others only see jobs. */
   clientsEnabled: boolean;
   jobRows: JobTriageRow[];
+  allJobRows: JobTriageRow[];
   leadRows: TriageRow[];
   hasSearchProfile: boolean;
   autoSearch: boolean;
@@ -62,7 +64,7 @@ export function TodayTabs({
             {
               id: "jobs",
               label: "Jobs",
-              count: jobRows.length,
+              count: Math.max(jobRows.length, allJobRows.length),
               description: "Roles that match your profile",
             },
             {
@@ -79,6 +81,7 @@ export function TodayTabs({
           {mode === "jobs" ? (
             <JobsInbox
               rows={jobRows}
+              allRows={allJobRows}
               hasSearchProfile={hasSearchProfile}
               autoSearch={autoSearch}
               onSearchingChange={onJobsSearchingChange}

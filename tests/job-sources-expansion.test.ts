@@ -63,7 +63,7 @@ test("Serbia without a city searches Belgrade, Novi Sad and Niš", () => {
   assert.equal(named.filter((query) => query.source === "helloworld").length, 1);
 });
 
-test("Serbia healthcare is Infostud, Poslovi, NSZ and LinkedIn, without Remotive or ATS", () => {
+test("Serbia healthcare is Infostud, Poslovi, NSZ and LinkedIn, without remote boards or ATS", () => {
   const nurse = planSources({ family: "healthcare", locations: ["Serbia"], remoteAllowed: false });
   assert.deepEqual(nurse.sourcesEnabled.sort(), ["infostud", "linkedin", "nsz", "poslovi"]);
   assert.deepEqual(nurse.atsBoardUrls, []);
@@ -71,7 +71,9 @@ test("Serbia healthcare is Infostud, Poslovi, NSZ and LinkedIn, without Remotive
   const dev = planSources({ family: "tech_digital", locations: ["Serbia"], remoteAllowed: false });
   assert.ok(dev.sourcesEnabled.includes("joberty"));
   assert.ok(dev.sourcesEnabled.includes("helloworld"));
-  assert.ok(!dev.sourcesEnabled.includes("remotive"));
+  // Remote boards are read even when remote was not asked for; the list filters by work mode.
+  assert.ok(dev.sourcesEnabled.includes("remotive"));
+  assert.ok(dev.sourcesEnabled.includes("himalayas"));
   assert.ok(dev.atsBoardUrls.some((url) => url.includes("teamtailor.com")));
 });
 

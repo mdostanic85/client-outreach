@@ -95,24 +95,74 @@ or check that is not awaited fails lint.
 1. **Plan queries**: `collectors/run.ts` turns the approved search profile and
    occupation family into per-source queries.
 2. **Collect and normalise**: each source adapter in `collectors/*.ts` (direct
-   ATS, Remotive, Arbeitnow, LinkedIn guest, HelloWorld, Infostud, Joberty,
-   Poslovi, NSZ, Apify fallback) returns `RawCollectedJob` (`collectors/types.ts`).
+   ATS, Remotive, Arbeitnow, Remote OK, Himalayas, Jobicy, We Work Remotely,
+   Working Nomads, LinkedIn guest, HelloWorld, Infostud, Joberty, Poslovi, NSZ,
+   Apify fallback) returns `RawCollectedJob` (`collectors/types.ts`).
    Run history goes to `collector_runs`.
 3. **Filter**: `jobs/filters.ts` (`filterRawJobs`) applies hard filters:
    title, excluded titles and keywords, age, location, remote requirement,
-   employment type, seniority, avoided industries and duplicates.
+   employment type, seniority, avoided industries and duplicates. It also runs
+   the work-location check (below) and drops jobs the person clearly cannot
+   work from where they live.
 4. **Persist**: `jobs/persist.ts` stores jobs with identity from
    `collectors/identity.ts` (source + external ID, or the canonical URL).
 5. **Match and score**: `matching/evaluate.ts` (AI evaluation with a cache
    keyed on content, profile, criteria, model and prompt) and `matching/score.ts`.
 6. **Publish**: `matching/evaluate.ts#publishDailyJobList`.
-7. **Read for the UI**: `jobs/queries.ts` (Today, Saved, detail, search status).
+7. **Read for the UI**: `jobs/queries.ts` (Today, All found, Saved, detail,
+   search status).
 8. **Decide**: `jobs/triage.ts` (save, decide later, not interested, applied),
    with each decision logged by `learning/job-outcomes.ts`.
 
 `jobs/pipeline.ts` runs steps 1–6 for one account. It is started by
 `/api/jobs/search` (streamed), `runJobPipelineAction`, `scripts/jobs-worker.ts`
 and the full daily worker.
+
+### More material widens search, never narrows it
+
+A CV, a website or LinkedIn should find more jobs. These rules enforce it
+(tests in `tests/search-breadth.test.ts`):
+
+- **Rebuilding the profile** (`profile/rebuild.ts`) keeps the approved
+  profile's roles, places, work types, languages, licences, pay and
+  occupation. Survey answers go on top. A new document cannot add
+  "too junior / too senior" exclusions.
+- **Regenerated criteria** (`search-profile/widen.ts`) combine the approved
+  titles, synonyms, places, sources and boards with the new ones. Exclusions,
+  seniority and limits stay as approved. Titles beyond the five that get board
+  queries move to synonyms instead of being dropped.
+- **Remote-only comes from the survey alone** (`applyRemoteChoice`). A
+  "Remote" in a CV or website header becomes a preference, also for criteria
+  approved before this rule.
+- **Collection and scoring:** board searches use the title, not title plus
+  skills. Direct ATS boards take at most 60% of the raw budget when other
+  sources are planned. Kept jobs are ranked (`jobs/evaluation-order.ts`: best
+  title match first, sources taking turns) before the AI scoring budget.
+
+### Every job shows a score and a work mode
+
+Today has three lists: Strong matches, Worth a look and **All found**. All
+found is every job the searches stored for the account in the last 30 days
+(`listAllFoundJobs`), best score first, with a Remote / Hybrid / On-site filter
+that applies to all three lists (tests in `tests/work-location.test.ts`,
+`tests/quick-estimate.test.ts`).
+
+- **Can I work this from Serbia** (`matching/work-location.ts`) is deterministic
+  and runs on every collected job, with no AI call. It reads the work mode and
+  the place from the listing and the posting text. Clear cases ("US only", an
+  on-site job in Berlin) are dropped in `filterRawJobs`. Unclear ones stay in
+  the list with a flag, because hiding a job the person could do is worse than
+  showing one they cannot.
+- **Scores.** AI-scored jobs show the real match score. The rest show a quick
+  estimate (`matching/quick-estimate.ts`: title, skills, seniority and place),
+  marked "Estimate" and capped below the strong-match bar. The AI budget per
+  run is `EVALUATION_BUDGET` in `jobs/pipeline.ts`.
+- **Remote boards** (`collectors/remote-feeds.ts`) are planned for every family
+  where remote work is common, remote asked for or not. Free sources together
+  take at most `FREE_BOARD_SHARE` of the raw budget, split evenly between them,
+  so Serbian boards and LinkedIn keep theirs.
+- **Payload shapes** for the five feeds follow each board's public docs. Check
+  them live with `node --import tsx scripts/jobs-sources-smoke.ts`.
 
 ## Client outreach: where each step lives
 

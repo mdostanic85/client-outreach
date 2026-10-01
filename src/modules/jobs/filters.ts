@@ -2,6 +2,7 @@ import type { JobSearchParams } from "@/modules/search-profile/schemas";
 import type { RawCollectedJob } from "@/modules/collectors/types";
 import { jobIdentityKeys } from "@/modules/collectors/identity";
 import { normalizeTitle } from "@/modules/occupations/search";
+import { assessWorkLocation, homePlacesOf } from "@/modules/matching/work-location";
 
 export type FilterDropReason =
   | "excluded_title"
@@ -222,6 +223,14 @@ export function filterRawJobs(
           continue;
         }
       }
+    }
+
+    // Can the person do it from where they live? Clear "no" only (US-only
+    // remote, on-site abroad); ambiguous roles stay and are flagged in the list.
+    const access = assessWorkLocation(job, { places: homePlacesOf(params.locations) });
+    if (access.home === "blocked") {
+      dropped.push({ job, reason: "bad_location" });
+      continue;
     }
 
     const employmentAllowed = employmentTypesForFilter(params.employmentTypes);

@@ -22,6 +22,22 @@ export const TECH_BUSINESS_ATS_BOARD_URLS = [
 const ATS_SOURCES: JobSource[] = ["greenhouse", "lever", "ashby"];
 
 /**
+ * Boards that list only remote work. They are read for every family where
+ * remote work exists, whether or not the person asked for remote: the jobs
+ * list filters by work mode and by whether Serbia is allowed, and a
+ * remote role is often open to Serbia.
+ */
+export const REMOTE_BOARD_SOURCES: JobSource[] = [
+  "remotive",
+  "arbeitnow",
+  "remoteok",
+  "himalayas",
+  "jobicy",
+  "weworkremotely",
+  "workingnomads",
+];
+
+/**
  * Public career pages of employers that hire in Serbia, confirmed to expose
  * a documented board feed. Only families with `usesAtsBoards` scan these.
  * EURES is not here: eures.europa.eu disallows `/search/`, and the portal API
@@ -74,7 +90,10 @@ export type SourcePlan = {
  * wants to work (plan table "Pretraga i izvori").
  *
  * - Serbia, any family: Infostud, Poslovi, NSZ, LinkedIn (+ HelloWorld and Joberty for tech)
- * - Remote, tech/business: Remotive (only families with categories), Arbeitnow, public ATS boards
+ * - Families where remote work is common: the remote boards (Remotive for families with
+ *   categories, Arbeitnow, Remote OK, Himalayas, Jobicy, We Work Remotely, Working Nomads),
+ *   even when remote was not asked for
+ * - Remote requested, tech/business: public ATS boards too
  * - Serbia employers on a known ATS: the manual Serbia catalog, for families that use ATS boards
  * - EU on-site: Arbeitnow + LinkedIn
  */
@@ -101,9 +120,13 @@ export function planSources(input: {
       sources.add("joberty");
     }
   }
+  if (family.remoteCommon) {
+    for (const source of REMOTE_BOARD_SOURCES) {
+      if (source === "remotive" && family.remotiveCategories.length === 0) continue;
+      sources.add(source);
+    }
+  }
   if (remote) {
-    if (family.remotiveCategories.length > 0) sources.add("remotive");
-    sources.add("arbeitnow");
     if (family.usesAtsBoards) ATS_SOURCES.forEach((s) => sources.add(s));
   }
   if (family.usesAtsBoards && serbia) {

@@ -28,7 +28,10 @@ export function JobListItem({
   showTimezoneChip?: boolean;
 }) {
   const facts = jobFacts(row);
-  const topReason = row.matchingReasons[0] ?? null;
+  const topReason = row.matchingReasons[0] ?? row.estimateBasis ?? null;
+  const score = row.matchScore ?? row.estimatedScore;
+  const estimated = row.matchScore == null && row.estimatedScore != null;
+  const workNote = row.homeAccess === "unclear" ? row.workReason : null;
   const badge = variant === "interested" ? packageBadgeLabel(packageMeta) : null;
 
   return (
@@ -45,7 +48,7 @@ export function JobListItem({
             {[row.companyName, ...facts.slice(0, 2)].join(" · ")}
           </span>
         </Link>
-        {topReason || row.remoteRequired || badge ? (
+        {topReason || row.remoteRequired || badge || workNote ? (
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
             {badge ? <Badge variant="secondary">{badge}</Badge> : null}
             {/* Remote verdicts only mean something when the person asked for remote. */}
@@ -57,6 +60,7 @@ export function JobListItem({
                 onOpen={() => {}}
               />
             ) : null}
+            {workNote ? <Badge variant="warn">{workNote}</Badge> : null}
             {topReason ? (
               <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-body-sm">
                 <Check className="text-brand-ink size-3.5 shrink-0" aria-hidden />
@@ -69,7 +73,8 @@ export function JobListItem({
       <div className="flex shrink-0 items-center gap-2">
         {/* Phones show just the number; the tier label returns from sm up. */}
         <ScoreBadge
-          score={row.matchScore}
+          score={score}
+          estimated={estimated}
           kind="match"
           size={variant === "interested" ? "sm" : "md"}
           className="relative z-10 max-sm:[&>span:last-child]:hidden"

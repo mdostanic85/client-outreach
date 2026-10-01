@@ -26,6 +26,13 @@ import { collectLinkedIn } from "./linkedin";
 import { collectNsz } from "./nsz";
 import { collectPoslovi } from "./poslovi";
 import { collectRemotive } from "./remotive";
+import {
+  collectHimalayas,
+  collectJobicy,
+  collectRemoteOk,
+  collectWeWorkRemotely,
+  collectWorkingNomads,
+} from "./remote-feeds";
 import { serbiaSearchPlaces } from "./serbia-places";
 import type { CollectorQuery, RawCollectedJob } from "./types";
 import { getOccupation } from "@/modules/occupations/catalog";
@@ -58,7 +65,20 @@ function boardName(slug: string): string {
   return slug.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-const FREE_SOURCES = new Set<JobSource>(["remotive", "arbeitnow"]);
+/** Free remote boards that publish one feed; one query per search covers them. */
+export const REMOTE_FEED_SOURCES = ["remoteok", "himalayas", "jobicy", "weworkremotely", "workingnomads"] as const;
+
+const FREE_SOURCES = new Set<JobSource>(["remotive", "arbeitnow", ...REMOTE_FEED_SOURCES]);
+
+/** Share of the raw budget direct ATS boards may take when other sources are planned. */
+export const DIRECT_BOARD_SHARE = 0.6;
+
+/**
+ * Share of the raw budget the free API and feed boards (Remotive, Arbeitnow
+ * and the remote feeds) may take, split evenly between them. Serbian boards
+ * and LinkedIn keep the rest.
+ */
+export const FREE_BOARD_SHARE = 0.4;
 
 /** Read directly from public pages; LinkedIn may fall back to Apify when blocked. */
 const DIRECT_BOARD_SOURCES = new Set<JobSource>([
@@ -100,6 +120,22 @@ export function expandFreeQueries(params: JobSearchParams): CollectorQuery[] {
           queries.push({ ...shared, remotiveCategory });
         }
       }
+      continue;
+    }
+    if ((REMOTE_FEED_SOURCES as readonly string[]).includes(source)) {
+      // These feeds are not searched by title: one read per source, filtered by every title.
+      const title = titles[0];
+      if (!title) continue;
+      queries.push({
+        title,
+        location: "Remote",
+        keywords: params.searchKeywords,
+        postedWithinHours: params.postedWithinHours,
+        maxResults: params.maxResultsPerQuery,
+        source,
+        searchTerms: [...titles.slice(1), ...params.titleSynonyms],
+        family: params.occupationFamily,
+      });
       continue;
     }
     for (const title of titles) {
@@ -287,6 +323,16 @@ async function runOneQuery(
       jobs = await collectRemotive(query);
     } else if (query.source === "arbeitnow") {
       jobs = await collectArbeitnow(query);
+    } else if (query.source === "remoteok") {
+      jobs = await collectRemoteOk(query);
+    } else if (query.source === "himalayas") {
+      jobs = await collectHimalayas(query);
+    } else if (query.source === "jobicy") {
+      jobs = await collectJobicy(query);
+    } else if (query.source === "weworkremotely") {
+      jobs = await collectWeWorkRemotely(query);
+    } else if (query.source === "workingnomads") {
+      jobs = await collectWorkingNomads(query);
     } else if (query.source === "helloworld") {
       jobs = await collectHelloWorld(query, params);
     } else if (query.source === "infostud") {
@@ -431,8 +477,15 @@ export async function collectJobsForProfile(options: {
   );
 
   // Direct public boards run first; no token or paid fallback is required.
+  // They may not use the whole raw budget when other sources are planned:
+  // big careers boards would otherwise crowd out LinkedIn and regional boards.
+  const otherSourcesPlanned =
+    freeQueries.length + linkedInPlanned.length + regionalPlanned.length + (willRunAts ? 1 : 0) > 0;
+  const directBudget = otherSourcesPlanned
+    ? Math.ceil(options.params.maxDailyRawJobs * DIRECT_BOARD_SHARE)
+    : options.params.maxDailyRawJobs;
   for (const entry of directBoards) {
-    if (!roomForJobs()) break;
+    if (!roomForJobs() || raw.length >= directBudget) break;
     const db = getDb();
     const runId = newId("crun");
     await db.insert(collectorRuns).values({
@@ -445,7 +498,7 @@ export async function collectJobsForProfile(options: {
     try {
       if (!entry.board) throw new Error(entry.error);
       const found = await collectDirectBoard(entry.board, options.params,
-        Math.min(options.params.maxResultsPerQuery, options.params.maxDailyRawJobs - raw.length));
+        Math.min(options.params.maxResultsPerQuery, directBudget - raw.length));
       pushJobs(found);
       await db.update(collectorRuns).set({ status: "ok", finishedAt: nowIso(), resultCount: found.length, costUsd: 0 })
         .where(and(await owned(collectorRuns), eq(collectorRuns.id, runId)));
@@ -468,9 +521,19 @@ export async function collectJobsForProfile(options: {
     }
   }
 
-  // 1) Free APIs
+  // 1) Free APIs and feeds, each source within its own share of the budget.
+  const freeSources = new Set(freeQueries.map((q) => q.source));
+  const perFreeSource = Math.max(
+    1,
+    Math.ceil((options.params.maxDailyRawJobs * FREE_BOARD_SHARE) / Math.max(freeSources.size, 1)),
+  );
+  const freeTaken = new Map<string, number>();
   for (const query of freeQueries) {
     if (!roomForJobs()) break;
+    if ((freeTaken.get(query.source) ?? 0) >= perFreeSource) {
+      await markCollect(`${queryDetail(query)} · skipped (source budget reached)`, queryActivity(query, 0));
+      continue;
+    }
     await report?.(
       progressFor(
         "collect",
@@ -483,10 +546,13 @@ export async function collectJobsForProfile(options: {
       options.searchProfileVersion,
       options.params,
     );
-    pushJobs(result.jobs);
+    const room = perFreeSource - (freeTaken.get(query.source) ?? 0);
+    const kept = result.jobs.slice(0, room);
+    freeTaken.set(query.source, (freeTaken.get(query.source) ?? 0) + kept.length);
+    pushJobs(kept);
     await markCollect(
-      `${queryDetail(query)} · ${result.jobs.length} found`,
-      queryActivity(query, result.jobs.length),
+      `${queryDetail(query)} · ${kept.length} found`,
+      queryActivity(query, kept.length),
     );
   }
 

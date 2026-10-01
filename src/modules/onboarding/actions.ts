@@ -8,26 +8,11 @@ import {
   getOnboardingStatus,
   markOnboardingComplete,
 } from "@/modules/onboarding/state";
-import {
-  applySurveyToProfile,
-  summarizeProfile,
-  type ProfileSummary,
-  applySurveyToSearchParams,
-  getSurvey,
-  saveSurveyPatch,
-  type SurveyAnswers,
-} from "@/modules/onboarding/survey";
+import { summarizeProfile, type ProfileSummary, applySurveyToSearchParams, getSurvey, saveSurveyPatch, type SurveyAnswers } from "@/modules/onboarding/survey";
 import { approveStructuredProfile } from "@/modules/profile/approve";
+import { rebuildDraftProfile } from "@/modules/profile/rebuild";
 import { runCvReview, type CvReviewView } from "@/modules/profile/cv-review";
-import {
-  extractStructuredProfile,
-  saveDraftProfileEdits,
-} from "@/modules/profile/extract";
-import {
-  getApprovedProfile,
-  getLatestDraftProfile,
-  getStructuredProfileById,
-} from "@/modules/profile/queries";
+import { getApprovedProfile, getLatestDraftProfile } from "@/modules/profile/queries";
 import { approveSearchProfile } from "@/modules/search-profile/approve";
 import {
   generateSearchProfile,
@@ -93,16 +78,12 @@ export async function analyzeProfileAction() {
     "user",
     async (): Promise<{ summary: ProfileSummary; review: CvReviewView | null }> => {
       const survey = await getSurvey();
-      const [extracted, review] = await Promise.all([
-        extractStructuredProfile(),
+      const [rebuilt, review] = await Promise.all([
+        rebuildDraftProfile(),
         // The CV score is a bonus on this screen; the profile is what matters.
         runCvReview(survey).catch(() => null),
       ]);
-      const draft = await getStructuredProfileById(extracted.profileId);
-      if (!draft) throw new Error("Profile draft missing.");
-      const merged = applySurveyToProfile(draft.profile, survey);
-      await saveDraftProfileEdits(extracted.profileId, merged);
-      return { summary: summarizeProfile(merged), review };
+      return { summary: summarizeProfile(rebuilt.profile), review };
     },
   );
 }

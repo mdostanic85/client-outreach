@@ -48,6 +48,6 @@ test("blank or invalid numbers fall back to the defaults", () => {
   const values = { ...paramsToFormValues(base), postedWithinDays: "", maxRaw: "lots", maxApify: "" };
   const next = formValuesToParams(values, base);
   assert.equal(next.postedWithinHours, DEFAULT_POSTED_WITHIN_HOURS);
-  assert.equal(next.maxDailyRawJobs, 80);
+  assert.equal(next.maxDailyRawJobs, 200);
   assert.equal(next.maxDailyApifyUsd, 0.5);
 });

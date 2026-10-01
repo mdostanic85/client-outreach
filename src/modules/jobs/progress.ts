@@ -73,5 +73,10 @@ export const SOURCE_LABELS: Record<string, string> = {
   personio: "Personio",
   remotive: "Remotive",
   arbeitnow: "Arbeitnow",
+  remoteok: "Remote OK",
+  himalayas: "Himalayas",
+  jobicy: "Jobicy",
+  weworkremotely: "We Work Remotely",
+  workingnomads: "Working Nomads",
   apify: "ATS boards",
 };

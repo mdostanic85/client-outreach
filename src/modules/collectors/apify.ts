@@ -242,9 +242,10 @@ export function buildApifyInputForSource(
     };
   }
 
-  const search = [query.title, ...(query.keywords ?? []).slice(0, 3)]
-    .filter(Boolean)
-    .join(" ");
+  // The board search is the title alone: appending skills ("Figma Prototyping")
+  // makes the board require all of them and returns fewer jobs. Skills still
+  // go to actors that accept them as a separate `keywords` field.
+  const search = query.title;
   return {
     search,
     query: search,

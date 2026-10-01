@@ -37,7 +37,7 @@ export function paramsToFormValues(params: JobSearchParams | undefined): Criteri
     excludedKw: listToLines(params?.excludedKeywords),
     boards: listToLines(params?.atsBoardUrls),
     postedWithinDays: String(hoursToDays(params?.postedWithinHours ?? DEFAULT_POSTED_WITHIN_HOURS)),
-    maxRaw: String(params?.maxDailyRawJobs ?? 80),
+    maxRaw: String(params?.maxDailyRawJobs ?? 200),
     maxApify: String(params?.maxDailyApifyUsd ?? 0.5),
   };
 }
@@ -69,8 +69,8 @@ export function formValuesToParams(
     salary: base?.salary,
     atsBoardUrls: linesToList(values.boards),
     sourcesEnabled: base?.sourcesEnabled ?? ["infostud", "linkedin"],
-    maxResultsPerQuery: base?.maxResultsPerQuery ?? 12,
-    maxDailyRawJobs: Number(values.maxRaw) || 80,
+    maxResultsPerQuery: base?.maxResultsPerQuery ?? 25,
+    maxDailyRawJobs: Number(values.maxRaw) || 200,
     maxDailyApifyUsd: Number(values.maxApify) || 0.5,
   };
 }
