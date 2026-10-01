@@ -1,96 +1,32 @@
-import * as cheerio from "cheerio";
+import { postingText } from "@/modules/collectors/posting-html";
 import {
-  DiscoverySignalSchema,
-  extractDomain,
-  hashPayload,
-  type DiscoverySignal,
-} from "./types";
-
-const REMOTIVE_API = "https://remotive.com/api/remote-jobs";
-
-type RemotiveJob = {
-  id: number;
-  url: string;
-  title: string;
-  company_name: string;
-  company_logo?: string;
-  category?: string;
-  job_type?: string;
-  publication_date?: string;
-  candidate_required_location?: string;
-  description?: string;
-  tags?: string[];
-};
-
-type RemotiveResponse = {
-  "job-count": number;
-  jobs: RemotiveJob[];
-};
-
-function domainFromDescription(html: string | undefined, companyName: string): string | undefined {
-  if (!html) return undefined;
-  const $ = cheerio.load(html);
-  const hrefs: string[] = [];
-  $("a[href]").each((_, el) => {
-    const href = $(el).attr("href");
-    if (href) hrefs.push(href);
-  });
-
-  const skip = /(remotive\.com|linkedin\.com|twitter\.com|x\.com|facebook\.com|instagram\.com|youtube\.com|notion\.so|google\.com)/i;
-  const candidates = hrefs
-    .map((h) => extractDomain(h))
-    .filter((d): d is string => !!d && !skip.test(d));
-
-  if (candidates.length === 0) return undefined;
-
-  // Prefer a domain that loosely matches company name tokens
-  const tokens = companyName
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((t) => t.length > 2);
-  const matched = candidates.find((d) => tokens.some((t) => d.includes(t)));
-  return matched ?? candidates[0];
-}
-
-function descriptionExcerpt(html: string | undefined): string {
-  if (!html) return "";
-  const $ = cheerio.load(html);
-  return $("body").text().replace(/\s+/g, " ").trim().slice(0, 2000);
-}
+  fetchRemotiveJobs,
+  remotiveCategoryUrl,
+  remotiveCompanyDomain,
+} from "@/modules/collectors/remotive";
+import { DiscoverySignalSchema, hashPayload, type DiscoverySignal } from "./types";
 
 /**
- * Fetch remote jobs from Remotive. Category is the caller's choice
- * (an occupation family, or "design" for client discovery). Omitting it
- * does not fall back to design.
+ * Remotive postings as hiring signals for client outreach: a company hiring
+ * in a category may need outside help. The HTTP client lives with the job
+ * collectors (`collectors/remotive.ts`).
+ *
+ * Category is the caller's choice (an occupation family, or "design" for
+ * client discovery). Omitting it does not fall back to design.
  */
 export async function fetchRemotiveSignals(options?: {
   category?: string;
   limit?: number;
 }): Promise<DiscoverySignal[]> {
   const limit = options?.limit ?? 25;
-  const url = new URL(REMOTIVE_API);
-  if (options?.category) url.searchParams.set("category", options.category);
+  const jobs = await fetchRemotiveJobs(remotiveCategoryUrl(options?.category));
 
-  const res = await fetch(url.href, {
-    headers: { Accept: "application/json" },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Remotive fetch failed: HTTP ${res.status}`);
-  }
-
-  const data = (await res.json()) as RemotiveResponse;
-  const jobs = (data.jobs ?? []).slice(0, limit);
-
-  return jobs.map((job) => {
-    const excerpt = descriptionExcerpt(job.description);
+  return jobs.slice(0, limit).map((job) => {
     const parsed = DiscoverySignalSchema.parse({
       source: "remotive" as const,
       externalId: String(job.id),
       companyName: job.company_name,
-      companyDomain: domainFromDescription(job.description, job.company_name),
+      companyDomain: remotiveCompanyDomain(job),
       title: job.title,
       location: job.candidate_required_location,
       employmentType: job.job_type,
@@ -103,6 +39,6 @@ export async function fetchRemotiveSignals(options?: {
         published: job.publication_date,
       }),
     });
-    return { ...parsed, descriptionExcerpt: excerpt };
+    return { ...parsed, descriptionExcerpt: postingText(job.description, 2000) };
   });
 }

@@ -9,7 +9,7 @@ import { approvalContentHash } from "../src/modules/mail/approvals";
 import {
   extractDomain,
   normalizeCompanyName,
-} from "../src/modules/discovery/types";
+} from "../src/modules/companies/identity";
 import {
   effectivePolicy,
   normalizeCountryCode,

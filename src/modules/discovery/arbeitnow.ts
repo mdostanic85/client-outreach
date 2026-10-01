@@ -1,77 +1,18 @@
-import * as cheerio from "cheerio";
-import { titleMatchesQuery, type CollectorQuery } from "@/modules/collectors/types";
+import { postingText } from "@/modules/collectors/posting-html";
 import {
-  DiscoverySignalSchema,
-  extractDomain,
-  hashPayload,
-  type DiscoverySignal,
-} from "./types";
+  arbeitnowCompanyDomain,
+  arbeitnowJobTypes,
+  arbeitnowPostedAt,
+  fetchArbeitnowPage,
+  type ArbeitnowJob,
+} from "@/modules/collectors/arbeitnow";
+import { titleMatchesQuery, type CollectorQuery } from "@/modules/collectors/types";
+import { DiscoverySignalSchema, hashPayload, type DiscoverySignal } from "./types";
 
-const ARBEITNOW_API = "https://www.arbeitnow.com/api/job-board-api";
-
-type ArbeitnowJob = {
-  slug: string;
-  company_name: string;
-  title: string;
-  description?: string;
-  remote?: boolean;
-  url: string;
-  /** API sometimes returns a dict (`{0: "Sales", ...}`) instead of an array. */
-  tags?: string[] | Record<string, string>;
-  job_types?: string[] | Record<string, string>;
-  location?: string;
-  created_at?: number;
-};
-
-type ArbeitnowResponse = {
-  data: ArbeitnowJob[];
-};
-
-/** Normalize Arbeitnow list fields that may arrive as arrays or keyed objects. */
-function asStringList(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.filter((v): v is string => typeof v === "string");
-  }
-  if (value && typeof value === "object") {
-    return Object.values(value as Record<string, unknown>).filter(
-      (v): v is string => typeof v === "string",
-    );
-  }
-  if (typeof value === "string" && value.trim()) return [value];
-  return [];
-}
-
-function descriptionExcerpt(html: string | undefined): string {
-  if (!html) return "";
-  const $ = cheerio.load(html);
-  return $("body").text().replace(/\s+/g, " ").trim().slice(0, 2000);
-}
-
-function domainFromDescription(html: string | undefined, companyName: string): string | undefined {
-  if (!html) return undefined;
-  const $ = cheerio.load(html);
-  const hrefs: string[] = [];
-  $("a[href]").each((_, el) => {
-    const href = $(el).attr("href");
-    if (href) hrefs.push(href);
-  });
-
-  const skip =
-    /(arbeitnow\.com|linkedin\.com|twitter\.com|x\.com|facebook\.com|instagram\.com|youtube\.com|notion\.so|google\.com)/i;
-  const candidates = hrefs
-    .map((h) => extractDomain(h))
-    .filter((d): d is string => !!d && !skip.test(d));
-
-  if (candidates.length === 0) return undefined;
-
-  const tokens = companyName
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((t) => t.length > 2);
-  const matched = candidates.find((d) => tokens.some((t) => d.includes(t)));
-  return matched ?? candidates[0];
-}
+/**
+ * Arbeitnow postings as hiring signals for client outreach. The HTTP client
+ * lives with the job collectors (`collectors/arbeitnow.ts`).
+ */
 
 /**
  * Keep a posting when it shares the occupation's names. With no titles,
@@ -104,37 +45,24 @@ export async function fetchArbeitnowSignals(options?: {
   const jobs: ArbeitnowJob[] = [];
 
   for (let page = 1; page <= pages; page += 1) {
-    const url = `${ARBEITNOW_API}?page=${page}`;
-    const res = await fetch(url, {
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      throw new Error(`Arbeitnow fetch failed: HTTP ${res.status}`);
-    }
-    const data = (await res.json()) as ArbeitnowResponse;
-    jobs.push(...(data.data ?? []));
-    if ((data.data ?? []).length === 0) break;
+    const result = await fetchArbeitnowPage(page);
+    if (!result.ok) throw new Error(`Arbeitnow fetch failed: HTTP ${result.status}`);
+    jobs.push(...result.jobs);
+    if (result.jobs.length === 0) break;
   }
 
   const matched = jobs.filter((job) => arbeitnowTitleAllowed(job.title, options?.titles));
 
   return matched.slice(0, limit).map((job) => {
-    const excerpt = descriptionExcerpt(job.description);
-    const publishedAt =
-      typeof job.created_at === "number"
-        ? new Date(job.created_at * 1000).toISOString()
-        : undefined;
-
     const parsed = DiscoverySignalSchema.parse({
       source: "arbeitnow" as const,
       externalId: job.slug,
       companyName: job.company_name,
-      companyDomain: domainFromDescription(job.description, job.company_name),
+      companyDomain: arbeitnowCompanyDomain(job),
       title: job.title,
       location: job.location,
-      employmentType: asStringList(job.job_types).join(", ") || undefined,
-      publishedAt,
+      employmentType: arbeitnowJobTypes(job).join(", ") || undefined,
+      publishedAt: arbeitnowPostedAt(job),
       sourceUrl: job.url,
       rawHash: hashPayload({
         slug: job.slug,
@@ -143,7 +71,6 @@ export async function fetchArbeitnowSignals(options?: {
         created: job.created_at,
       }),
     });
-
-    return { ...parsed, descriptionExcerpt: excerpt };
+    return { ...parsed, descriptionExcerpt: postingText(job.description, 2000) };
   });
 }

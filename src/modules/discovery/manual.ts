@@ -1,4 +1,5 @@
-import { extractDomain, hashPayload, DiscoverySignalSchema, type DiscoverySignal } from "./types";
+import { extractDomain } from "@/modules/companies/identity";
+import { hashPayload, DiscoverySignalSchema, type DiscoverySignal } from "./types";
 
 /**
  * Manual company URL submission — highest-precision discovery source.

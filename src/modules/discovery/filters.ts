@@ -2,11 +2,8 @@ import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { companies, leads, suppressions } from "@/db/schema";
 import { ACTIVE_OUTREACH_STATES } from "@/modules/leads/states";
-import {
-  extractDomain,
-  normalizeCompanyName,
-  type DiscoverySignal,
-} from "./types";
+import { extractDomain, normalizeCompanyName } from "@/modules/companies/identity";
+import type { DiscoverySignal } from "./types";
 
 export type TargetFilters = {
   countries?: string[];
