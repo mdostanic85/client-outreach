@@ -26,7 +26,8 @@
     "eval:writing": "tsx tests/evals/writing-compare.ts",
     "eval:research": "tsx tests/evals/research-scorecard.ts",
     "jobs:worker": "node --import tsx scripts/jobs-worker.ts",
-    "jobs:mcp": "node --import tsx scripts/jobs-mcp.ts"
+    "jobs:mcp": "node --import tsx scripts/jobs-mcp.ts",
+    "test:integration": "node --import tsx --test tests/integration/*.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

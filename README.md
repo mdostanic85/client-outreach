@@ -28,6 +28,7 @@ App binds to **127.0.0.1:3000** only.
 
 ```bash
 npm test                 # full unit suite (no network, no database)
+npm run test:integration # needs DATABASE_URL (starts the MCP server against the database)
 npm run worker           # daily pipeline
 npm run backup           # See backup script and current Neon deployment setup
 npm run export-data      # JSON export → data/exports/

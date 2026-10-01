@@ -157,3 +157,11 @@ and a folder of parts:
 
 Pure mapping logic, such as onboarding flow order, profile and criteria form
 values, and stream parsing, lives in `modules/` with tests.
+
+## Checks
+
+CI (`.github/workflows/ci.yml`) runs `pnpm lint`, `tsc --noEmit`, `pnpm test`
+and `pnpm build` on every pull request and on `main`, without a database or API
+keys. Tests that need `DATABASE_URL` live in `tests/integration/` and run with
+`npm run test:integration`.
+
