@@ -2,11 +2,18 @@ import type { PackageListMeta } from "@/modules/applications/packages";
 import { isApplicationSent } from "@/modules/applications/schemas";
 import type { JobTriageRow } from "@/modules/jobs/triage-row";
 
+export const WORK_MODE_LABELS: Record<JobTriageRow["workMode"], string | null> = {
+  remote: "Remote",
+  hybrid: "Hybrid",
+  onsite: "On-site",
+  unspecified: null,
+};
+
 /** Short facts shown next to a job: place, work mode, type, pay. */
 export function jobFacts(row: JobTriageRow): string[] {
   return [
     row.location,
-    row.remotePolicy,
+    row.remotePolicy ?? WORK_MODE_LABELS[row.workMode],
     row.employmentType,
     row.companySnapshot.salaryText,
   ].filter((fact): fact is string => Boolean(fact?.trim()));

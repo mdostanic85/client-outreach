@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Briefcase, Search } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { InlineAlert } from "@/components/inline-alert";
 import { JobListItem } from "@/components/job-list-item";
 import { Stagger, StaggerItem } from "@/components/motion";
 import { PageHeader, Surface } from "@/components/page-shell";
+import { Button } from "@/components/ui/button";
 import { useJobSearch } from "@/components/job-search-provider";
 import { createSessionStore } from "@/lib/session-store";
 import { SegmentedControl } from "@/components/segmented-control";
@@ -23,16 +24,25 @@ import { timezoneOverlapVaries } from "@/modules/matching/remote-fit";
 export type { JobTriageRow };
 
 type InboxTab = "strong" | "worth_a_look" | "all";
+type WorkFilter = "any" | "remote" | "hybrid" | "onsite";
 
 const tabStore = createSessionStore<InboxTab>("optra.jobsInbox.tab", "strong");
+const workStore = createSessionStore<WorkFilter>("optra.jobsInbox.work", "any");
+
+/** The all-found list is long; it opens a page at a time. */
+const ALL_PAGE_SIZE = 40;
 
 export function JobsInbox({
   rows,
+  allRows,
   hasSearchProfile,
   autoSearch = false,
   onSearchingChange,
 }: {
+  /** The published picks (AI-scored). */
   rows: JobTriageRow[];
+  /** Every job the searches found, with a score or an estimate. */
+  allRows: JobTriageRow[];
   hasSearchProfile: boolean;
   /** First visit after onboarding: start the first search without a click. */
   autoSearch?: boolean;
@@ -51,6 +61,8 @@ export function JobsInbox({
 
   const tab = tabStore.useValue();
   const setTab = tabStore.set;
+  const workFilter = workStore.useValue();
+  const [allShown, setAllShown] = useState(ALL_PAGE_SIZE);
 
   // Land on the tier that actually has results after a finished run.
   useEffect(() => {
@@ -58,10 +70,30 @@ export function JobsInbox({
     else if (lastOutcome?.worth) tabStore.set("worth_a_look");
   }, [lastOutcome]);
 
+  const matchesWork = (r: JobTriageRow) => workFilter === "any" || r.workMode === workFilter;
+
   const visible = useMemo(
-    () => rows.filter((r) => r.triageState !== "rejected"),
-    [rows],
+    () => rows.filter((r) => r.triageState !== "rejected" && matchesWork(r)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, workFilter],
   );
+
+  const everyRow = useMemo(
+    () => allRows.filter((r) => r.triageState !== "rejected"),
+    [allRows],
+  );
+  const allVisible = useMemo(
+    () => everyRow.filter(matchesWork),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [everyRow, workFilter],
+  );
+  const workCounts = useMemo(() => {
+    const counts = { any: everyRow.length, remote: 0, hybrid: 0, onsite: 0 };
+    for (const row of everyRow) {
+      if (row.workMode !== "unspecified") counts[row.workMode] += 1;
+    }
+    return counts;
+  }, [everyRow]);
 
   const strongRows = useMemo(
     () =>
@@ -82,8 +114,8 @@ export function JobsInbox({
   const listed = useMemo(() => {
     if (tab === "strong") return strongRows;
     if (tab === "worth_a_look") return worthRows;
-    return [...strongRows, ...worthRows];
-  }, [tab, strongRows, worthRows]);
+    return allVisible.slice(0, allShown);
+  }, [tab, strongRows, worthRows, allVisible, allShown]);
 
   const showTimezoneChip = useMemo(
     () =>
@@ -95,10 +127,18 @@ export function JobsInbox({
     if (searching) return;
     if (strongRows.length === 0 && worthRows.length > 0 && tab === "strong") {
       tabStore.set("worth_a_look");
+    } else if (
+      strongRows.length === 0 &&
+      worthRows.length === 0 &&
+      allVisible.length > 0 &&
+      tab !== "all"
+    ) {
+      tabStore.set("all");
     }
-  }, [strongRows.length, worthRows.length, searching, tab]);
+  }, [strongRows.length, worthRows.length, allVisible.length, searching, tab]);
 
-  const isEmpty = visible.length === 0;
+  // Nothing found at all (not just nothing under this work mode).
+  const isEmpty = rows.length === 0 && everyRow.length === 0;
 
   // Empty Today owns Find jobs / Set criteria. The topbar repeats it otherwise.
   useEffect(() => {
@@ -111,6 +151,7 @@ export function JobsInbox({
     !isEmpty &&
     strongRows.length === 0 &&
     worthRows.length > 0;
+  const showAllTab = everyRow.length > 0;
 
   const autoSearched = useRef(false);
   useEffect(() => {
@@ -129,7 +170,7 @@ export function JobsInbox({
     <div className="space-y-5">
       <PageHeader
         title="Today"
-        description="Roles picked for you, each with why it fits."
+        description="Roles found for your search, each with a score."
       />
 
       {error ? <InlineAlert variant="error">{error}</InlineAlert> : null}
@@ -197,8 +238,29 @@ export function JobsInbox({
                 label: "Worth a look",
                 count: worthRows.length,
               },
+              ...(showAllTab
+                ? [{ id: "all" as const, label: "All found", count: allVisible.length }]
+                : []),
             ]}
           />
+
+          {showAllTab ? (
+            <SegmentedControl
+              ariaLabel="Work mode"
+              size="sm"
+              value={workFilter}
+              onChange={(next) => {
+                workStore.set(next);
+                setAllShown(ALL_PAGE_SIZE);
+              }}
+              options={[
+                { id: "any", label: "Any", count: workCounts.any },
+                { id: "remote", label: "Remote", count: workCounts.remote },
+                { id: "hybrid", label: "Hybrid", count: workCounts.hybrid },
+                { id: "onsite", label: "On-site", count: workCounts.onsite },
+              ]}
+            />
+          ) : null}
 
           {showFallbackBanner && tab !== "worth_a_look" ? (
             <div className="bg-card text-ink-emphasis rounded-tile px-4 py-3 text-body-sm">
@@ -221,7 +283,7 @@ export function JobsInbox({
                   ? "No strong matches yet. Check Worth a look."
                   : tab === "worth_a_look"
                     ? `Nothing in the ${WORTH_A_LOOK_MIN}–${STRONG_MATCH_MIN - 1} band right now.`
-                    : "No published matches in either band."}
+                    : "Nothing found for this work mode."}
               </p>
             </Surface>
           ) : (
@@ -241,6 +303,17 @@ export function JobsInbox({
               ))}
             </Stagger>
           )}
+
+          {tab === "all" && allVisible.length > listed.length ? (
+            <div className="flex justify-center">
+              <Button variant="outline" onClick={() => setAllShown((n) => n + ALL_PAGE_SIZE)}>
+                Show {Math.min(ALL_PAGE_SIZE, allVisible.length - listed.length)} more
+                <span className="text-muted-foreground tabular">
+                  ({listed.length} of {allVisible.length})
+                </span>
+              </Button>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

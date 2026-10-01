@@ -4,6 +4,14 @@ import { BROWSER_USER_AGENT, fetchPage, OPTRA_USER_AGENT } from "../src/modules/
 import { linkedInSearchUrl, parseLinkedInSearch } from "../src/modules/collectors/linkedin";
 import { helloWorldSearchUrl, parseHelloWorldListing } from "../src/modules/collectors/helloworld";
 import { infostudSearchUrl, parseInfostudSearch } from "../src/modules/collectors/infostud";
+import {
+  collectHimalayas,
+  collectJobicy,
+  collectRemoteOk,
+  collectWeWorkRemotely,
+  collectWorkingNomads,
+} from "../src/modules/collectors/remote-feeds";
+import { assessWorkLocation } from "../src/modules/matching/work-location";
 
 async function main() {
   for (const url of ["https://boards.greenhouse.io/figma", "https://jobs.lever.co/palantir", "https://jobs.ashbyhq.com/linear"]) {
@@ -27,6 +35,35 @@ async function main() {
       const cards = await run();
       console.log(JSON.stringify({ source, cards }));
       if (cards === 0) process.exitCode = 1;
+    } catch (error) {
+      console.log(JSON.stringify({ source, error: error instanceof Error ? error.message : String(error) }));
+      process.exitCode = 1;
+    }
+  }
+  // Remote feeds: count, how many pass the Serbia check, and a sample row. These
+  // adapters follow each board's documented format; this is the live check.
+  const feedQuery = (source: "remoteok" | "himalayas" | "jobicy" | "weworkremotely" | "workingnomads") =>
+    ({ title: "Designer", location: "Remote", postedWithinHours: 720, maxResults: 30, source, family: "tech_digital" }) as const;
+  const feeds = {
+    remoteok: () => collectRemoteOk(feedQuery("remoteok")),
+    himalayas: () => collectHimalayas(feedQuery("himalayas")),
+    jobicy: () => collectJobicy(feedQuery("jobicy")),
+    weworkremotely: () => collectWeWorkRemotely(feedQuery("weworkremotely")),
+    workingnomads: () => collectWorkingNomads(feedQuery("workingnomads")),
+  };
+  for (const [source, run] of Object.entries(feeds)) {
+    try {
+      const jobs = await run();
+      const access = jobs.map((job) => assessWorkLocation(job, { places: ["Serbia"] }).home);
+      console.log(JSON.stringify({
+        source,
+        count: jobs.length,
+        serbiaOk: access.filter((a) => a === "ok").length,
+        unclear: access.filter((a) => a === "unclear").length,
+        blocked: access.filter((a) => a === "blocked").length,
+        sample: jobs[0] ? { title: jobs[0].title, company: jobs[0].companyName, location: jobs[0].location, url: jobs[0].sourceUrl } : null,
+      }));
+      if (jobs.length === 0) process.exitCode = 1;
     } catch (error) {
       console.log(JSON.stringify({ source, error: error instanceof Error ? error.message : String(error) }));
       process.exitCode = 1;

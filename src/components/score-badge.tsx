@@ -26,6 +26,8 @@ const TOOLTIPS: Record<ScoreKind, { title: string; body: string }> = {
   },
 };
 
+const ESTIMATE_TOOLTIP_TITLE = "Quick estimate";
+
 function matchLabel(
   score: number,
   tier: "strong" | "worth_a_look" | null,
@@ -66,10 +68,13 @@ export function ScoreBadge({
   size = "md",
   className,
   tooltip,
+  estimated = false,
   onClick,
 }: {
   score: number | null;
   kind?: ScoreKind;
+  /** The number is a quick estimate from title, skills and place, not an AI evaluation. */
+  estimated?: boolean;
   size?: "sm" | "md";
   className?: string;
   tooltip?: string;
@@ -83,13 +88,20 @@ export function ScoreBadge({
     );
   }
 
-  const display = formatScore(score);
-  const tip = TOOLTIPS[kind];
-  const tipBody = tooltip ?? tip.body;
+  const display = estimated ? `~${formatScore(score)}` : formatScore(score);
+  const tip = estimated ? { title: ESTIMATE_TOOLTIP_TITLE, body: "" } : TOOLTIPS[kind];
+  const tipBody =
+    tooltip ??
+    (estimated
+      ? "Not scored by the AI yet. Based on how well the title, skills and place fit your search. Open the job to score it properly."
+      : tip.body);
 
   let tone: "brand" | "warn" | "secondary";
   let label: string;
-  if (kind === "fit") {
+  if (estimated) {
+    tone = "secondary";
+    label = "Estimate";
+  } else if (kind === "fit") {
     tone = score >= 70 ? "brand" : "secondary";
     label = "fit";
   } else {

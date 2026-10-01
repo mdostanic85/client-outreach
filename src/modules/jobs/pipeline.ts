@@ -20,8 +20,11 @@ import { getActiveSearchParams } from "@/modules/search-profile/queries";
 import { getUserSettings } from "@/modules/settings/user-settings";
 import { owned } from "@/modules/auth/current-user";
 
-/** Jobs the AI scores per run (cached matches cost nothing). */
-const EVALUATION_BUDGET = 40;
+/**
+ * Jobs the AI scores per run (cached matches cost nothing). The rest of the
+ * found jobs still show in the list with a quick estimate.
+ */
+const EVALUATION_BUDGET = 60;
 
 /** Stay under the 300s function limit so the run can still publish and close the stream. */
 const PIPELINE_BUDGET_MS = 240_000;
