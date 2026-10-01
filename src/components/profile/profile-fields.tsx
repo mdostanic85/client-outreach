@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { COMPENSATION_CURRENCIES, formatCompensation, type CompensationExpectation } from "@/modules/profile/schemas";
 import { cn } from "@/lib/utils";
 
-import { linesToList } from "@/modules/profile/profile-form";
+import { linesToList } from "@/lib/text-lines";
 
 /** Form controls used on the Profile draft editor. */
 

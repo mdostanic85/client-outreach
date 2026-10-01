@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  formValuesToProfile,
-  linesToList,
-  profileToFormValues,
-} from "../src/modules/profile/profile-form";
+import { linesToList } from "../src/lib/text-lines";
+import { formValuesToProfile, profileToFormValues } from "../src/modules/profile/profile-form";
 import { EMPTY_STRUCTURED_PROFILE, type StructuredProfile } from "../src/modules/profile/schemas";
 
 const profile: StructuredProfile = {

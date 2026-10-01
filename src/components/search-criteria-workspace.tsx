@@ -18,28 +18,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import {
+  formValuesToParams,
+  paramsToFormValues,
+  type CriteriaFormValues,
+} from "@/modules/search-profile/criteria-form";
 import type { JobSearchParams } from "@/modules/search-profile/schemas";
-
-function listToLines(items: string[]) {
-  return items.join("\n");
-}
-
-function linesToList(text: string) {
-  return text
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-const DEFAULT_POSTED_WITHIN_HOURS = 48;
-
-function hoursToDays(hours: number) {
-  return Math.max(1, Math.round(hours / 24));
-}
-
-function daysToHours(days: number) {
-  return Math.max(1, Math.round(days)) * 24;
-}
 
 export function SearchCriteriaWorkspace({
   draft,
@@ -68,54 +52,15 @@ export function SearchCriteriaWorkspace({
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const source = draft ?? approved;
-  const [titles, setTitles] = useState(
-    listToLines(source?.params.targetTitles ?? []),
-  );
-  const [excluded, setExcluded] = useState(
-    listToLines(source?.params.excludedTitles ?? []),
-  );
-  const [locations, setLocations] = useState(
-    listToLines(source?.params.locations ?? []),
-  );
-  const [keywords, setKeywords] = useState(
-    listToLines(source?.params.searchKeywords ?? []),
-  );
-  const [excludedKw, setExcludedKw] = useState(
-    listToLines(source?.params.excludedKeywords ?? []),
-  );
-  const [boards, setBoards] = useState(
-    listToLines(source?.params.atsBoardUrls ?? []),
-  );
-  const [postedWithinDays, setPostedWithinDays] = useState(
-    String(
-      hoursToDays(source?.params.postedWithinHours ?? DEFAULT_POSTED_WITHIN_HOURS),
-    ),
-  );
-  const [maxRaw, setMaxRaw] = useState(
-    String(source?.params.maxDailyRawJobs ?? 80),
-  );
-  const [maxApify, setMaxApify] = useState(
-    String(source?.params.maxDailyApifyUsd ?? 0.5),
-  );
+  const [values, setValues] = useState<CriteriaFormValues>(() => paramsToFormValues(source?.params));
+  const set = (key: keyof CriteriaFormValues, value: string) =>
+    setValues((current) => ({ ...current, [key]: value }));
 
   const formKey = `${draft?.id ?? "none"}-${draft?.version ?? 0}-${approved?.id ?? "none"}`;
   const [lastKey, setLastKey] = useState(formKey);
   if (formKey !== lastKey) {
     setLastKey(formKey);
-    const next = draft?.params ?? approved?.params;
-    setTitles(listToLines(next?.targetTitles ?? []));
-    setExcluded(listToLines(next?.excludedTitles ?? []));
-    setLocations(listToLines(next?.locations ?? []));
-    setKeywords(listToLines(next?.searchKeywords ?? []));
-    setExcludedKw(listToLines(next?.excludedKeywords ?? []));
-    setBoards(listToLines(next?.atsBoardUrls ?? []));
-    setPostedWithinDays(
-      String(
-        hoursToDays(next?.postedWithinHours ?? DEFAULT_POSTED_WITHIN_HOURS),
-      ),
-    );
-    setMaxRaw(String(next?.maxDailyRawJobs ?? 80));
-    setMaxApify(String(next?.maxDailyApifyUsd ?? 0.5));
+    setValues(paramsToFormValues(draft?.params ?? approved?.params));
   }
 
   // Onboarding: auto-generate once if we landed without a draft.
@@ -155,7 +100,9 @@ export function SearchCriteriaWorkspace({
   const approveFromForm = () =>
     run(async () => {
       if (draft) {
-        await saveSearchProfileDraftAction(draft.id, buildParams());
+        // Approving must never publish an older draft than the one on screen.
+        const saved = await saveSearchProfileDraftAction(draft.id, buildParams());
+        if (!saved.ok) return saved;
         return approveSearchProfileAction(draft.id);
       }
       const created = await createSearchDraftFromApprovedAction(buildParams());
@@ -177,36 +124,7 @@ export function SearchCriteriaWorkspace({
       return createSearchDraftFromApprovedAction(buildParams());
     }, "Draft saved");
 
-  const buildParams = (): JobSearchParams => {
-    const base = source?.params;
-    return {
-      occupationFamily: base?.occupationFamily,
-      occupationId: base?.occupationId,
-      targetTitles: linesToList(titles),
-      titleSynonyms: base?.titleSynonyms ?? [],
-      excludedTitles: linesToList(excluded),
-      locations: linesToList(locations),
-      employmentTypes: base?.employmentTypes ?? ["Full-time", "Contract"],
-      postedWithinHours: Number(postedWithinDays)
-        ? daysToHours(Number(postedWithinDays))
-        : DEFAULT_POSTED_WITHIN_HOURS,
-      searchKeywords: linesToList(keywords),
-      excludedKeywords: linesToList(excludedKw),
-      requiredSkills: base?.requiredSkills ?? [],
-      preferredSkills: base?.preferredSkills ?? [],
-      seniority: base?.seniority ?? [],
-      remoteRequired: base?.remoteRequired ?? false,
-      remotePolicy: base?.remotePolicy ?? "any",
-      priorityIndustries: base?.priorityIndustries ?? [],
-      avoidIndustries: base?.avoidIndustries ?? [],
-      salary: base?.salary,
-      atsBoardUrls: linesToList(boards),
-      sourcesEnabled: base?.sourcesEnabled ?? ["infostud", "linkedin"],
-      maxResultsPerQuery: base?.maxResultsPerQuery ?? 12,
-      maxDailyRawJobs: Number(maxRaw) || 80,
-      maxDailyApifyUsd: Number(maxApify) || 0.5,
-    };
-  };
+  const buildParams = (): JobSearchParams => formValuesToParams(values, source?.params);
 
   const essentialsForm = (
     <div className="grid gap-5 md:grid-cols-2 md:gap-6">
@@ -215,8 +133,8 @@ export function SearchCriteriaWorkspace({
         <p className="text-muted-foreground text-body-sm">One per line</p>
         <textarea
           className="bg-card border-input min-h-32 w-full rounded-tile border px-4 py-3 outline-none transition-colors duration-150 focus-visible:border-brand text-body-sm"
-          value={titles}
-          onChange={(e) => setTitles(e.target.value)}
+          value={values.titles}
+          onChange={(e) => set("titles", e.target.value)}
           disabled={pending}
         />
       </label>
@@ -225,8 +143,8 @@ export function SearchCriteriaWorkspace({
         <p className="text-muted-foreground text-body-sm">Skip these roles</p>
         <textarea
           className="bg-card border-input min-h-32 w-full rounded-tile border px-4 py-3 outline-none transition-colors duration-150 focus-visible:border-brand text-body-sm"
-          value={excluded}
-          onChange={(e) => setExcluded(e.target.value)}
+          value={values.excluded}
+          onChange={(e) => set("excluded", e.target.value)}
           disabled={pending}
         />
       </label>
@@ -234,8 +152,8 @@ export function SearchCriteriaWorkspace({
         <span className="font-medium">Locations</span>
         <textarea
           className="bg-card border-input min-h-28 w-full rounded-tile border px-4 py-3 outline-none transition-colors duration-150 focus-visible:border-brand text-body-sm"
-          value={locations}
-          onChange={(e) => setLocations(e.target.value)}
+          value={values.locations}
+          onChange={(e) => set("locations", e.target.value)}
           disabled={pending}
         />
       </label>
@@ -243,8 +161,8 @@ export function SearchCriteriaWorkspace({
         <span className="font-medium">Search keywords</span>
         <textarea
           className="bg-card border-input min-h-28 w-full rounded-tile border px-4 py-3 outline-none transition-colors duration-150 focus-visible:border-brand text-body-sm"
-          value={keywords}
-          onChange={(e) => setKeywords(e.target.value)}
+          value={values.keywords}
+          onChange={(e) => set("keywords", e.target.value)}
           disabled={pending}
         />
       </label>
@@ -257,8 +175,8 @@ export function SearchCriteriaWorkspace({
         <span className="font-medium">Excluded keywords</span>
         <textarea
           className="bg-card border-input min-h-24 w-full rounded-tile border px-4 py-3 outline-none transition-colors duration-150 focus-visible:border-brand text-body-sm"
-          value={excludedKw}
-          onChange={(e) => setExcludedKw(e.target.value)}
+          value={values.excludedKw}
+          onChange={(e) => set("excludedKw", e.target.value)}
           disabled={pending}
         />
       </label>
@@ -267,8 +185,8 @@ export function SearchCriteriaWorkspace({
         <p className="text-muted-foreground text-body-sm">One per line</p>
         <textarea
           className="bg-card border-input min-h-28 w-full rounded-tile border px-4 py-3 outline-none transition-colors duration-150 focus-visible:border-brand font-mono text-body"
-          value={boards}
-          onChange={(e) => setBoards(e.target.value)}
+          value={values.boards}
+          onChange={(e) => set("boards", e.target.value)}
           disabled={pending}
         />
       </label>
@@ -278,24 +196,24 @@ export function SearchCriteriaWorkspace({
           type="number"
           min={1}
           step={1}
-          value={postedWithinDays}
-          onChange={(e) => setPostedWithinDays(e.target.value)}
+          value={values.postedWithinDays}
+          onChange={(e) => set("postedWithinDays", e.target.value)}
           disabled={pending}
         />
       </label>
       <label className="space-y-2 text-body-sm">
         <span className="font-medium">Max jobs / day</span>
         <Input
-          value={maxRaw}
-          onChange={(e) => setMaxRaw(e.target.value)}
+          value={values.maxRaw}
+          onChange={(e) => set("maxRaw", e.target.value)}
           disabled={pending}
         />
       </label>
       <label className="space-y-2 text-body-sm">
         <span className="font-medium">Max board spend / day (USD)</span>
         <Input
-          value={maxApify}
-          onChange={(e) => setMaxApify(e.target.value)}
+          value={values.maxApify}
+          onChange={(e) => set("maxApify", e.target.value)}
           disabled={pending}
         />
       </label>

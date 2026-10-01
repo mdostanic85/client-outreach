@@ -1,3 +1,4 @@
+import { linesToList, listToLines } from "@/lib/text-lines";
 import {
   formatCompensation,
   resolveCompensation,
@@ -32,17 +33,6 @@ export type ProfileFormValues = {
   rolesAboveLevel: string;
   projectsJson: string;
 };
-
-export function linesToList(value: string): string[] {
-  return value
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-export function listToLines(value: string[] | undefined): string {
-  return (value ?? []).join("\n");
-}
 
 export function profileToFormValues(profile: StructuredProfile): ProfileFormValues {
   return {
