@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useActionRunner } from "@/components/use-action-runner";
+import { useState } from "react";
 import { addProfileFactAction, removeProfileFactAction, updateProfileFactAction } from "@/modules/profile/actions";
 import { InlineAlert } from "@/components/inline-alert";
 import { PanelBody, PanelHeader, Surface } from "@/components/page-shell";
@@ -91,10 +91,7 @@ export function ProfessionalProfileView({
   sourceLabels?: string[];
   portfolioProjectsExcludedFromMatching?: boolean;
 }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const { pending, error, message, run: runWith } = useActionRunner();
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [draftValue, setDraftValue] = useState("");
   const [addingField, setAddingField] = useState<string | null>(null);
@@ -105,25 +102,15 @@ export function ProfessionalProfileView({
     canEdit: Boolean(canEdit && profileId),
   };
 
-  const run = (
-    label: string,
-    fn: () => Promise<{ ok: boolean; error?: string }>,
-  ) => {
-    setError(null);
-    setMessage(null);
-    startTransition(async () => {
-      const result = await fn();
-      if (!result.ok) {
-        setError(result.error ?? "Update failed");
-        return;
-      }
-      setMessage(label);
-      setEditingKey(null);
-      setAddingField(null);
-      setAddValue("");
-      router.refresh();
+  const run = (label: string, fn: () => Promise<{ ok: boolean; error?: string }>) =>
+    runWith(fn, {
+      success: label,
+      onSuccess: () => {
+        setEditingKey(null);
+        setAddingField(null);
+        setAddValue("");
+      },
     });
-  };
 
   const fs = profile.fieldSources ?? {};
   const pay =

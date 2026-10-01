@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { isRecordedJobOutcome, type JobOutcome } from "@/modules/learning/job-outcome-types";
 import { setAdaptiveJobRankingAction } from "@/modules/jobs/actions";
 import { generateWeeklyJobInsightsAction, proposeSearchStrategyAction, setJobOutcomeAction } from "@/modules/learning/actions";
@@ -12,6 +11,7 @@ import { ProposalActions } from "@/components/learning-controls";
 import { PanelBody, Surface } from "@/components/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useActionRunner } from "@/components/use-action-runner";
 import {
   Tooltip,
   TooltipContent,
@@ -50,23 +50,10 @@ function proposalVersion(json: string) {
 }
 
 export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
-  const router = useRouter();
   const [tab, setTab] = useState<"insights" | "proposals" | "strategies">(
     "insights",
   );
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-
-  const run = (
-    fn: () => Promise<{ ok: boolean; error?: string; data?: unknown }>,
-  ) => {
-    setError(null);
-    startTransition(async () => {
-      const result = await fn();
-      if (!result.ok) setError(result.error ?? "Failed");
-      else router.refresh();
-    });
-  };
+  const { pending, error, run } = useActionRunner();
 
   const force = !dash.gates.ready;
   const kpis = dash.kpis;

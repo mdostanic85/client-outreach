@@ -1,8 +1,8 @@
 "use client";
 
+import { useActionRunner } from "@/components/use-action-runner";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useTransition, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   Bookmark,
@@ -81,10 +81,7 @@ export function JobDetail({
   description: string;
   packageMeta: PackageListMeta | null;
 }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const { pending, error, message: notice, run: runWith } = useActionRunner();
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
 
@@ -99,23 +96,7 @@ export function JobDetail({
   const run = (
     fn: () => Promise<{ ok: boolean; error?: string }>,
     after: { message?: string; goTo?: string } = {},
-  ) => {
-    setError(null);
-    setNotice(null);
-    startTransition(async () => {
-      const result = await fn();
-      if (!result.ok) {
-        setError(result.error ?? "Something went wrong. Try again.");
-        return;
-      }
-      if (after.goTo) {
-        router.push(after.goTo);
-        return;
-      }
-      if (after.message) setNotice(after.message);
-      router.refresh();
-    });
-  };
+  ) => runWith(fn, { success: after.message, goTo: after.goTo });
 
   const save = () =>
     run(() => interestedJobAction(row.jobId), {
