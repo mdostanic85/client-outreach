@@ -1,11 +1,16 @@
 import { z } from "zod";
-import { OccupationFamilySchema, type OccupationFamily } from "@/modules/occupations/families";
+import { familyProfile, OccupationFamilySchema, type OccupationFamily } from "@/modules/occupations/families";
 import { findOccupation, occupationSearchTerms } from "@/modules/occupations/search";
-import { planSources } from "@/modules/occupations/sources";
+import { planSources, REMOTE_BOARD_SOURCES } from "@/modules/occupations/sources";
 
 export const JobSourceSchema = z.enum([
   "remotive",
   "arbeitnow",
+  "remoteok",
+  "himalayas",
+  "jobicy",
+  "weworkremotely",
+  "workingnomads",
   "greenhouse",
   "lever",
   "ashby",
@@ -114,8 +119,8 @@ export const JobSearchParamsSchema = z.object({
   /** Public Greenhouse / Lever / Ashby board URLs for direct public collection. */
   atsBoardUrls: z.array(z.string()).default([]),
   sourcesEnabled: z.array(JobSourceSchema).default(["infostud", "linkedin"]),
-  maxResultsPerQuery: z.number().int().positive().default(12),
-  maxDailyRawJobs: z.number().int().positive().default(80),
+  maxResultsPerQuery: z.number().int().positive().default(25),
+  maxDailyRawJobs: z.number().int().positive().default(200),
   /** Hard Apify spend cap — keep ≤ $0.50/day for MVP mix. */
   maxDailyApifyUsd: z.number().positive().default(0.5),
 });
@@ -150,8 +155,8 @@ export const EMPTY_SEARCH_PARAMS: JobSearchParams = {
   avoidIndustries: [],
   atsBoardUrls: [],
   sourcesEnabled: ["infostud", "linkedin"],
-  maxResultsPerQuery: 12,
-  maxDailyRawJobs: 80,
+  maxResultsPerQuery: 25,
+  maxDailyRawJobs: 200,
   maxDailyApifyUsd: 0.5,
 };
 
@@ -170,7 +175,7 @@ const WORK_MODE_AS_EMPLOYMENT = /^(remote|hybrid|on[- ]?site|onsite|wfh|work fro
 
 /**
  * Preserve explicitly selected sources while normalizing legacy numeric defaults.
- * - Migrates old numeric defaults (1.5 / 100 / 15) → (0.5 / 80 / 12)
+ * - Migrates old numeric defaults (1.5 / 100 or 80 / 15 or 12) → (0.5 / 200 / 25)
  * - Hard-caps Apify spend at 0.5 so Collect never plans above the MVP budget
  * - Moves mistaken work-mode values ("Remote") out of employmentTypes
  */
@@ -182,10 +187,11 @@ export function normalizeCollectorParams(params: JobSearchParams): JobSearchPara
   }
 
   let maxDailyRawJobs = params.maxDailyRawJobs;
-  if (maxDailyRawJobs === 100) maxDailyRawJobs = 80;
+  // Earlier defaults (100, 80) capped the list at what fit on one screen.
+  if (maxDailyRawJobs === 100 || maxDailyRawJobs === 80) maxDailyRawJobs = 200;
 
   let maxResultsPerQuery = params.maxResultsPerQuery;
-  if (maxResultsPerQuery === 15) maxResultsPerQuery = 12;
+  if (maxResultsPerQuery === 15 || maxResultsPerQuery === 12) maxResultsPerQuery = 25;
 
   // LLM/UI sometimes puts "Remote" in employmentTypes — that drops every Full-time job.
   const workModes = params.employmentTypes.filter((t) =>
@@ -221,6 +227,15 @@ export function normalizeCollectorParams(params: JobSearchParams): JobSearchPara
   const titleSynonyms = params.titleSynonyms.length
     ? params.titleSynonyms
     : uniqueCaseless(known.flatMap(occupationSearchTerms)).slice(0, 16);
+
+  // Saved criteria predate the remote boards: add the ones this family reads.
+  const family = params.occupationFamily ?? known[0]?.family ?? null;
+  if (family && familyProfile(family).remoteCommon) {
+    for (const source of REMOTE_BOARD_SOURCES) {
+      if (source === "remotive" && familyProfile(family).remotiveCategories.length === 0) continue;
+      sources.add(source);
+    }
+  }
 
   return {
     ...params,

@@ -278,7 +278,8 @@ test("5. marketing manager, hybrid, Belgrade", () => {
   assert.ok(surveySteps(survey).includes("level"));
   assert.equal(params.remoteRequired, false);
   assert.equal(params.remotePolicy, "remote_preferred");
-  assert.ok(!params.sourcesEnabled.includes("remotive"), "hybrid in Belgrade is not a remote search");
+  // Remote boards are read too (the jobs list filters by work mode), but remote is not required.
+  assert.ok(params.sourcesEnabled.includes("weworkremotely"));
 
   const { kept } = filterRawJobs(
     [

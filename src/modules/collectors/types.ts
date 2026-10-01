@@ -30,6 +30,8 @@ export type CollectorQuery = {
   searchTerms?: string[];
   /** Remotive category from the occupation family. Absent: search by title only. */
   remotiveCategory?: string;
+  /** Occupation family; picks category feeds on boards that publish one per field. */
+  family?: string;
   /** City id on boards that filter with one (Infostud `cities[]`, Poslovi `search_cities[]`). */
   cityId?: string;
 };

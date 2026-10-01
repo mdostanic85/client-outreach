@@ -126,8 +126,8 @@ function testNormalizeLegacyParams() {
   assert.ok(!normalized.sourcesEnabled.includes("linkedin"));
   assert.ok(!normalized.sourcesEnabled.includes("helloworld"));
   assert.equal(normalized.maxDailyApifyUsd, 0.5);
-  assert.equal(normalized.maxDailyRawJobs, 80);
-  assert.equal(normalized.maxResultsPerQuery, 12);
+  assert.equal(normalized.maxDailyRawJobs, 200);
+  assert.equal(normalized.maxResultsPerQuery, 25);
 }
 
 function testAffordGuard() {
