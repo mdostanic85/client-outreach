@@ -14,7 +14,7 @@ const profile: StructuredProfile = {
   strongestSkills: ["Design systems", "Prototyping"],
   targetRoles: ["Senior Product Designer"],
   relevantProjects: [],
-  education: [{ school: "FTN", degree: "BSc" }] as StructuredProfile["education"],
+  education: ["BSc, FTN Novi Sad"],
 };
 
 test("form values round-trip to the same profile fields", () => {
