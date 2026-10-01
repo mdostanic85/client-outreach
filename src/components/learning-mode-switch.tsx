@@ -1,9 +1,10 @@
 "use client";
 
+import type { TodayMode } from "@/modules/settings/user-settings";
 import { useRouter } from "next/navigation";
 import { ModeSwitch } from "@/components/segmented-control";
 
-export function LearningModeSwitch({ mode }: { mode: "jobs" | "clients" }) {
+export function LearningModeSwitch({ mode }: { mode: TodayMode }) {
   const router = useRouter();
 
   return (

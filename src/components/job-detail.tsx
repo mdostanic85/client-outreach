@@ -46,16 +46,10 @@ import {
   packageCta,
 } from "@/modules/jobs/job-presentation";
 import type { JobTriageRow } from "@/modules/jobs/triage-row";
+import { JOB_REJECT_REASONS } from "@/modules/learning/job-outcome-types";
 
-const REJECT_REASONS = [
-  "Wrong title",
-  "Wrong seniority",
-  "Wrong location / remote",
-  "Wrong industry",
-  "Comp too low",
-  "Company type mismatch",
-  "Other",
-] as const;
+/** "Already applied" has its own button here, so it is not offered as a reason. */
+const REJECT_REASONS = JOB_REJECT_REASONS.filter((reason) => reason !== "Already applied elsewhere");
 
 const DESCRIPTION_PREVIEW = 1400;
 

@@ -8,6 +8,7 @@ import { requireMailCredentials } from "@/modules/mail/credentials";
 import { getPackageById } from "./packages";
 import type { ApplicationEmailDraft } from "./application-email";
 import { owned } from "@/modules/auth/current-user";
+import { isApplicationSent } from "./schemas";
 import { packageFilenameBase, tailoredCvToPlainText } from "./export-text";
 import { describeMailError } from "@/modules/mail/errors";
 
@@ -68,7 +69,7 @@ export async function sendApplicationPackage(input: {
   if (view.state !== "approved" && view.state !== "prepared") {
     return { ok: false, reason: "Approve the package before sending" };
   }
-  if (view.mailStatus === "sent" || view.mailStatus === "waiting" || view.mailStatus === "follow_up") {
+  if (isApplicationSent(view.mailStatus)) {
     return { ok: false, reason: "This application was already sent" };
   }
 

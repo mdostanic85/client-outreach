@@ -1,5 +1,6 @@
 "use client";
 
+import type { TodayMode } from "@/modules/settings/user-settings";
 import { useRouter } from "next/navigation";
 import { useCallback, useState, useTransition } from "react";
 import { setTodayModeAction } from "@/modules/settings/actions";
@@ -18,7 +19,7 @@ export function TodayTabs({
   clientsEnabled,
   autoSearch,
 }: {
-  mode: "jobs" | "clients";
+  mode: TodayMode;
   /** Company outreach is owner-only; others only see jobs. */
   clientsEnabled: boolean;
   jobRows: JobTriageRow[];
@@ -39,7 +40,7 @@ export function TodayTabs({
 
   const searching = jobsSearching || companiesSearching;
 
-  const switchMode = (next: "jobs" | "clients") => {
+  const switchMode = (next: TodayMode) => {
     if (searching) return;
     startTransition(async () => {
       await setTodayModeAction(next);

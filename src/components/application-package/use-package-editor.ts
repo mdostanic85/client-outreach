@@ -21,6 +21,7 @@ import {
 import type { ApplicationPackageView } from "@/modules/applications/packages";
 import {
   coverLetterToPlainText,
+  isApplicationSent,
   type CoverLetter,
   type PackageMarket,
   type TailoredCv,
@@ -90,10 +91,7 @@ export function usePackageEditor({
     [emailDirty, letter, cv, jobTitle, companyName, emailDraft],
   );
 
-  const alreadySent =
-    pkg?.mailStatus === "sent" ||
-    pkg?.mailStatus === "waiting" ||
-    pkg?.mailStatus === "follow_up";
+  const alreadySent = isApplicationSent(pkg?.mailStatus);
   const unsaved = dirty || emailDirty;
 
   function editCv(next: TailoredCv) {
