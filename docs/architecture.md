@@ -114,6 +114,27 @@ or check that is not awaited fails lint.
 `/api/jobs/search` (streamed), `runJobPipelineAction`, `scripts/jobs-worker.ts`
 and the full daily worker.
 
+### More material widens search, never narrows it
+
+A CV, a website or LinkedIn should find more jobs. These rules enforce it
+(tests in `tests/search-breadth.test.ts`):
+
+- **Rebuilding the profile** (`profile/rebuild.ts`) keeps the approved
+  profile's roles, places, work types, languages, licences, pay and
+  occupation. Survey answers go on top. A new document cannot add
+  "too junior / too senior" exclusions.
+- **Regenerated criteria** (`search-profile/widen.ts`) combine the approved
+  titles, synonyms, places, sources and boards with the new ones. Exclusions,
+  seniority and limits stay as approved. Titles beyond the five that get board
+  queries move to synonyms instead of being dropped.
+- **Remote-only comes from the survey alone** (`applyRemoteChoice`). A
+  "Remote" in a CV or website header becomes a preference, also for criteria
+  approved before this rule.
+- **Collection and scoring:** board searches use the title, not title plus
+  skills. Direct ATS boards take at most 60% of the raw budget when other
+  sources are planned. Kept jobs are ranked (`jobs/evaluation-order.ts`: best
+  title match first, sources taking turns) before the AI scoring budget.
+
 ## Client outreach: where each step lives
 
 1. **Hiring signals**: `discovery/remotive.ts`, `discovery/arbeitnow.ts` and

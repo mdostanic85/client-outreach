@@ -5,6 +5,7 @@ import { getBudgetStatus } from "@/lib/budgets";
 import { logger } from "@/lib/logging/logger";
 import { collectJobsForProfile } from "@/modules/collectors/run";
 import { filterRawJobs, type FilterDropReason } from "@/modules/jobs/filters";
+import { rankForEvaluation } from "@/modules/jobs/evaluation-order";
 import { persistCollectedJobs } from "@/modules/jobs/persist";
 import {
   progressFor,
@@ -18,6 +19,9 @@ import {
 import { getActiveSearchParams } from "@/modules/search-profile/queries";
 import { getUserSettings } from "@/modules/settings/user-settings";
 import { owned } from "@/modules/auth/current-user";
+
+/** Jobs the AI scores per run (cached matches cost nothing). */
+const EVALUATION_BUDGET = 40;
 
 /** Stay under the 300s function limit so the run can still publish and close the stream. */
 const PIPELINE_BUDGET_MS = 240_000;
@@ -117,7 +121,9 @@ export async function runJobDiscoveryPipeline(options?: {
     ),
   );
   const filtered = filterRawJobs(collected.raw, active.params);
-  const persisted = await persistCollectedJobs(filtered.kept, active.version);
+  // Persisted in scoring order, so the AI budget goes to the best matches.
+  const ranked = rankForEvaluation(filtered.kept, active.params);
+  const persisted = await persistCollectedJobs(ranked, active.version);
   await report?.(
     progressFor(
       "filter",
@@ -140,18 +146,23 @@ export async function runJobDiscoveryPipeline(options?: {
   );
 
   const db = getDb();
-  const toEvaluate = (await db
-    .select()
-    .from(jobs)
-    .where(
-      and(await owned(jobs),
-        eq(jobs.status, "active"),
-        inArray(jobs.id, persisted.jobIds),
-        inArray(jobs.triageState, ["discovered", "published", "saved"]),
-      ),
-    ))
-    .map((j) => j.id)
-    .slice(0, 40);
+  const evaluable = new Set(
+    (await db
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(
+        and(await owned(jobs),
+          eq(jobs.status, "active"),
+          inArray(jobs.id, persisted.jobIds),
+          inArray(jobs.triageState, ["discovered", "published", "saved"]),
+        ),
+      ))
+      .map((j) => j.id),
+  );
+  // Keep the ranking: a database `IN` returns rows in no particular order.
+  const toEvaluate = [...new Set(persisted.jobIds)]
+    .filter((id) => evaluable.has(id))
+    .slice(0, EVALUATION_BUDGET);
 
   const evalResult = await evaluateJobsBatch({
     jobIds: toEvaluate,

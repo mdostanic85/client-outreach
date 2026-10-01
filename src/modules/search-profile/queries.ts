@@ -7,6 +7,7 @@ import {
   type JobSearchParams,
 } from "./schemas";
 import { currentUserId, owned } from "@/modules/auth/current-user";
+import { applyRemoteChoice, getSurvey } from "@/modules/onboarding/survey";
 
 export type SearchProfileRow = {
   id: string;
@@ -65,7 +66,10 @@ const getApprovedSearchProfileFor = cache(
         ),
       )
       .limit(1))[0];
-    return row ? mapRow(row) : null;
+    if (!row) return null;
+    const approved = mapRow(row);
+    // Remote-only is the survey's call, also for criteria approved before that rule.
+    return { ...approved, params: applyRemoteChoice(approved.params, await getSurvey()) };
   },
 );
 

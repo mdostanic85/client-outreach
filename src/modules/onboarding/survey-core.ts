@@ -11,6 +11,7 @@ import {
   type StructuredProfile,
 } from "@/modules/profile/schemas";
 import { occupationSearchTerms } from "@/modules/occupations/search";
+import { softenInferredFilters } from "@/modules/search-profile/widen";
 import {
   withMarketDefaults,
   type JobSearchParams,
@@ -332,6 +333,34 @@ export function applySurveyToProfile(
   return next;
 }
 
+/**
+ * The remote filter the person chose in the survey, or null when they didn't
+ * say. Only this answer may make search remote-only.
+ */
+export function remoteChoice(
+  survey: SurveyAnswers,
+): Pick<JobSearchParams, "remoteRequired" | "remotePolicy"> | null {
+  if (!survey.workMode) return null;
+  const remote = survey.workMode === "remote" && remoteOffered(survey.occupationFamily);
+  return {
+    remoteRequired: remote,
+    remotePolicy: remote
+      ? "remote_ok_required"
+      : survey.workMode === "hybrid"
+        ? "remote_preferred"
+        : "any",
+  };
+}
+
+/**
+ * Remote-only follows the survey. Without an answer, a remote requirement
+ * that came from a CV or website header stays a preference instead.
+ */
+export function applyRemoteChoice(params: JobSearchParams, survey: SurveyAnswers): JobSearchParams {
+  const choice = remoteChoice(survey);
+  return choice ? { ...params, ...choice } : softenInferredFilters(params, { remoteOnly: undefined });
+}
+
 export function applySurveyToSearchParams(
   params: JobSearchParams,
   survey: SurveyAnswers,
@@ -340,15 +369,8 @@ export function applySurveyToSearchParams(
   if (survey.role) next.targetTitles = unique([survey.role, ...params.targetTitles]).slice(0, 5);
   if (survey.level) next.seniority = [LEVEL_LABELS[survey.level]];
   if (hasEngagementAnswer(survey)) next.employmentTypes = employmentTypes(survey);
-  if (survey.workMode) {
-    const remote = survey.workMode === "remote" && remoteOffered(survey.occupationFamily);
-    next.remoteRequired = remote;
-    next.remotePolicy = remote
-      ? "remote_ok_required"
-      : survey.workMode === "hybrid"
-        ? "remote_preferred"
-        : "any";
-  }
+  const remote = remoteChoice(survey);
+  if (remote) Object.assign(next, remote);
   if (survey.workMode || survey.locations?.length) next.locations = locationList(survey);
   if (survey.pay) {
     next.salary = {

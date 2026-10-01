@@ -60,6 +60,9 @@ function boardName(slug: string): string {
 
 const FREE_SOURCES = new Set<JobSource>(["remotive", "arbeitnow"]);
 
+/** Share of the raw budget direct ATS boards may take when other sources are planned. */
+export const DIRECT_BOARD_SHARE = 0.6;
+
 /** Read directly from public pages; LinkedIn may fall back to Apify when blocked. */
 const DIRECT_BOARD_SOURCES = new Set<JobSource>([
   "linkedin",
@@ -431,8 +434,15 @@ export async function collectJobsForProfile(options: {
   );
 
   // Direct public boards run first; no token or paid fallback is required.
+  // They may not use the whole raw budget when other sources are planned:
+  // big careers boards would otherwise crowd out LinkedIn and regional boards.
+  const otherSourcesPlanned =
+    freeQueries.length + linkedInPlanned.length + regionalPlanned.length + (willRunAts ? 1 : 0) > 0;
+  const directBudget = otherSourcesPlanned
+    ? Math.ceil(options.params.maxDailyRawJobs * DIRECT_BOARD_SHARE)
+    : options.params.maxDailyRawJobs;
   for (const entry of directBoards) {
-    if (!roomForJobs()) break;
+    if (!roomForJobs() || raw.length >= directBudget) break;
     const db = getDb();
     const runId = newId("crun");
     await db.insert(collectorRuns).values({
@@ -445,7 +455,7 @@ export async function collectJobsForProfile(options: {
     try {
       if (!entry.board) throw new Error(entry.error);
       const found = await collectDirectBoard(entry.board, options.params,
-        Math.min(options.params.maxResultsPerQuery, options.params.maxDailyRawJobs - raw.length));
+        Math.min(options.params.maxResultsPerQuery, directBudget - raw.length));
       pushJobs(found);
       await db.update(collectorRuns).set({ status: "ok", finishedAt: nowIso(), resultCount: found.length, costUsd: 0 })
         .where(and(await owned(collectorRuns), eq(collectorRuns.id, runId)));

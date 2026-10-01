@@ -34,6 +34,9 @@ import {
   type SearchProfileLlm,
 } from "./schemas";
 import { currentUserId, owned } from "@/modules/auth/current-user";
+import { applyRemoteChoice, applySurveyToSearchParams, getSurvey } from "@/modules/onboarding/survey";
+import { getApprovedSearchProfile } from "./queries";
+import { spreadTitles, widenFromApproved } from "./widen";
 
 function parseJsonLoose(text: string): unknown {
   const trimmed = text.trim();
@@ -162,6 +165,20 @@ async function callLlm(profileJson: string, occ: OccupationContext): Promise<{
   }
 }
 
+/**
+ * Generated criteria answer to what the person chose, and never search
+ * narrower than what they already approved (see `widen.ts`):
+ * survey answers win, document-only hints stay soft, and the result keeps
+ * every title, place and source of the approved criteria.
+ */
+async function applyPersonsChoices(params: JobSearchParams): Promise<JobSearchParams> {
+  const [survey, approved] = await Promise.all([getSurvey(), getApprovedSearchProfile()]);
+  let next = Object.keys(survey).length ? applySurveyToSearchParams(params, survey) : params;
+  next = widenFromApproved(next, approved?.params);
+  next = applyRemoteChoice(next, survey);
+  return { ...next, ...spreadTitles(next.targetTitles, next.titleSynonyms) };
+}
+
 export type GenerationTrigger =
   | "profile_approved"
   | "profile_changed"
@@ -218,6 +235,7 @@ export async function generateSearchProfile(options?: {
     rationale = derived.rationale;
   }
   params = withMarketDefaults(params, occ);
+  params = await applyPersonsChoices(params);
 
   const db = getDb();
   const version = await nextVersion();
