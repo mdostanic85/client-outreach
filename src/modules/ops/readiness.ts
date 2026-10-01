@@ -2,6 +2,7 @@ import { getDb } from "@/db/client";
 import { draftEdits, drafts, leads, syncRuns } from "@/db/schema";
 import { getBudgetStatus } from "@/lib/budgets";
 import { getLearningGates } from "@/modules/learning/gates";
+import { getUserSettings, updateUserSettings } from "@/modules/settings/user-settings";
 
 export type ChecklistItem = {
   id: string;
@@ -92,6 +93,12 @@ export function parseOpsChecklist(json: string | null | undefined): OpsChecklist
   } catch {
     return { ...DEFAULT_OPS_CHECKLIST };
   }
+}
+
+/** Ticks or unticks items on the owner's ops checklist (Admin → Validation readiness). */
+export async function updateOpsChecklist(patch: Partial<OpsChecklist>): Promise<void> {
+  const current = parseOpsChecklist((await getUserSettings()).opsChecklistJson);
+  await updateUserSettings({ opsChecklistJson: JSON.stringify({ ...current, ...patch }) });
 }
 
 export async function getValidationReadiness(ops: OpsChecklist): Promise<ValidationReadiness> {

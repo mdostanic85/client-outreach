@@ -14,11 +14,7 @@ import type { RadarActivity } from "@/components/search-radar";
 import type { SearchLiveStats } from "@/modules/search-experience/stages";
 import { STRONG_MATCH_MIN, WORTH_A_LOOK_MIN } from "@/modules/matching/tiers";
 import { createSessionStore } from "@/lib/session-store";
-
-type SearchStreamEvent =
-  | { type: "progress"; progress: JobSearchProgress }
-  | { type: "done"; stats: JobPipelineStats }
-  | { type: "error"; error: string };
+import { describeSearchError, readSearchStream } from "@/modules/search-experience/stream";
 
 const SLOW_MS = 90_000;
 const ACTIVITY_LIMIT = 60;
@@ -59,23 +55,12 @@ export function useJobSearch(): JobSearchContextValue {
   return value;
 }
 
-const NETWORK_ERROR_PATTERN =
-  /failed to fetch|network\s*error|networkerror|load failed|err_internet_disconnected|err_network|err_connection|net::err/i;
-
 function formatJobSearchError(err: unknown): string {
-  if (err instanceof DOMException && err.name === "AbortError") {
-    return "Job search was cancelled.";
-  }
-  // Browser dropped the connection (tab sleep, offline, proxy), OR the server
-  // relayed a network failure from an upstream call (Google/Anthropic/Apify) —
-  // either way this isn't a pipeline bug, so don't show the raw message.
-  // Note: errors relayed via the NDJSON `error` event become plain `Error`s,
-  // not `TypeError`s, so this check must not require `instanceof TypeError`.
-  if (err instanceof Error && NETWORK_ERROR_PATTERN.test(err.message)) {
-    return "Connection lost during search. Click Find jobs again.";
-  }
-  if (err instanceof Error && err.message.trim()) return err.message.slice(0, 400);
-  return "Job search failed. Click Find jobs again.";
+  return describeSearchError(err, {
+    cancelled: "Job search was cancelled.",
+    retry: "Click Find jobs again.",
+    failed: "Job search failed. Click Find jobs again.",
+  });
 }
 
 export function formatPipelineMessage(stats: JobPipelineStats): string {
@@ -155,61 +140,30 @@ export function JobSearchProvider({ children }: { children: React.ReactNode }) {
 
     void (async () => {
       try {
-        const res = await fetch("/api/jobs/search", {
-          method: "POST",
-          signal: abort.signal,
-          headers: { Accept: "application/x-ndjson" },
-        });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text.slice(0, 200) || `Search failed (${res.status})`);
+        const stats = await readSearchStream<JobSearchProgress, JobPipelineStats>(
+          "/api/jobs/search",
+          {
+            signal: abort.signal,
+            onProgress: (progress) => {
+              if (progress.stats) acc = { ...acc, ...progress.stats };
+              if (progress.activity) {
+                activity = [{ ...progress.activity, id: ++seq }, ...activity].slice(0, ACTIVITY_LIMIT);
+              }
+              setLive({
+                percent: progress.percent,
+                stepId: progress.stepId,
+                detail: progress.detail ?? progress.label,
+                stats: acc,
+                activity,
+              });
+            },
+          },
+        );
+        if (stats) {
+          setLive({ percent: 100, stepId: "publish", detail: "Finishing up…", stats: acc, activity });
         }
-        if (!res.body) throw new Error("No progress stream from server");
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        const outcome: { stats: JobPipelineStats | null } = { stats: null };
-        const takeLine = (line: string) => {
-          if (!line.trim()) return;
-          let event: SearchStreamEvent;
-          try {
-            event = JSON.parse(line) as SearchStreamEvent;
-          } catch {
-            return;
-          }
-          if (event.type === "progress") {
-            if (event.progress.stats) acc = { ...acc, ...event.progress.stats };
-            if (event.progress.activity) {
-              activity = [{ ...event.progress.activity, id: ++seq }, ...activity].slice(0, ACTIVITY_LIMIT);
-            }
-            setLive({
-              percent: event.progress.percent,
-              stepId: event.progress.stepId,
-              detail: event.progress.detail ?? event.progress.label,
-              stats: acc,
-              activity,
-            });
-          } else if (event.type === "done") {
-            outcome.stats = event.stats;
-            setLive({ percent: 100, stepId: "publish", detail: "Finishing up…", stats: acc, activity });
-          } else {
-            throw new Error(event.error);
-          }
-        };
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          for (const line of lines) takeLine(line);
-        }
-        buffer += decoder.decode();
-        if (buffer.trim()) takeLine(buffer);
 
         if (cancelledRef.current) return;
-        const stats = outcome.stats;
         if (!stats) {
           router.refresh();
           setNotice({

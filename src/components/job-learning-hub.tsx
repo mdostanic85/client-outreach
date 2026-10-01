@@ -1,20 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import {
-  generateWeeklyJobInsightsAction,
-  proposeSearchStrategyAction,
-  reactivateSearchStrategyAction,
-  setAdaptiveJobRankingAction,
-  setJobOutcomeAction,
-} from "@/app/actions";
+import { useState } from "react";
+import { isRecordedJobOutcome, type JobOutcome } from "@/modules/learning/job-outcome-types";
+import { setAdaptiveJobRankingAction } from "@/modules/jobs/actions";
+import { generateWeeklyJobInsightsAction, proposeSearchStrategyAction, setJobOutcomeAction } from "@/modules/learning/actions";
+import { reactivateSearchStrategyAction } from "@/modules/search-profile/actions";
 import { EmptyState } from "@/components/empty-state";
 import { ProposalActions } from "@/components/learning-controls";
 import { PanelBody, Surface } from "@/components/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useActionRunner } from "@/components/use-action-runner";
 import {
   Tooltip,
   TooltipContent,
@@ -23,7 +20,7 @@ import {
 import type { JobLearningDashboard } from "@/modules/learning/queries";
 import { cn } from "@/lib/utils";
 
-const OUTCOMES = [
+const OUTCOMES: ReadonlyArray<{ value: JobOutcome; label: string }> = [
   { value: "none", label: "Pending" },
   { value: "recruiter_response", label: "Reply" },
   { value: "interview", label: "Interview" },
@@ -31,7 +28,7 @@ const OUTCOMES = [
   { value: "accepted", label: "Accepted" },
   { value: "rejected", label: "Rejected" },
   { value: "no_response", label: "No response" },
-] as const;
+];
 
 function pct(n: number) {
   return `${(n * 100).toFixed(0)}%`;
@@ -53,23 +50,10 @@ function proposalVersion(json: string) {
 }
 
 export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
-  const router = useRouter();
   const [tab, setTab] = useState<"insights" | "proposals" | "strategies">(
     "insights",
   );
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-
-  const run = (
-    fn: () => Promise<{ ok: boolean; error?: string; data?: unknown }>,
-  ) => {
-    setError(null);
-    startTransition(async () => {
-      const result = await fn();
-      if (!result.ok) setError(result.error ?? "Failed");
-      else router.refresh();
-    });
-  };
+  const { pending, error, run } = useActionRunner();
 
   const force = !dash.gates.ready;
   const kpis = dash.kpis;
@@ -316,19 +300,8 @@ export function JobLearningHub({ dash }: { dash: JobLearningDashboard }) {
                         value={job.outcome === "none" ? "none" : job.outcome}
                         onChange={(e) => {
                           const v = e.target.value;
-                          if (v === "none") return;
-                          run(() =>
-                            setJobOutcomeAction(
-                              job.id,
-                              v as
-                                | "no_response"
-                                | "recruiter_response"
-                                | "interview"
-                                | "rejected"
-                                | "offer"
-                                | "accepted",
-                            ),
-                          );
+                          if (!isRecordedJobOutcome(v)) return;
+                          run(() => setJobOutcomeAction(job.id, v));
                         }}
                       >
                         {OUTCOMES.map((o) => (

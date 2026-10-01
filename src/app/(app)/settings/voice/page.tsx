@@ -1,13 +1,15 @@
 import { SettingsForm } from "@/components/settings-form";
 import { PageHeader, PageShell } from "@/components/page-shell";
-import { getSettingsRow } from "@/modules/leads/queries";
+import { ensureDb } from "@/db/ensure";
+import { getUserSettings } from "@/modules/settings/user-settings";
 import { requireOwnerPage } from "@/modules/auth/page-guards";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   await requireOwnerPage();
-  const row = await getSettingsRow();
+  await ensureDb();
+  const row = await getUserSettings();
   if (!row) {
     return (
       <PageShell width="setup">

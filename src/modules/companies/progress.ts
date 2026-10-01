@@ -42,3 +42,14 @@ export function companyProgressFor(
     stats,
   };
 }
+
+/** Summary the company pipeline sends when Find companies finishes. */
+export type CompanyPipelineStats = {
+  published?: number;
+  rawCandidates?: number;
+  deterministicallyRemoved?: number;
+  triageRejected?: number;
+  researched?: number;
+  sourceErrors?: unknown[];
+  skipped?: string;
+};

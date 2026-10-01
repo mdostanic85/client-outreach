@@ -114,7 +114,7 @@ async function handleInbound(input: {
     : null;
   if (existing) return { skipped: true as const };
 
-  let thread =
+  const thread =
     (await findThreadByHeaders(input.inReplyTo, input.references)) ??
     (await findThreadBySender(input.fromEmail));
 
@@ -178,7 +178,7 @@ async function handleInbound(input: {
 
       const bounce = await evaluateBounceHealth();
       if (bounce.shouldPause) {
-        pauseMailbox(bounce.reason ?? "hard bounce threshold");
+        await pauseMailbox(bounce.reason ?? "hard bounce threshold");
       }
     }
   }

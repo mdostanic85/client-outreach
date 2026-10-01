@@ -7,7 +7,8 @@ import { fetchArbeitnowSignals } from "./arbeitnow";
 import { applyDeterministicFilters, loadTargetFilters, type FilterStats } from "./filters";
 import { createManualSignal } from "./manual";
 import { fetchRemotiveSignals } from "./remotive";
-import { normalizeCompanyName, type DiscoverySignal } from "./types";
+import { normalizeCompanyName } from "@/modules/companies/identity";
+import type { DiscoverySignal } from "./types";
 
 export type PersistResult = {
   companyId: string;

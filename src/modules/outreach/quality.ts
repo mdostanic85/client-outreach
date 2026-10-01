@@ -1,4 +1,4 @@
-import type { ContactConfidence } from "@/modules/leads/actions";
+import type { ContactConfidence } from "@/modules/contacts/confidence";
 
 export const BANNED_PHRASES = [
   "i hope this email finds you well",

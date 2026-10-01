@@ -45,6 +45,7 @@ import {
   type GroundingReport,
   type PackageAnalysis,
   type PackageWarning,
+  isApplicationSent,
 } from "./schemas";
 import { getUserSettings } from "@/modules/settings/user-settings";
 import { currentUserId, owned } from "@/modules/auth/current-user";
@@ -474,11 +475,7 @@ export async function savePackageEmail(
     .limit(1))[0];
   if (!row) throw new Error("Package not found");
   if (row.state === "superseded") throw new Error("Package was superseded");
-  if (
-    row.mailStatus === "sent" ||
-    row.mailStatus === "waiting" ||
-    row.mailStatus === "follow_up"
-  ) {
+  if (isApplicationSent(row.mailStatus)) {
     throw new Error("Email already sent — disconnect is not available here");
   }
 

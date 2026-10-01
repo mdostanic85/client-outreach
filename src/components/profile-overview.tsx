@@ -26,7 +26,7 @@ export function ProfileOverview({
     startTransition(async () => {
       const result = await reviewCvAction();
       if (result.ok) {
-        setReview(result.review);
+        setReview(result.data);
         setOpen(true);
       } else setError(result.error);
     });

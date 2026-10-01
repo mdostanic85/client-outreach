@@ -1,7 +1,5 @@
-import {
-  OnboardingFlow,
-  type FlowStep,
-} from "@/components/onboarding/onboarding-flow";
+import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
+import type { FlowStep } from "@/modules/onboarding/flow";
 import { ensureDb } from "@/db/ensure";
 import { getSessionUser } from "@/modules/auth/session";
 import {

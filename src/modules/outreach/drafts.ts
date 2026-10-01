@@ -23,7 +23,7 @@ import { logger } from "@/lib/logging/logger";
 import { canGenerateDraft, effectivePolicy, resolveCountryPolicy } from "@/lib/policy/country";
 import { invalidateApprovalsForDraft } from "@/modules/mail/approvals";
 import { editRatio } from "@/modules/learning/diff";
-import type { ContactConfidence } from "@/modules/leads/actions";
+import type { ContactConfidence } from "@/modules/contacts/confidence";
 import type { EvidenceItem, ResearchAndScore } from "@/modules/research/schemas";
 import { critiqueDraft } from "./critique";
 import { checkDraftQuality, type QualityIssue } from "./quality";

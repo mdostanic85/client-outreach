@@ -3,11 +3,8 @@ import { getDb } from "@/db/client";
 import { companies, jobs } from "@/db/schema";
 import { canonicalJobUrl } from "@/modules/collectors/identity";
 import { newId, nowIso } from "@/lib/ids";
-import {
-  jobFingerprint,
-  normalizeCompanyName,
-  type RawCollectedJob,
-} from "@/modules/collectors/types";
+import { normalizeCompanyName } from "@/modules/companies/identity";
+import { jobFingerprint, type RawCollectedJob } from "@/modules/collectors/types";
 import { currentUserId, owned } from "@/modules/auth/current-user";
 
 export async function persistCollectedJob(

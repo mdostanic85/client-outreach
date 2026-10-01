@@ -1,88 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
-import {
-  Check,
-  Eye,
-  Copy,
-  Download,
-  ExternalLink,
-  MoreHorizontal,
-  Printer,
-  RefreshCw,
-  Save,
-} from "lucide-react";
-import {
-  approvePackageAction,
-  exportPackageTextAction,
-  generateApplicationPackageAction,
-  markPackagePreparedAction,
-  regeneratePackageSlotAction,
-  savePackageCvAction,
-  savePackageEmailAction,
-  savePackageLetterAction,
-} from "@/app/actions";
+import { useState } from "react";
+import { ExternalLink } from "lucide-react";
+import { HowToApplyPanel } from "@/components/application-package/how-to-apply-panel";
+import { PackageGenerateCard } from "@/components/application-package/package-generate-card";
+import { PackageToolbar, type Tab } from "@/components/application-package/package-toolbar";
+import { usePackageEditor } from "@/components/application-package/use-package-editor";
 import { ApplicationSendModal } from "@/components/application-send-modal";
 import { CoverLetterPreview } from "@/components/cover-letter-preview";
 import { CvDocumentPreview } from "@/components/cv-document-preview";
 import { InlineAlert } from "@/components/inline-alert";
-import {
-  ApplicationEmailPreview,
-  PackageEmailEditor,
-} from "@/components/package-email-editor";
+import { ApplicationEmailPreview, PackageEmailEditor } from "@/components/package-email-editor";
 import { PackageEvidencePanel } from "@/components/package-evidence-panel";
-import {
-  PackageCvSlotEditor,
-  PackageLetterSlotEditor,
-} from "@/components/package-slot-editor";
+import { PackageCvSlotEditor, PackageLetterSlotEditor } from "@/components/package-slot-editor";
 import { PageHeader, PageShell, Surface } from "@/components/page-shell";
-import { SegmentedControl } from "@/components/segmented-control";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Label } from "@/components/ui/label";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { buttonVariants } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useActionRunner } from "@/components/use-action-runner";
 import { cn } from "@/lib/utils";
-import {
-  applicationEmailToPlainText,
-  buildApplicationEmail,
-  type ApplicationEmailDraft,
-} from "@/modules/applications/application-email";
 import type { ApplicationPackageView } from "@/modules/applications/packages";
-import type {
-  CoverLetter,
-  PackageMarket,
-  TailoredCv,
-} from "@/modules/applications/schemas";
-import { coverLetterToPlainText } from "@/modules/applications/schemas";
-
-type Tab = "cv" | "letter" | "email";
-
-const TABS: Array<{ id: Tab; label: string }> = [
-  { id: "cv", label: "CV" },
-  { id: "letter", label: "Letter" },
-  { id: "email", label: "Email" },
-];
+import type { PackageMarket } from "@/modules/applications/schemas";
 
 function stateLabel(state: string) {
   if (state === "prepared") return "Prepared";
@@ -91,6 +30,11 @@ function stateLabel(state: string) {
   return state;
 }
 
+/**
+ * Tailored CV, cover letter and application email for one saved job: edit,
+ * approve, then send or download. Package state and actions live in
+ * `usePackageEditor`; this component lays out the editor and the preview.
+ */
 export function ApplicationPackageWorkspace({
   jobId,
   jobTitle,
@@ -117,302 +61,31 @@ export function ApplicationPackageWorkspace({
   mailboxEmail: string | null;
   openSendOnMount?: boolean;
 }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const runner = useActionRunner();
+  const { pending, error, message: info } = runner;
+  const editor = usePackageEditor({
+    jobId,
+    jobTitle,
+    companyName,
+    suggestedMarket,
+    initialPackage,
+    hasApprovedProfile,
+    canEmail,
+    runner,
+  });
+  const { market, pkg, cv, letter, email, dirty, emailDirty, alreadySent } = editor;
+  const { editCv, editLetter, editEmail, regenerateSummary, regenerateLetter } = editor;
+
   const [tab, setTab] = useState<Tab>("cv");
   const [showEvidence, setShowEvidence] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(openSendOnMount);
-  const [market, setMarket] = useState<PackageMarket>(
-    initialPackage?.marketLabel ?? suggestedMarket,
-  );
-  const [pkg, setPkg] = useState(initialPackage);
-  const [cv, setCv] = useState<TailoredCv | null>(initialPackage?.cv ?? null);
-  const [letter, setLetter] = useState<CoverLetter | null>(
-    initialPackage?.letter ?? null,
-  );
-  const [dirty, setDirty] = useState(false);
-  const [emailDirty, setEmailDirty] = useState(false);
-  const [email, setEmail] = useState<ApplicationEmailDraft | null>(
-    initialPackage?.email ?? null,
-  );
-
-  useEffect(() => {
-    setPkg(initialPackage);
-    setCv(initialPackage?.cv ?? null);
-    setLetter(initialPackage?.letter ?? null);
-    if (initialPackage) setMarket(initialPackage.marketLabel);
-    setDirty(false);
-    if (initialPackage?.email) {
-      setEmail(initialPackage.email);
-      setEmailDirty(false);
-    } else if (initialPackage?.cv && initialPackage.letter) {
-      setEmail(
-        buildApplicationEmail({
-          letter: initialPackage.letter,
-          cv: initialPackage.cv,
-          jobTitle,
-          companyName,
-        }),
-      );
-      setEmailDirty(false);
-    } else {
-      setEmail(null);
-      setEmailDirty(false);
-    }
-  }, [initialPackage, jobTitle, companyName]);
-
-  useEffect(() => {
+  // Arriving with ?send=1 again (e.g. from the list) reopens the send sheet.
+  const [seenOpenSend, setSeenOpenSend] = useState(openSendOnMount);
+  if (openSendOnMount !== seenOpenSend) {
+    setSeenOpenSend(openSendOnMount);
     if (openSendOnMount) setSendOpen(true);
-  }, [openSendOnMount]);
-
-  // Keep email body in sync with letter until the user edits email independently.
-  useEffect(() => {
-    if (!letter || !cv || emailDirty) return;
-    setEmail((prev) =>
-      buildApplicationEmail({
-        letter,
-        cv,
-        jobTitle,
-        companyName,
-        to: prev?.to,
-      }),
-    );
-  }, [letter, cv, jobTitle, companyName, emailDirty]);
-
-  const alreadySent =
-    pkg?.mailStatus === "sent" ||
-    pkg?.mailStatus === "waiting" ||
-    pkg?.mailStatus === "follow_up";
-
-  const canSend =
-    Boolean(pkg) &&
-    !dirty &&
-    !emailDirty &&
-    mailboxConnected &&
-    (pkg?.state === "approved" || pkg?.state === "prepared") &&
-    !alreadySent;
-
-  const primary = useMemo(() => {
-    if (!pkg) return null;
-    if (dirty || emailDirty) {
-      return {
-        id: "save" as const,
-        label: pending ? "Saving…" : "Save",
-        icon: Save,
-      };
-    }
-    if (pkg.state === "draft") {
-      return {
-        id: "approve" as const,
-        label: pending ? "Approving…" : "Approve",
-        icon: Check,
-      };
-    }
-    if (!alreadySent && (pkg.state === "approved" || pkg.state === "prepared")) {
-      return canEmail
-        ? { id: "send" as const, label: "Send", icon: Check }
-        : { id: "download" as const, label: "Download", icon: Download };
-    }
-    return null;
-  }, [pkg, dirty, emailDirty, pending, alreadySent, canEmail]);
-
-  const run = (fn: () => Promise<{ ok: boolean; error?: string }>) => {
-    setError(null);
-    setInfo(null);
-    startTransition(async () => {
-      const result = await fn();
-      if (!result.ok) setError(result.error ?? "Failed");
-      else router.refresh();
-    });
-  };
-
-  const generate = () => {
-    if (!hasApprovedProfile) {
-      setError("Approve your professional profile first.");
-      return;
-    }
-    run(async () => {
-      const res = await generateApplicationPackageAction({
-        jobId,
-        market,
-        marketConfirmed: true,
-      });
-      if (res.ok) {
-        setInfo(
-          "Package generated. Review CV, letter, and email before approving.",
-        );
-        router.push(`/interested/${jobId}/package`);
-        router.refresh();
-      }
-      return res;
-    });
-  };
-
-  const saveAll = () => {
-    if (!pkg || !cv || !letter) return;
-    run(async () => {
-      const cvRes = await savePackageCvAction({ packageId: pkg.id, cv });
-      if (!cvRes.ok) return cvRes;
-      const letterRes = await savePackageLetterAction({
-        packageId: pkg.id,
-        letter,
-      });
-      if (!letterRes.ok) return letterRes;
-      if (email) {
-        const emailRes = await savePackageEmailAction({
-          packageId: pkg.id,
-          email,
-        });
-        if (!emailRes.ok) return emailRes;
-      }
-      setDirty(false);
-      setEmailDirty(false);
-      setInfo(
-        pkg.state === "draft"
-          ? "Saved."
-          : "Saved. Approval cleared — approve again when ready.",
-      );
-      setPkg((p) =>
-        p
-          ? {
-              ...p,
-              cv,
-              letter,
-              email: email ?? p.email,
-              state:
-                p.state === "prepared" || p.state === "approved"
-                  ? "draft"
-                  : p.state,
-              contentHash: null,
-              approvedAt: null,
-            }
-          : p,
-      );
-      return { ok: true as const };
-    });
-  };
-
-  const approve = () => {
-    if (!pkg) return;
-    run(async () => {
-      if (email) {
-        const emailRes = await savePackageEmailAction({
-          packageId: pkg.id,
-          email,
-        });
-        if (!emailRes.ok) return emailRes;
-      }
-      const res = await approvePackageAction(pkg.id);
-      if (res.ok) {
-        setPkg((p) => (p ? { ...p, state: "approved" } : p));
-        setInfo(
-          canEmail
-            ? "Approved — ready to Send."
-            : "Approved. Download it and apply on the company's site.",
-        );
-        setEmailDirty(false);
-      }
-      return res;
-    });
-  };
-
-  const markPrepared = () => {
-    if (!pkg) return;
-    run(async () => {
-      const res = await markPackagePreparedAction(pkg.id);
-      if (res.ok) {
-        setPkg((p) => (p ? { ...p, state: "prepared" } : p));
-        setInfo("Marked prepared.");
-      }
-      return res;
-    });
-  };
-
-  const exportText = () => {
-    if (!pkg) return;
-    run(async () => {
-      const res = await exportPackageTextAction(pkg.id);
-      if (!res.ok) return res;
-      const blob = new Blob([res.data.text], {
-        type: "text/plain;charset=utf-8",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = res.data.filename;
-      a.click();
-      URL.revokeObjectURL(url);
-      setInfo("Plain-text package downloaded.");
-      return { ok: true as const };
-    });
-  };
-
-  const copyLetter = async () => {
-    if (!letter) return;
-    await navigator.clipboard.writeText(coverLetterToPlainText(letter));
-    setInfo("Cover letter copied.");
-  };
-
-  const copyEmail = async () => {
-    if (!email) return;
-    await navigator.clipboard.writeText(applicationEmailToPlainText(email));
-    setInfo("Application email copied.");
-  };
-
-  const printPreview = () => {
-    window.print();
-  };
-
-  const runPrimary = () => {
-    if (!primary) return;
-    if (primary.id === "save") saveAll();
-    else if (primary.id === "approve") approve();
-    else if (primary.id === "send") setSendOpen(true);
-    else if (primary.id === "download") exportText();
-  };
-
-  const regenerateSummary = () => {
-    if (!pkg || !cv) return;
-    run(async () => {
-      if (dirty) {
-        await savePackageCvAction({ packageId: pkg.id, cv });
-        setDirty(false);
-      }
-      const res = await regeneratePackageSlotAction({
-        packageId: pkg.id,
-        slot: "summary",
-      });
-      if (res.ok) {
-        setInfo("Summary regenerated.");
-        router.refresh();
-      }
-      return res;
-    });
-  };
-
-  const regenerateLetter = () => {
-    if (!pkg || !letter) return;
-    run(async () => {
-      if (dirty && cv) {
-        await savePackageCvAction({ packageId: pkg.id, cv });
-        await savePackageLetterAction({ packageId: pkg.id, letter });
-        setDirty(false);
-      }
-      const res = await regeneratePackageSlotAction({
-        packageId: pkg.id,
-        slot: "letter",
-      });
-      if (res.ok) {
-        setInfo("Cover letter regenerated.");
-        setEmailDirty(false);
-        router.refresh();
-      }
-      return res;
-    });
-  };
+  }
 
   const previewNode = (() => {
     if (tab === "letter" && letter) {
@@ -498,181 +171,29 @@ export function ApplicationPackageWorkspace({
           </InlineAlert>
         </Surface>
       ) : null}
-
       {!pkg ? (
-        <Surface className="p-6 sm:p-8">
-          <div className="mx-auto max-w-lg space-y-6">
-            <div className="space-y-2">
-              <h2 className="text-h5 font-medium">
-                Prepare this application
-              </h2>
-              <p className="text-muted-foreground text-body leading-relaxed">
-                Generate a tailored one-page CV and cover letter from your
-                approved profile. Market sets US Resume vs Europe CV wording —
-                layout stays ATS-safe either way.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="package-market">Market</Label>
-              <Select
-                value={market}
-                onValueChange={(value) => {
-                  if (value === "us" || value === "europe") setMarket(value);
-                }}
-                disabled={pending}
-                items={{
-                  europe: "Europe (CV)",
-                  us: "United States (Resume)",
-                }}
-              >
-                <SelectTrigger id="package-market" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent alignItemWithTrigger={false} align="start">
-                  <SelectItem value="europe">Europe (CV)</SelectItem>
-                  <SelectItem value="us">United States (Resume)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button
-              disabled={pending || !hasApprovedProfile}
-              onClick={generate}
-              className="w-full sm:w-auto"
-            >
-              {pending ? "Generating…" : "Generate package"}
-            </Button>
-          </div>
-        </Surface>
+        <PackageGenerateCard
+          market={market}
+          setMarket={editor.setMarket}
+          pending={pending}
+          hasApprovedProfile={hasApprovedProfile}
+          generate={editor.generate}
+        />
       ) : (
         <>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <SegmentedControl
-              options={TABS}
-              value={tab}
-              onChange={setTab}
-              ariaLabel="Package sections"
-            />
-
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {previewNode ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="xl:hidden"
-                  onClick={() => setPreviewOpen(true)}
-                >
-                  <Eye className="size-3.5" />
-                  Preview
-                </Button>
-              ) : null}
-              {alreadySent ? (
-                <Link
-                  href="/queue?tab=applications"
-                  className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                >
-                  View in Queue
-                </Link>
-              ) : null}
-              {primary ? (
-                <Button
-                  size="sm"
-                  disabled={
-                    pending ||
-                    (primary.id === "approve" && (dirty || emailDirty)) ||
-                    (primary.id === "send" && !canSend)
-                  }
-                  onClick={runPrimary}
-                >
-                  <primary.icon className="size-3.5" />
-                  {primary.label}
-                </Button>
-              ) : null}
-
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      size="icon-sm"
-                      variant="outline"
-                      disabled={pending}
-                      aria-label="More actions"
-                    />
-                  }
-                >
-                  <MoreHorizontal className="size-4" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-52">
-                  {(dirty || emailDirty) && !alreadySent ? (
-                    <DropdownMenuItem disabled={pending} onClick={saveAll}>
-                      <Save className="size-4" />
-                      Save
-                    </DropdownMenuItem>
-                  ) : null}
-                  {pkg.state === "approved" && !alreadySent ? (
-                    <DropdownMenuItem disabled={pending} onClick={markPrepared}>
-                      <Check className="size-4" />
-                      Mark prepared
-                    </DropdownMenuItem>
-                  ) : null}
-                  {primary?.id !== "download" ? (
-                    <DropdownMenuItem disabled={pending} onClick={exportText}>
-                      <Download className="size-4" />
-                      Export .txt
-                    </DropdownMenuItem>
-                  ) : null}
-                  <DropdownMenuItem
-                    disabled={!letter}
-                    onClick={() => void copyLetter()}
-                  >
-                    <Copy className="size-4" />
-                    Copy letter
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={!email}
-                    onClick={() => void copyEmail()}
-                  >
-                    <Copy className="size-4" />
-                    Copy email
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={printPreview}>
-                    <Printer className="size-4" />
-                    Print preview
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => setShowEvidence((v) => !v)}
-                  >
-                    {showEvidence ? "Hide evidence" : "Show evidence"}
-                  </DropdownMenuItem>
-                  {tab === "cv" ? (
-                    <DropdownMenuItem
-                      disabled={pending || alreadySent}
-                      onClick={regenerateSummary}
-                    >
-                      <RefreshCw className="size-4" />
-                      Regenerate summary
-                    </DropdownMenuItem>
-                  ) : null}
-                  {tab === "letter" || tab === "email" ? (
-                    <DropdownMenuItem
-                      disabled={pending || alreadySent}
-                      onClick={regenerateLetter}
-                    >
-                      <RefreshCw className="size-4" />
-                      Regenerate letter
-                    </DropdownMenuItem>
-                  ) : null}
-                  <DropdownMenuItem
-                    disabled={pending || alreadySent}
-                    onClick={generate}
-                  >
-                    <RefreshCw className="size-4" />
-                    Regenerate all
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
+          <PackageToolbar
+            editor={editor}
+            tab={tab}
+            setTab={setTab}
+            pending={pending}
+            canEmail={canEmail}
+            mailboxConnected={mailboxConnected}
+            hasPreview={Boolean(previewNode)}
+            onOpenPreview={() => setPreviewOpen(true)}
+            onOpenSend={() => setSendOpen(true)}
+            showEvidence={showEvidence}
+            setShowEvidence={setShowEvidence}
+          />
 
           <HowToApplyPanel pkg={pkg} />
 
@@ -689,10 +210,7 @@ export function ApplicationPackageWorkspace({
                     cv={cv}
                     market={pkg.marketLabel}
                     pending={pending || alreadySent}
-                    onChange={(next) => {
-                      setCv(next);
-                      setDirty(true);
-                    }}
+                    onChange={editCv}
                     onRegenerateSummary={regenerateSummary}
                   />
                 ) : null}
@@ -700,10 +218,7 @@ export function ApplicationPackageWorkspace({
                   <PackageLetterSlotEditor
                     letter={letter}
                     pending={pending || alreadySent}
-                    onChange={(next) => {
-                      setLetter(next);
-                      setDirty(true);
-                    }}
+                    onChange={editLetter}
                     onRegenerate={regenerateLetter}
                   />
                 ) : null}
@@ -714,10 +229,7 @@ export function ApplicationPackageWorkspace({
                     fromName={cv?.fullName || letter?.fullName || ""}
                     fromEmail={mailboxEmail ?? cv?.email}
                     companyName={companyName}
-                    onChange={(next) => {
-                      setEmail(next);
-                      setEmailDirty(true);
-                    }}
+                    onChange={editEmail}
                   />
                 ) : null}
                 {showEvidence ? (
@@ -769,40 +281,3 @@ export function ApplicationPackageWorkspace({
   );
 }
 
-/** Email / phone / link from the posting: many local jobs are applied to directly. */
-function HowToApplyPanel({ pkg }: { pkg: ApplicationPackageView }) {
-  const { emails, phones, links } = pkg.howToApply;
-  if (!emails.length && !phones.length && !links.length) return null;
-  return (
-    <Surface>
-      <div className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:gap-5">
-        <p className="text-body font-medium text-foreground">
-          How to apply
-        </p>
-        <ul className="flex flex-wrap gap-x-5 gap-y-1 text-body-sm">
-          {emails.map((email) => (
-            <li key={email}>
-              <a className="text-brand-ink hover:underline" href={`mailto:${email}`}>
-                {email}
-              </a>
-            </li>
-          ))}
-          {phones.map((phone) => (
-            <li key={phone}>
-              <a className="text-brand-ink hover:underline" href={`tel:${phone.replace(/[^\d+]/g, "")}`}>
-                {phone}
-              </a>
-            </li>
-          ))}
-          {links.map((link) => (
-            <li key={link} className="max-w-full truncate">
-              <a className="text-brand-ink hover:underline" href={link} target="_blank" rel="noreferrer">
-                Application form
-              </a>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </Surface>
-  );
-}

@@ -155,7 +155,7 @@ export async function runWorkerPipeline(options?: {
       markStage(checkpoint, "normalize");
       markStage(checkpoint, "deduplicate");
       markStage(checkpoint, "deterministic_filter");
-      saveCheckpoint(runId, checkpoint, stats);
+      await saveCheckpoint(runId, checkpoint, stats);
 
       const sourceErrors = discovered.sourceErrors ?? [];
       await report?.(
@@ -277,7 +277,7 @@ export async function runWorkerPipeline(options?: {
         .filter((id): id is string => !!id);
 
       markStage(checkpoint, "llm_triage_batch");
-      saveCheckpoint(runId, checkpoint, stats);
+      await saveCheckpoint(runId, checkpoint, stats);
 
       const removed =
         (Number(stats.deterministicallyRemoved ?? 0) || 0) +
@@ -302,7 +302,7 @@ export async function runWorkerPipeline(options?: {
         stats.researchSkippedBudget = true;
         markStage(checkpoint, "retrieve_pages");
         markStage(checkpoint, "research_and_score_batch");
-        saveCheckpoint(runId, checkpoint, stats);
+        await saveCheckpoint(runId, checkpoint, stats);
         await report?.(
           companyProgressFor(
             "research",
@@ -360,7 +360,7 @@ export async function runWorkerPipeline(options?: {
         stats.incompleteBriefs = incomplete;
         markStage(checkpoint, "retrieve_pages");
         markStage(checkpoint, "research_and_score_batch");
-        saveCheckpoint(runId, checkpoint, stats);
+        await saveCheckpoint(runId, checkpoint, stats);
       }
     }
 
@@ -394,7 +394,7 @@ export async function runWorkerPipeline(options?: {
       stats.publishedLeadIds = ranked.map((r) => r.lead.id);
       markStage(checkpoint, "rank");
       markStage(checkpoint, "publish_daily_list");
-      saveCheckpoint(runId, checkpoint, stats);
+      await saveCheckpoint(runId, checkpoint, stats);
 
       await report?.(
         companyProgressFor(
@@ -417,7 +417,7 @@ export async function runWorkerPipeline(options?: {
     if (!stageDone(checkpoint, "record_usage")) {
       stats.budget = await getBudgetStatus();
       markStage(checkpoint, "record_usage");
-      saveCheckpoint(runId, checkpoint, stats);
+      await saveCheckpoint(runId, checkpoint, stats);
     }
 
     // Job discovery (requires approved search profile) — skip from Find Companies UI
@@ -432,7 +432,7 @@ export async function runWorkerPipeline(options?: {
         stats.jobsError = message;
         logger.warn({ err: message }, "Job discovery pipeline failed (non-fatal)");
       }
-      saveCheckpoint(runId, checkpoint, stats);
+      await saveCheckpoint(runId, checkpoint, stats);
     }
 
     await report?.(
@@ -460,7 +460,7 @@ export async function runWorkerPipeline(options?: {
     return { runId, stats, checkpoint };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    saveCheckpoint(runId, checkpoint, stats, message);
+    await saveCheckpoint(runId, checkpoint, stats, message);
     logger.error({ runId, err: message }, "Worker pipeline failed");
     throw err;
   }

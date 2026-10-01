@@ -1,11 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  deleteContactAction,
-  exportPersonalDataAction,
-  runRetentionPruneAction,
-} from "@/app/actions";
+import { deleteContactAction, exportPersonalDataAction, runRetentionPruneAction } from "@/modules/privacy/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

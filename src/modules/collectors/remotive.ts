@@ -1,15 +1,16 @@
-import * as cheerio from "cheerio";
-import {
-  extractDomain,
-  RawCollectedJobSchema,
-  titleMatchesQuery,
-  type CollectorQuery,
-  type RawCollectedJob,
-} from "./types";
+import { RawCollectedJobSchema, titleMatchesQuery, type CollectorQuery, type RawCollectedJob } from "./types";
+import { companyDomainFromPosting, postingText } from "./posting-html";
+
+/**
+ * Remotive public API. This module owns the HTTP contract; job search maps
+ * results to `RawCollectedJob` here, and client-outreach discovery maps the
+ * same rows to hiring signals (`discovery/remotive.ts`).
+ */
 
 const REMOTIVE_API = "https://remotive.com/api/remote-jobs";
+const REMOTIVE_HOST = /remotive\.com/i;
 
-type RemotiveJob = {
+export type RemotiveJob = {
   id: number;
   url: string;
   title: string;
@@ -21,36 +22,19 @@ type RemotiveJob = {
   category?: string;
 };
 
-function descriptionText(html: string | undefined): string {
-  if (!html) return "";
-  const $ = cheerio.load(html);
-  return $("body").text().replace(/\s+/g, " ").trim().slice(0, 12000);
+export async function fetchRemotiveJobs(url: string): Promise<RemotiveJob[]> {
+  const res = await fetch(url, {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Remotive HTTP ${res.status}`);
+  const data = (await res.json()) as { jobs?: RemotiveJob[] };
+  return data.jobs ?? [];
 }
 
-function domainFromDescription(
-  html: string | undefined,
-  companyName: string,
-): string | undefined {
-  if (!html) return undefined;
-  const $ = cheerio.load(html);
-  const hrefs: string[] = [];
-  $("a[href]").each((_, el) => {
-    const href = $(el).attr("href");
-    if (href) hrefs.push(href);
-  });
-  const skip =
-    /(remotive\.com|linkedin\.com|twitter\.com|x\.com|facebook\.com)/i;
-  const candidates = hrefs
-    .map((h) => extractDomain(h))
-    .filter((d): d is string => !!d && !skip.test(d));
-  if (candidates.length === 0) return undefined;
-  const tokens = companyName
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((t) => t.length > 2);
-  return (
-    candidates.find((d) => tokens.some((t) => d.includes(t))) ?? candidates[0]
-  );
+/** Employer website guessed from links in the Remotive posting body. */
+export function remotiveCompanyDomain(job: RemotiveJob): string | undefined {
+  return companyDomainFromPosting(job.description, job.company_name, REMOTIVE_HOST);
 }
 
 /** Remotive's search is literal; level words only narrow it. */
@@ -72,21 +56,21 @@ export function remotiveSearchUrl(title: string, category?: string): string {
   return url.href;
 }
 
+/** Latest postings in one category (client-outreach discovery). */
+export function remotiveCategoryUrl(category?: string): string {
+  const url = new URL(REMOTIVE_API);
+  if (category) url.searchParams.set("category", category);
+  return url.href;
+}
+
 /**
  * Fetch Remotive jobs matching the query title in the family's category.
  */
 export async function collectRemotive(
   query: CollectorQuery,
 ): Promise<RawCollectedJob[]> {
-  const url = remotiveSearchUrl(query.title, query.remotiveCategory);
-  const res = await fetch(url, {
-    headers: { Accept: "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`Remotive HTTP ${res.status}`);
-
-  const data = (await res.json()) as { jobs?: RemotiveJob[] };
-  const matched = (data.jobs ?? []).filter((job) => titleMatchesQuery(job.title, query));
+  const jobs = await fetchRemotiveJobs(remotiveSearchUrl(query.title, query.remotiveCategory));
+  const matched = jobs.filter((job) => titleMatchesQuery(job.title, query));
 
   // No silent fallback to the entire Remotive board — that floods the
   // pipeline with unrelated roles (data labeling, support, etc.).
@@ -98,11 +82,11 @@ export async function collectRemotive(
       externalId: String(job.id),
       title: job.title,
       companyName: job.company_name,
-      companyDomain: domainFromDescription(job.description, job.company_name),
+      companyDomain: remotiveCompanyDomain(job),
       location: job.candidate_required_location,
       remotePolicy: "remote",
       employmentType: job.job_type,
-      description: descriptionText(job.description),
+      description: postingText(job.description, 12_000),
       sourceUrl: job.url,
       postedAt: job.publication_date,
     }),

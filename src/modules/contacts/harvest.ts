@@ -6,8 +6,10 @@ import { newId, nowIso } from "@/lib/ids";
 import { logger } from "@/lib/logging/logger";
 import { resolveCountryPolicy } from "@/lib/policy/country";
 import { retrievePage } from "@/lib/retrieval/fetch-page";
+import { getLeadRecommendedRole } from "@/modules/leads/lifecycle";
+import { extractPeopleFromTeamText, type ExtractedPerson } from "./extract-people";
 import { isGenericLocalPart } from "./patterns";
-import type { ContactConfidence } from "@/modules/leads/actions";
+import type { ContactConfidence } from "@/modules/contacts/confidence";
 
 const CONTACT_PATHS = [
   "/contact",
@@ -58,7 +60,6 @@ function parseMailto(href: string): string | null {
 }
 
 function inferNameNearMailto(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   $: cheerio.CheerioAPI,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   el: any,
@@ -311,5 +312,31 @@ export async function harvestContactsForLead(leadId: string): Promise<HarvestRes
     teamPageUrl,
     pagesFetched,
     contactsCreated,
+  };
+}
+
+/**
+ * Full harvest for a lead: published emails first, then names and roles read
+ * from the team page. People come back as hints only; no address is guessed.
+ */
+export async function harvestLeadContacts(leadId: string): Promise<{
+  contactsCreated: number;
+  emailsFound: number;
+  people: Array<{ name: string; role: string | null }>;
+}> {
+  const harvest = await harvestContactsForLead(leadId);
+  let people: ExtractedPerson[] = [];
+  if (harvest.teamPageText && harvest.teamPageUrl) {
+    people = await extractPeopleFromTeamText({
+      leadId,
+      pageUrl: harvest.teamPageUrl,
+      pageText: harvest.teamPageText,
+      recommendedRole: await getLeadRecommendedRole(leadId),
+    });
+  }
+  return {
+    contactsCreated: harvest.contactsCreated,
+    emailsFound: harvest.emails.length,
+    people: people.slice(0, 10).map(({ name, role }) => ({ name, role })),
   };
 }

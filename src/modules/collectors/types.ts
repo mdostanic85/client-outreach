@@ -69,25 +69,3 @@ export function jobFingerprint(job: {
   ].join("|");
   return createHash("sha256").update(key).digest("hex").slice(0, 32);
 }
-
-export function extractDomain(urlOrHost?: string | null): string | undefined {
-  if (!urlOrHost) return undefined;
-  try {
-    const withProtocol = urlOrHost.includes("://")
-      ? urlOrHost
-      : `https://${urlOrHost}`;
-    const host = new URL(withProtocol).hostname.toLowerCase();
-    return host.replace(/^www\./, "");
-  } catch {
-    return undefined;
-  }
-}
-
-export function normalizeCompanyName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\b(inc|llc|ltd|gmbh|ag|sa|bv|plc|corp|co)\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}

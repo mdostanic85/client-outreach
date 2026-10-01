@@ -1,41 +1,33 @@
 import { revalidatePath } from "next/cache";
 import { ensureDb } from "@/db/ensure";
-import { getSessionUser } from "@/modules/auth/session";
-import type { CompanySearchProgress } from "@/modules/companies/progress";
+import { logger } from "@/lib/logging/logger";
+import { getRequestUser } from "@/modules/auth/page-guards";
+import type { CompanyPipelineStats, CompanySearchProgress } from "@/modules/companies/progress";
+import type { SearchStreamEvent } from "@/modules/search-experience/stream";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
-type CompanyPipelineStats = {
-  published?: number;
-  rawCandidates?: number;
-  deterministicallyRemoved?: number;
-  triageRejected?: number;
-  researched?: number;
-  sourceErrors?: unknown[];
-  skipped?: string;
-};
-
-type StreamEvent =
-  | { type: "progress"; progress: CompanySearchProgress }
-  | { type: "done"; stats: CompanyPipelineStats }
-  | { type: "error"; error: string };
+type StreamEvent = SearchStreamEvent<CompanySearchProgress, CompanyPipelineStats>;
 
 /**
  * Streams NDJSON progress while the company discovery pipeline runs.
  * Skips nested job discovery so Find Companies stays focused.
  */
-export async function POST() {
-  const user = await getSessionUser();
-  if (!user) {
-    return new Response(JSON.stringify({ type: "error", error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+function errorResponse(status: number, error: string) {
+  return new Response(JSON.stringify({ type: "error", error }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
+/** Client outreach is owner-only, like every company action. */
+export async function POST() {
   await ensureDb();
+  const caller = await getRequestUser();
+  if (!caller) return errorResponse(401, "Unauthorized");
+  if (!caller.owner) return errorResponse(403, "Only the workspace owner can do this.");
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
@@ -72,6 +64,7 @@ export async function POST() {
           },
         });
       } catch (err) {
+        logger.warn({ err }, "company search failed");
         send({
           type: "error",
           error: err instanceof Error ? err.message : String(err),

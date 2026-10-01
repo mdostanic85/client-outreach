@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { applyProfileDiffDecisionsAction } from "@/app/actions";
+import { applyProfileDiffDecisionsAction } from "@/modules/profile/actions";
 import { InlineAlert } from "@/components/inline-alert";
 import { PanelBody, PanelHeader, Surface } from "@/components/page-shell";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +85,17 @@ export function ProfileImportReview({
     return c;
   }, [actionable]);
 
+  const grouped = useMemo(() => {
+    const map = new Map<string, ProfileDiffItem[]>();
+    for (const item of actionable) {
+      const list = map.get(item.section) ?? [];
+      list.push(item);
+      map.set(item.section, list);
+    }
+    return [...map.entries()];
+  }, [actionable]);
+
+  // After every hook: the list can empty out once the review is applied.
   if (actionable.length === 0) return null;
 
   const setDecision = (id: string, decision: DiffDecision) => {
@@ -108,16 +119,6 @@ export function ProfileImportReview({
       router.refresh();
     });
   };
-
-  const grouped = useMemo(() => {
-    const map = new Map<string, ProfileDiffItem[]>();
-    for (const item of actionable) {
-      const list = map.get(item.section) ?? [];
-      list.push(item);
-      map.set(item.section, list);
-    }
-    return [...map.entries()];
-  }, [actionable]);
 
   return (
     <Surface>

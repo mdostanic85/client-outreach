@@ -9,13 +9,13 @@ import { approvalContentHash } from "../src/modules/mail/approvals";
 import {
   extractDomain,
   normalizeCompanyName,
-} from "../src/modules/discovery/types";
+} from "../src/modules/companies/identity";
 import {
   effectivePolicy,
   normalizeCountryCode,
 } from "../src/lib/policy/country";
 import { editRatio } from "../src/modules/learning/diff";
-import { CONTACT_CONFIDENCE } from "../src/modules/leads/actions";
+import { CONTACT_CONFIDENCE } from "../src/modules/contacts/confidence";
 import { canTransition } from "../src/modules/leads/transitions";
 import { isGenericLocalPart } from "../src/modules/contacts/patterns";
 import { calculateScoreTotal } from "../src/modules/research/schemas";

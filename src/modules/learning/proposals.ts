@@ -1,13 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import {
-  draftEdits,
-  learningProposals,
-  learningReports,
-  settings,
-  settingsScoring,
-} from "@/db/schema";
+import { draftEdits, learningProposals, learningReports, settingsScoring } from "@/db/schema";
 import { anthropicProvider } from "@/lib/ai/anthropic";
 import { buildMessages } from "@/lib/ai/google";
 import { resolveModel } from "@/lib/ai/routing";
@@ -23,7 +17,7 @@ import { assertGatesOrPreview } from "./gates";
 import { buildSourcePerformance } from "./reports";
 import { approveSearchProfile } from "@/modules/search-profile/approve";
 import { getApprovedSearchProfile } from "@/modules/search-profile/queries";
-import { getUserSettings } from "@/modules/settings/user-settings";
+import { getUserSettings, updateUserSettings } from "@/modules/settings/user-settings";
 import { currentUserId, owned } from "@/modules/auth/current-user";
 
 function parseJsonLoose(text: string): unknown {
@@ -45,7 +39,7 @@ const StyleProposalSchema = z.object({
 });
 
 export async function proposeStyleUpdate(force = false) {
-  assertGatesOrPreview(force);
+  await assertGatesOrPreview(force);
   const db = getDb();
   const edits = (await db
     .select()
@@ -107,7 +101,7 @@ export async function proposeStyleUpdate(force = false) {
 }
 
 export async function proposeScoringWeights(force = false) {
-  assertGatesOrPreview(force);
+  await assertGatesOrPreview(force);
   const db = getDb();
   // Deterministic heuristic proposal from accept/reject patterns — no auto-apply
   const { rows } = await buildSourcePerformance();
@@ -148,7 +142,7 @@ export async function proposeScoringWeights(force = false) {
 
 /** Propose job-match dimension weights (separate from outreach scoring). */
 export async function proposeJobScoringWeights(force = false) {
-  assertGatesOrPreview(force);
+  await assertGatesOrPreview(force);
   const db = getDb();
   const family = (await getApprovedSearchProfile())?.params.occupationFamily ?? null;
   const current = await getJobMatchWeights(family);
@@ -197,7 +191,7 @@ function jobMatchWeightsEqual(
 }
 
 export async function generateMarketReport(force = false) {
-  assertGatesOrPreview(force);
+  await assertGatesOrPreview(force);
   const db = getDb();
   const { rows } = await buildSourcePerformance();
   const setting = (await getUserSettings());
@@ -244,7 +238,7 @@ export async function generateMarketReport(force = false) {
 }
 
 export async function generatePositioningRecs(force = false) {
-  assertGatesOrPreview(force);
+  await assertGatesOrPreview(force);
   const db = getDb();
   const setting = (await getUserSettings());
   const edits = (await db.select().from(draftEdits)).slice(0, 15);
@@ -343,9 +337,7 @@ export async function applyProposal(proposalId: string) {
         ...patch.ctaPatternsAdd,
       ];
     }
-    await db.update(settings)
-      .set({ styleProfileJson: JSON.stringify(style), updatedAt: now })
-      .where(and(await owned(settings), eq(settings.id, setting.id)));
+    await updateUserSettings({ styleProfileJson: JSON.stringify(style) });
   } else if (proposal.kind === "scoring_weights") {
     const existing = (await db.select().from(settingsScoring).where(await owned(settingsScoring)).limit(1))[0];
     if (existing) {

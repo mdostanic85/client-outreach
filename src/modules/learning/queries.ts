@@ -1,7 +1,7 @@
 import { desc } from "drizzle-orm";
 import { ensureDb } from "@/db/ensure";
 import { learningProposals, learningReports } from "@/db/schema";
-import { getAdaptiveJobRanking } from "@/modules/jobs/queries";
+import { getAdaptiveJobRanking } from "@/modules/settings/user-settings";
 import { getApprovedSearchProfile } from "@/modules/search-profile/queries";
 import { getLearningGates } from "./gates";
 import { listStrategyVersions, type StrategyCohort } from "./job-cohorts";

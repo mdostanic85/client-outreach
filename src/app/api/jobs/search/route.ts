@@ -1,17 +1,16 @@
 import { revalidatePath } from "next/cache";
 import { ensureDb } from "@/db/ensure";
+import { logger } from "@/lib/logging/logger";
 import { getSessionUser } from "@/modules/auth/session";
 import type { JobSearchProgress } from "@/modules/jobs/progress";
 import type { JobPipelineStats } from "@/modules/jobs/pipeline";
+import type { SearchStreamEvent } from "@/modules/search-experience/stream";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
-type StreamEvent =
-  | { type: "progress"; progress: JobSearchProgress }
-  | { type: "done"; stats: JobPipelineStats }
-  | { type: "error"; error: string };
+type StreamEvent = SearchStreamEvent<JobSearchProgress, JobPipelineStats>;
 
 /**
  * Streams NDJSON progress while the job discovery pipeline runs.
@@ -51,6 +50,7 @@ export async function POST() {
         revalidatePath("/");
         send({ type: "done", stats });
       } catch (err) {
+        logger.warn({ err }, "job search failed");
         send({
           type: "error",
           error: err instanceof Error ? err.message : String(err),

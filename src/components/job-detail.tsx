@@ -1,8 +1,8 @@
 "use client";
 
+import { useActionRunner } from "@/components/use-action-runner";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useTransition, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   Bookmark,
@@ -13,12 +13,7 @@ import {
   ThumbsDown,
   Undo2,
 } from "lucide-react";
-import {
-  interestedJobAction,
-  markJobAppliedAction,
-  rejectJobAction,
-  saveJobForLaterAction,
-} from "@/app/actions";
+import { interestedJobAction, markJobAppliedAction, rejectJobAction, saveJobForLaterAction } from "@/modules/jobs/actions";
 import { CompanySnapshotCard } from "@/components/company-snapshot";
 import { InlineAlert } from "@/components/inline-alert";
 import { CompanyTile } from "@/components/job-list-item";
@@ -51,16 +46,10 @@ import {
   packageCta,
 } from "@/modules/jobs/job-presentation";
 import type { JobTriageRow } from "@/modules/jobs/triage-row";
+import { JOB_REJECT_REASONS } from "@/modules/learning/job-outcome-types";
 
-const REJECT_REASONS = [
-  "Wrong title",
-  "Wrong seniority",
-  "Wrong location / remote",
-  "Wrong industry",
-  "Comp too low",
-  "Company type mismatch",
-  "Other",
-] as const;
+/** "Already applied" has its own button here, so it is not offered as a reason. */
+const REJECT_REASONS = JOB_REJECT_REASONS.filter((reason) => reason !== "Already applied elsewhere");
 
 const DESCRIPTION_PREVIEW = 1400;
 
@@ -86,10 +75,7 @@ export function JobDetail({
   description: string;
   packageMeta: PackageListMeta | null;
 }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const { pending, error, message: notice, run: runWith } = useActionRunner();
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
 
@@ -104,23 +90,7 @@ export function JobDetail({
   const run = (
     fn: () => Promise<{ ok: boolean; error?: string }>,
     after: { message?: string; goTo?: string } = {},
-  ) => {
-    setError(null);
-    setNotice(null);
-    startTransition(async () => {
-      const result = await fn();
-      if (!result.ok) {
-        setError(result.error ?? "Something went wrong. Try again.");
-        return;
-      }
-      if (after.goTo) {
-        router.push(after.goTo);
-        return;
-      }
-      if (after.message) setNotice(after.message);
-      router.refresh();
-    });
-  };
+  ) => runWith(fn, { success: after.message, goTo: after.goTo });
 
   const save = () =>
     run(() => interestedJobAction(row.jobId), {

@@ -3,41 +3,7 @@ import { getDb } from "@/db/client";
 import { jobOutcomeEvents, jobs } from "@/db/schema";
 import { newId, nowIso } from "@/lib/ids";
 import { currentUserId, owned } from "@/modules/auth/current-user";
-
-export const JOB_REJECT_REASONS = [
-  "Wrong title",
-  "Wrong seniority",
-  "Wrong location / remote",
-  "Wrong industry",
-  "Comp too low",
-  "Company type mismatch",
-  "Already applied elsewhere",
-  "Other",
-] as const;
-
-export type JobRejectReason = (typeof JOB_REJECT_REASONS)[number];
-
-export type JobOutcome =
-  | "none"
-  | "no_response"
-  | "recruiter_response"
-  | "interview"
-  | "rejected"
-  | "offer"
-  | "accepted";
-
-export type JobOutcomeEventType =
-  | "viewed"
-  | "saved"
-  | "interested"
-  | "rejected"
-  | "applied"
-  | "recruiter_response"
-  | "interview"
-  | "offer"
-  | "accepted"
-  | "no_response"
-  | "rejected_after_apply";
+import type { JobOutcomeEventType, RecordedJobOutcome } from "./job-outcome-types";
 
 export async function recordJobOutcomeEvent(
   jobId: string,
@@ -62,7 +28,7 @@ export async function recordJobOutcomeEvent(
 
 export async function setJobOutcome(
   jobId: string,
-  outcome: Exclude<JobOutcome, "none">,
+  outcome: RecordedJobOutcome,
   note?: string,
 ) {
   const db = getDb();

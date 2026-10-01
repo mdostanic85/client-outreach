@@ -11,7 +11,8 @@ import {
   walkListing,
   type CollectorDeps,
 } from "./polite-fetch";
-import { extractDomain, RawCollectedJobSchema, type CollectorQuery, type RawCollectedJob } from "./types";
+import { extractDomain } from "@/modules/companies/identity";
+import { RawCollectedJobSchema, type CollectorQuery, type RawCollectedJob } from "./types";
 
 /**
  * Joberty public jobs API (the listing behind joberty.com). robots.txt on

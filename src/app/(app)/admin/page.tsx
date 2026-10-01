@@ -1,4 +1,5 @@
-import { getAdminOverview, getSettingsRow } from "@/modules/leads/queries";
+import { getAdminOverview } from "@/modules/leads/queries";
+import { getUserSettings } from "@/modules/settings/user-settings";
 import { AdminWorkspace } from "@/components/admin-workspace";
 import { PageHeader, PageShell } from "@/components/page-shell";
 import { ensureDb } from "@/db/ensure";
@@ -58,8 +59,8 @@ export default async function AdminPage({
         : "mail";
 
   const admin = await getAdminOverview();
-  const settings = await getSettingsRow();
-  const ops = parseOpsChecklist(settings?.opsChecklistJson);
+  const settings = await getUserSettings();
+  const ops = parseOpsChecklist(settings.opsChecklistJson);
   const readiness = await getValidationReadiness(ops);
   const secrets = getSecretsStatus().filter(
     (s) => !MAILBOX_SECRET_NAMES.has(s.name),

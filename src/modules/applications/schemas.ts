@@ -20,6 +20,11 @@ export const PackageMailStatusSchema = z.enum([
 ]);
 export type PackageMailStatus = z.infer<typeof PackageMailStatusSchema>;
 
+/** The application email went out (and may be waiting on a reply or a follow-up). */
+export function isApplicationSent(status: string | null | undefined): boolean {
+  return status === "sent" || status === "waiting" || status === "follow_up";
+}
+
 export const CvExperienceEntrySchema = z.object({
   id: z.string(),
   organization: z.string(),

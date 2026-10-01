@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { sendApplicationPackageAction } from "@/app/actions";
+import { sendApplicationPackageAction } from "@/modules/applications/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,13 +44,18 @@ export function ApplicationSendModal({
   const [subject, setSubject] = useState(initialEmail.subject);
   const [body, setBody] = useState(initialEmail.body);
 
-  useEffect(() => {
-    if (!open) return;
-    setTo(initialEmail.to);
-    setSubject(initialEmail.subject);
-    setBody(initialEmail.body);
-    setError(null);
-  }, [open, initialEmail]);
+  // Opening the sheet (or a new package email while open) starts from the package's email.
+  const resetKey = open ? `${initialEmail.to}\n${initialEmail.subject}\n${initialEmail.body}` : null;
+  const [seenResetKey, setSeenResetKey] = useState(resetKey);
+  if (resetKey !== seenResetKey) {
+    setSeenResetKey(resetKey);
+    if (resetKey !== null) {
+      setTo(initialEmail.to);
+      setSubject(initialEmail.subject);
+      setBody(initialEmail.body);
+      setError(null);
+    }
+  }
 
   const send = () => {
     setError(null);

@@ -6,6 +6,11 @@ Local single-user client discovery and outreach app.
 
 **Build status:** Phases 0–5 code is complete. Open items are validation/ops (daily runs, mailbox DNS, human scoring) — track them on **Admin → Validation readiness**. Direct public ATS collection is available in the staged Job Finder V2 update; multi-user isolation and remote MCP remain deferred.
 
+## Architecture
+
+Code layout, domain boundaries, the Server Action convention and where each
+step of job search and client outreach lives: [`docs/architecture.md`](docs/architecture.md).
+
 ## Setup
 
 ```bash
@@ -22,7 +27,8 @@ npm run dev
 App binds to **127.0.0.1:3000** only.
 
 ```bash
-npm test                 # unit + phase2 quality
+npm test                 # full unit suite (no network, no database)
+npm run test:integration # needs DATABASE_URL (starts the MCP server against the database)
 npm run worker           # daily pipeline
 npm run backup           # See backup script and current Neon deployment setup
 npm run export-data      # JSON export → data/exports/

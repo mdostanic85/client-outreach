@@ -1,34 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import {
-  applyLearningProposalAction,
-  generateMarketReportAction,
-  generatePositioningAction,
-  proposeJobScoringAction,
-  proposeScoringAction,
-  proposeStyleAction,
-  rejectLearningProposalAction,
-  saveSourceReportAction,
-} from "@/app/actions";
+import { applyLearningProposalAction, generateMarketReportAction, generatePositioningAction, proposeJobScoringAction, proposeScoringAction, proposeStyleAction, rejectLearningProposalAction, saveSourceReportAction } from "@/modules/learning/actions";
 import { Button } from "@/components/ui/button";
+import { useActionRunner } from "@/components/use-action-runner";
 
 export function LearningControls({ gatesReady }: { gatesReady: boolean }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-
-  const run = (
-    fn: () => Promise<{ ok: boolean; error?: string; data?: unknown }>,
-  ) => {
-    setError(null);
-    startTransition(async () => {
-      const result = await fn();
-      if (!result.ok) setError(result.error ?? "Failed");
-      else router.refresh();
-    });
-  };
+  const { pending, error, run } = useActionRunner();
 
   const force = !gatesReady;
 
@@ -88,9 +65,7 @@ export function LearningControls({ gatesReady }: { gatesReady: boolean }) {
 }
 
 export function ProposalActions({ proposalId }: { proposalId: string }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const { pending, error, run } = useActionRunner();
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -98,11 +73,7 @@ export function ProposalActions({ proposalId }: { proposalId: string }) {
         size="sm"
         disabled={pending}
         onClick={() =>
-          startTransition(async () => {
-            const r = await applyLearningProposalAction(proposalId);
-            if (!r.ok) setError(r.error ?? "Failed");
-            else router.refresh();
-          })
+          run(() => applyLearningProposalAction(proposalId))
         }
       >
         Apply
@@ -112,11 +83,7 @@ export function ProposalActions({ proposalId }: { proposalId: string }) {
         variant="outline"
         disabled={pending}
         onClick={() =>
-          startTransition(async () => {
-            const r = await rejectLearningProposalAction(proposalId);
-            if (!r.ok) setError(r.error ?? "Failed");
-            else router.refresh();
-          })
+          run(() => rejectLearningProposalAction(proposalId))
         }
       >
         Reject

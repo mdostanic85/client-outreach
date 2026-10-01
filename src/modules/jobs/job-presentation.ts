@@ -1,4 +1,5 @@
 import type { PackageListMeta } from "@/modules/applications/packages";
+import { isApplicationSent } from "@/modules/applications/schemas";
 import type { JobTriageRow } from "@/modules/jobs/triage-row";
 
 /** Short facts shown next to a job: place, work mode, type, pay. */
@@ -13,8 +14,7 @@ export function jobFacts(row: JobTriageRow): string[] {
 
 /** Package progress label on a saved job, or null when nothing started. */
 export function packageBadgeLabel(meta: PackageListMeta | null | undefined): string | null {
-  const mail = meta?.mailStatus ?? "none";
-  if (mail === "sent" || mail === "waiting" || mail === "follow_up") return "Sent";
+  if (isApplicationSent(meta?.mailStatus)) return "Sent";
   if (meta?.state === "prepared") return "Prepared";
   if (meta?.state === "approved") return "Approved";
   if (meta?.state === "draft") return "Draft pack";
@@ -26,8 +26,7 @@ export function packageCta(
   jobId: string,
   meta: PackageListMeta | null | undefined,
 ): { href: string; label: string } {
-  const mail = meta?.mailStatus ?? "none";
-  if (mail === "sent" || mail === "waiting" || mail === "follow_up") {
+  if (isApplicationSent(meta?.mailStatus)) {
     return { href: "/queue?tab=applications", label: "View in Queue" };
   }
   if (meta?.state === "prepared" || meta?.state === "approved") {
