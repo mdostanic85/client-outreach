@@ -38,8 +38,8 @@ function actionFiles(): string[] {
     .map((dir) => path.join(modulesDir, dir, "actions.ts"))
     .filter((file) => existsSync(file))
     .filter((file) => readFileSync(file, "utf8").startsWith('"use server"'))
-    // auth and onboarding run before or without a full session; they check it themselves.
-    .filter((file) => !/modules\/(auth|onboarding)\//.test(file));
+    // Sign-up / sign-in run before there is a session; they check it themselves.
+    .filter((file) => !/modules\/auth\//.test(file));
 }
 
 function declaredAccess(): Map<string, string> {

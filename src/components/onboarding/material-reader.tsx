@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
+import { useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 type Beat = { chip: string; line: string };
@@ -68,10 +69,9 @@ const ROW_WIDTHS = ["72%", "46%", "88%", "64%", "92%", "54%", "78%"];
 export function MaterialReader({ hasWebsite }: { hasWebsite: boolean }) {
   const stages = stagesFor(hasWebsite);
   const [elapsed, setElapsed] = useState(0);
-  const [reduced, setReduced] = useState(false);
+  const reduced = useReducedMotion() ?? false;
 
   useEffect(() => {
-    setReduced(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     const start = performance.now();
     const id = window.setInterval(() => {
       setElapsed(performance.now() - start);
