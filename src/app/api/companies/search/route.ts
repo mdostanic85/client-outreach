@@ -2,26 +2,14 @@ import { revalidatePath } from "next/cache";
 import { ensureDb } from "@/db/ensure";
 import { logger } from "@/lib/logging/logger";
 import { getRequestUser } from "@/modules/auth/page-guards";
-import type { CompanySearchProgress } from "@/modules/companies/progress";
+import type { CompanyPipelineStats, CompanySearchProgress } from "@/modules/companies/progress";
+import type { SearchStreamEvent } from "@/modules/search-experience/stream";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
-type CompanyPipelineStats = {
-  published?: number;
-  rawCandidates?: number;
-  deterministicallyRemoved?: number;
-  triageRejected?: number;
-  researched?: number;
-  sourceErrors?: unknown[];
-  skipped?: string;
-};
-
-type StreamEvent =
-  | { type: "progress"; progress: CompanySearchProgress }
-  | { type: "done"; stats: CompanyPipelineStats }
-  | { type: "error"; error: string };
+type StreamEvent = SearchStreamEvent<CompanySearchProgress, CompanyPipelineStats>;
 
 /**
  * Streams NDJSON progress while the company discovery pipeline runs.
