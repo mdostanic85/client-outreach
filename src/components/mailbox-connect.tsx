@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { disconnectMailboxAction, saveGoogleOauthClientAction, saveOtherMailboxAction } from "@/modules/mail/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -21,8 +21,22 @@ export function MailboxConnect({
   const router = useRouter();
   const [expand, setExpand] = useState<Expand>(null);
   const [pending, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(flash?.kind === "error" ? flash.message : null);
+  const [info, setInfo] = useState<string | null>(
+    flash?.kind === "connected" ? `Connected: ${flash.message}` : null,
+  );
+  // The OAuth callback lands here with ?mailbox=…; show each new result once.
+  const [seenFlash, setSeenFlash] = useState(flash);
+  if (flash !== seenFlash) {
+    setSeenFlash(flash);
+    if (flash?.kind === "connected") {
+      setInfo(`Connected: ${flash.message}`);
+      setError(null);
+    } else if (flash) {
+      setError(flash.message);
+      setInfo(null);
+    }
+  }
 
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
@@ -33,17 +47,6 @@ export function MailboxConnect({
   const [imapHost, setImapHost] = useState("");
   const [smtpPort, setSmtpPort] = useState("465");
   const [imapPort, setImapPort] = useState("993");
-
-  useEffect(() => {
-    if (!flash) return;
-    if (flash.kind === "connected") {
-      setInfo(`Connected: ${flash.message}`);
-      setError(null);
-    } else {
-      setError(flash.message);
-      setInfo(null);
-    }
-  }, [flash]);
 
   const disconnect = () => {
     if (!window.confirm("Disconnect this mailbox?")) return;

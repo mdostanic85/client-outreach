@@ -114,7 +114,7 @@ async function handleInbound(input: {
     : null;
   if (existing) return { skipped: true as const };
 
-  let thread =
+  const thread =
     (await findThreadByHeaders(input.inReplyTo, input.references)) ??
     (await findThreadBySender(input.fromEmail));
 

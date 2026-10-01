@@ -110,10 +110,11 @@ const STEP_SHORT: Record<SearchUxStageId, string> = {
 function useRotatingActivity(activity: RadarActivity[], paused: boolean) {
   const [index, setIndex] = useState(0);
   const newestId = activity[0]?.id ?? null;
-
-  useEffect(() => {
+  const [seenNewestId, setSeenNewestId] = useState(newestId);
+  if (newestId !== seenNewestId) {
+    setSeenNewestId(newestId);
     setIndex(0);
-  }, [newestId]);
+  }
 
   useEffect(() => {
     if (paused || activity.length < 2) return;

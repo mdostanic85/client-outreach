@@ -85,6 +85,17 @@ export function ProfileImportReview({
     return c;
   }, [actionable]);
 
+  const grouped = useMemo(() => {
+    const map = new Map<string, ProfileDiffItem[]>();
+    for (const item of actionable) {
+      const list = map.get(item.section) ?? [];
+      list.push(item);
+      map.set(item.section, list);
+    }
+    return [...map.entries()];
+  }, [actionable]);
+
+  // After every hook: the list can empty out once the review is applied.
   if (actionable.length === 0) return null;
 
   const setDecision = (id: string, decision: DiffDecision) => {
@@ -108,16 +119,6 @@ export function ProfileImportReview({
       router.refresh();
     });
   };
-
-  const grouped = useMemo(() => {
-    const map = new Map<string, ProfileDiffItem[]>();
-    for (const item of actionable) {
-      const list = map.get(item.section) ?? [];
-      list.push(item);
-      map.set(item.section, list);
-    }
-    return [...map.entries()];
-  }, [actionable]);
 
   return (
     <Surface>

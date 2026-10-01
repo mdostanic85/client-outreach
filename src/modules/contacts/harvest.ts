@@ -60,7 +60,6 @@ function parseMailto(href: string): string | null {
 }
 
 function inferNameNearMailto(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   $: cheerio.CheerioAPI,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   el: any,

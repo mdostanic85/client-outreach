@@ -559,7 +559,8 @@ export function removeProfileFact(
   (next as Record<string, unknown>)[input.field] =
     input.field === "yearsExperience" ? null : undefined;
   if (next.fieldSources?.[input.field]) {
-    const { [input.field]: _, ...rest } = next.fieldSources;
+    const rest = { ...next.fieldSources };
+    delete rest[input.field];
     next.fieldSources = rest;
   }
   return next;
