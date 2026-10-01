@@ -178,7 +178,7 @@ async function handleInbound(input: {
 
       const bounce = await evaluateBounceHealth();
       if (bounce.shouldPause) {
-        pauseMailbox(bounce.reason ?? "hard bounce threshold");
+        await pauseMailbox(bounce.reason ?? "hard bounce threshold");
       }
     }
   }

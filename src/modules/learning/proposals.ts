@@ -39,7 +39,7 @@ const StyleProposalSchema = z.object({
 });
 
 export async function proposeStyleUpdate(force = false) {
-  assertGatesOrPreview(force);
+  await assertGatesOrPreview(force);
   const db = getDb();
   const edits = (await db
     .select()
@@ -101,7 +101,7 @@ export async function proposeStyleUpdate(force = false) {
 }
 
 export async function proposeScoringWeights(force = false) {
-  assertGatesOrPreview(force);
+  await assertGatesOrPreview(force);
   const db = getDb();
   // Deterministic heuristic proposal from accept/reject patterns — no auto-apply
   const { rows } = await buildSourcePerformance();
@@ -142,7 +142,7 @@ export async function proposeScoringWeights(force = false) {
 
 /** Propose job-match dimension weights (separate from outreach scoring). */
 export async function proposeJobScoringWeights(force = false) {
-  assertGatesOrPreview(force);
+  await assertGatesOrPreview(force);
   const db = getDb();
   const family = (await getApprovedSearchProfile())?.params.occupationFamily ?? null;
   const current = await getJobMatchWeights(family);
@@ -191,7 +191,7 @@ function jobMatchWeightsEqual(
 }
 
 export async function generateMarketReport(force = false) {
-  assertGatesOrPreview(force);
+  await assertGatesOrPreview(force);
   const db = getDb();
   const { rows } = await buildSourcePerformance();
   const setting = (await getUserSettings());
@@ -238,7 +238,7 @@ export async function generateMarketReport(force = false) {
 }
 
 export async function generatePositioningRecs(force = false) {
-  assertGatesOrPreview(force);
+  await assertGatesOrPreview(force);
   const db = getDb();
   const setting = (await getUserSettings());
   const edits = (await db.select().from(draftEdits)).slice(0, 15);

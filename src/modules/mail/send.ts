@@ -146,7 +146,7 @@ export async function sendApprovedDraft(approvalId: string): Promise<SendResult>
     .where(eq(companies.id, lead.companyId)).limit(1))[0];
 
   try {
-    assertNotSuppressed(recipient, company?.domain);
+    await assertNotSuppressed(recipient, company?.domain);
   } catch (err) {
     return {
       ok: false,
@@ -282,7 +282,7 @@ export async function processSendQueue(limit?: number) {
 
   const bounce = await evaluateBounceHealth();
   if (bounce.shouldPause) {
-    pauseMailbox(bounce.reason ?? "bounce health");
+    await pauseMailbox(bounce.reason ?? "bounce health");
     return {
       processed: 0,
       sent: 0,
